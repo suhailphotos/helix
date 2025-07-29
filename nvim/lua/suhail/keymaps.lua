@@ -1,5 +1,5 @@
 local map = vim.keymap.set
-vim.g.mapleader = " "
+--vim.g.mapleader = " "
 
 map('n', "<leader>pv", vim.cmd.Ex)
 map("v", "J", ":m '>+1<CR>gv=gv")

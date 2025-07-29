@@ -1,3 +1,7 @@
+-- 0.  YOUR LEADER KEYS  ────────────────────────────────────────────────────
+vim.g.mapleader      = " "     -- <Space> is the main leader
+vim.g.maplocalleader = ","     -- (optional) local leader
+
 -- 1. Decide where lazy.nvim should live
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 --   stdpath("data") → ~/.local/share/nvim   (on macOS/Linux)

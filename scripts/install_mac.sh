@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 1) deps
-brew install neovim tmux ripgrep fd stow
-
-# 2) location
 ROOT="/Users/suhail/Library/CloudStorage/Dropbox/matrix/helix"
 cd "$ROOT"
 
-# 3) symlinks
-mkdir -p "$HOME/.config"
-stow -v -t "$HOME/.config" nvim
-stow -v -t "$HOME" tmux
+echo "▶ Installing base tools with Homebrew"
+brew update
+brew install neovim git stow tmux ripgrep fd lazygit bottom python node go
 
-# 4) plugin sync
+echo "▶ Symlinking configs with stow"
+mkdir -p "$HOME/.config"
+stow -v nvim   # → ~/.config/nvim  (thanks to .stowrc target)
+stow -v tmux   # → ~/.tmux.conf
+
+echo "▶ Pulling plugins (Lazy + AstroNvim)"
 nvim --headless "+Lazy! sync" +qa
 
-echo "Helix install complete."
+echo ""
+echo "All set! Launch Neovim with: nvim"
