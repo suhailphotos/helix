@@ -1,29 +1,19 @@
--- 0.  YOUR LEADER KEYS  ────────────────────────────────────────────────────
-vim.g.mapleader      = " "     -- <Space> is the main leader
-vim.g.maplocalleader = ","     -- (optional) local leader
+-- set leaders *first*
+vim.g.mapleader      = " "
+vim.g.maplocalleader = ","
 
--- 1. Decide where lazy.nvim should live
+-- bootstrap lazy.nvim (unchanged ↓)
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
---   stdpath("data") → ~/.local/share/nvim   (on macOS/Linux)
-
--- 2. If it’s not there, clone it
 if not vim.uv.fs_stat(lazypath) then
-  vim.fn.system({          -- run an external command
-    "git", "clone",
-    "--filter=blob:none",  -- don't download every file history
-    "https://github.com/folke/lazy.nvim.git",
-    "--branch=stable",
-    lazypath
-  })
+  vim.fn.system({ "git", "clone", "--filter=blob:none",
+    "https://github.com/folke/lazy.nvim.git", "--branch=stable", lazypath })
 end
-
--- 3. Put lazy.nvim on Neovim’s runtimepath
 vim.opt.rtp:prepend(lazypath)
 
--- 4. Tell lazy.nvim to read all plugin specs under lua/plugins/**
+-- load every spec in lua/plugins/**
 require("lazy").setup("plugins")
 
--- 5. Load your own options, keymaps, autocmds
+-- *then* load your prefs
 require("suhail.options")
 require("suhail.keymaps")
 require("suhail.autocmds")
