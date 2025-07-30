@@ -1,23 +1,15 @@
 #!/usr/bin/env bash
-# One-shot bootstrap for macOS
 set -euo pipefail
 
-# ──────────────────────────────────────────────────────────────────────────────
-# 0.  Paths
-DOTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$DOTS_DIR"
-
-# ──────────────────────────────────────────────────────────────────────────────
-# 1.  Homebrew + packages
-if ! command -v brew >/dev/null 2>&1; then
-  echo "🔧  Installing Homebrew ..."
+echo "Checking Homebrew..."
+if ! command -v brew &>/dev/null; then
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-  eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
 
-echo "🔧  Installing core packages ..."
-brew bundle --file=- <<'BREW'
-tap "homebrew/bundle"
+echo "Installing packages with Homebrew…"
+brew update
+
+brew bundle --file=- <<'BREWFILE'
 brew "git"
 brew "neovim"
 brew "stow"
@@ -26,26 +18,16 @@ brew "fd"
 brew "lazygit"
 brew "bottom"
 brew "node"
-brew "python"      # python3 + pip
-brew "gdu"         # optional: disk-usage tool for :<Leader>du
-BREW
+brew "python"
+brew "gdu"
+cask "wezterm"        # optional terminal
+BREWFILE
 
-# ──────────────────────────────────────────────────────────────────────────────
-# 2.  Neovim remote providers
-python3 -m pip install --user --upgrade pynvim
-npm install -g neovim
+echo "Stowing dot-files…"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+stow nvim iterm tmux
 
-# ──────────────────────────────────────────────────────────────────────────────
-# 3.  Dotfiles → $HOME
-mkdir -p "$HOME/.config"
-
-ln -sfn "$DOTS_DIR/nvim"  "$HOME/.config/nvim"   # Neovim (single link)
-stow -vt "$HOME" tmux                           # other packages
-stow -vt "$HOME" iterm || true                  # ignore if you don’t use iterm
-
-# ──────────────────────────────────────────────────────────────────────────────
-# 4.  Pull & lock all Neovim plugins
-echo "🔧  Syncing Neovim plugins (Lazy) ..."
-nvim --headless "+Lazy! sync" +qa
-
-echo "✅  Helix (AstroNvim) ready.  Launch with: nvim"
+echo "Installing Neovim plugins (first run)…"
+nvim --headless -u NONE "+lua require('bootstrap')" >/dev/null
+echo "All set!  Launch nvim normally."

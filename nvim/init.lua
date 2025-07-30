@@ -1,19 +1,11 @@
--- set leaders *first*
-vim.g.mapleader      = " "
-vim.g.maplocalleader = ","
+require('suhail')
+-- ─── bootstrap packer ──────────────────────────────────────────────────────
+local fn  = vim.fn
+local path = fn.stdpath("data") .. "/site/pack/packer/start/packer.nvim"
 
--- bootstrap lazy.nvim (unchanged ↓)
-local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
-if not vim.uv.fs_stat(lazypath) then
-  vim.fn.system({ "git", "clone", "--filter=blob:none",
-    "https://github.com/folke/lazy.nvim.git", "--branch=stable", lazypath })
+if fn.empty(fn.glob(path)) > 0 then
+  print("  Installing packer, please wait…")
+  fn.system({"git", "clone", "--depth", "1",
+             "https://github.com/wbthomason/packer.nvim", path})
+  vim.cmd("packadd packer.nvim")
 end
-vim.opt.rtp:prepend(lazypath)
-
--- load every spec in lua/plugins/**
-require("lazy").setup("plugins")
-
--- *then* load your prefs
-require("suhail.options")
-require("suhail.keymaps")
-require("suhail.autocmds")
