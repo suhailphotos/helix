@@ -1,26 +1,10 @@
 -- nvim/lua/plugins/core.lua
 return {
-  -- Astro core (must load first)
-  {
-    "AstroNvim/astrocore",
-    version = "^2",  -- stay on the current major line
-    lazy    = false, -- load immediately
-  },
-  {
-    "AstroNvim/astroui",
-    version = "^2",
-    lazy    = false,
-  },
-  {
-    "AstroNvim/astrolsp",
-    version = "^3",
-    lazy    = false,
-  },
+  -- Astro core modules (keep these)
+  { "AstroNvim/astrocore", lazy = false, version = "^2" },
+  { "AstroNvim/astroui",   lazy = false, version = "^2" },
+  { "AstroNvim/astrolsp",  lazy = false, version = "^3" },
 
-  -- Meta-package that pulls in the rest of AstroNvim
-  {
-    "AstroNvim/AstroNvim",
-    version = "^5",
-    lazy    = false,
-  },
+  -- full AstroNvim plugin set  ↓↓↓  (this line is the important bit)
+  { "AstroNvim/AstroNvim", lazy = false, version = "^5", import = "astronvim.plugins" },
 }
