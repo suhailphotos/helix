@@ -17,24 +17,30 @@ return {
     dependencies = { "nvim-lua/plenary.nvim" } },
 
   ----------------------------------------------------------------------
-  -- Treesitter
+  -- **Explorer like AstroNvim**
   {
-    "nvim-treesitter/nvim-treesitter",
-    build = ":TSUpdate",
-    opts  = {
-      ensure_installed = { "vimdoc","lua","python",
-                           "javascript","typescript","rust","c" },
-      auto_install     = true,    
-      highlight        = { enable = true },
+    "nvim-neo-tree/neo-tree.nvim",
+    branch = "v3.x",
+    dependencies = {
+      "nvim-lua/plenary.nvim",
+      "nvim-tree/nvim-web-devicons",   -- already in your tree
+      "MunifTanjim/nui.nvim",          -- already in your tree
     },
-    config = function(_, opts)
-      local install = require("nvim-treesitter.install")
-      install.parser_install_dir =
-        vim.fn.stdpath("data") .. "/parsers"   -- ~/.local/share/nvim/parsers
-      vim.opt.rtp:append(install.parser_install_dir)
-      require("nvim-treesitter.configs").setup(opts)
-    end,
+    keys = {
+      { "<leader>e", ":Neotree toggle<CR>", desc = "Explorer (neo-tree)" },
+    },
+    opts = {
+      window = { position = "left", width = 30 },
+      filesystem = {
+        filtered_items = { visible = true, show_hidden_count = true },
+      },
+      default_component_configs = {
+        indent = { padding = 0 },
+        icon   = { folder_closed = "", folder_open = "" },
+      },
+    },
   },
+
   ----------------------------------------------------------------------
   -- Git goodies & misc
   "tpope/vim-fugitive",
@@ -42,20 +48,16 @@ return {
   "mbbill/undotree",
 
   ----------------------------------------------------------------------
-  -- LSP + completion  (your old lsp.lua will still run)
+  -- LSP + completion
   { "VonHeikemen/lsp-zero.nvim", branch = "v1.x",
     dependencies = {
-      -- LSP
-      "neovim/nvim-lspconfig",
-      "williamboman/mason.nvim",
+      "neovim/nvim-lspconfig", "williamboman/mason.nvim",
       "williamboman/mason-lspconfig.nvim",
-      -- completion
-      "hrsh7th/nvim-cmp", "hrsh7th/cmp-nvim-lsp", "hrsh7th/cmp-path",
-      "hrsh7th/cmp-buffer", "saadparwaiz1/cmp_luasnip",
-      "hrsh7th/cmp-nvim-lua",
-      -- snippets
+      "hrsh7th/nvim-cmp", "hrsh7th/cmp-nvim-lsp",
+      "hrsh7th/cmp-path", "hrsh7th/cmp-buffer",
+      "saadparwaiz1/cmp_luasnip", "hrsh7th/cmp-nvim-lua",
       "L3MON4D3/LuaSnip", "rafamadriz/friendly-snippets",
-    }
+    },
   },
 
   ----------------------------------------------------------------------
@@ -67,6 +69,6 @@ return {
       "MunifTanjim/nui.nvim",
       "nvim-tree/nvim-web-devicons",
     },
-    opts = {},   -- your Avante config table
+    opts = {},
   },
 }

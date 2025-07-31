@@ -39,3 +39,10 @@ luac.out
 *.x86_64
 *.hex
 
+# Ignore Neovim temp/build outputs in Dropbox
+nvim/parsers/
+nvim/ts_tmp/
+nvim/tree-sitter-*/
+nvim/tree-sitter-*-tmp/
+nvim/.local/
+nvim/.cache/
