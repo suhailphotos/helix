@@ -39,9 +39,6 @@ install_prereqs() {
   else
     echo "Git is already installed."
   fi
-
-  # Optional: Source .zshrc if present
-  [ -f "${HOME}/.zshrc" ] && source "${HOME}/.zshrc"
 }
 
 #--------------------#
@@ -72,9 +69,6 @@ install_iterm2() {
     # Add theme line if missing
     echo 'ZSH_THEME="powerlevel10k/powerlevel10k"' >> "$ZSHRC"
   fi
-
-  echo "Sourcing .zshrc to apply changes..."
-  source "$ZSHRC"
 
   echo "Fetching Powerlevel10k config (.p10k.zsh)..."
   curl -fsSL "https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/iterm/.p10k.zsh" -o "${USER_HOME}/.p10k.zsh"
