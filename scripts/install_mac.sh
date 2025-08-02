@@ -43,7 +43,6 @@ install_prereqs() {
 #------------------------------#
 install_iterm2_and_font() {
   echo "Installing MesloLGS Nerd Font..."
-  brew tap homebrew/cask-fonts
   brew install --cask font-meslo-lg-nerd-font
 
   echo "Installing iTerm2 via Homebrew..."
@@ -56,9 +55,7 @@ install_iterm2_and_font() {
   curl -fsSL "$IT2_PROFILE_JSON_URL" -o "$IT2_PROFILE_JSON_PATH"
 
   echo "Importing iTerm2 profile..."
-  # This will run only if iTerm2 is installed at the default location
   if [ -e "/Applications/iTerm.app/Contents/MacOS/iTerm2" ]; then
-    # Import profile via CLI (no window will pop up)
     /Applications/iTerm.app/Contents/MacOS/iTerm2 --import-profile "$IT2_PROFILE_JSON_PATH"
   else
     echo "iTerm2 not found at /Applications/iTerm.app. Please launch iTerm2 once and then rerun the import command manually:"
