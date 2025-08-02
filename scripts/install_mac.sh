@@ -49,15 +49,21 @@ install_iterm2_and_font() {
   echo "Installing iTerm2 via Homebrew..."
   brew install --cask iterm2
 
-  echo "Configuring iTerm2 preferences..."
-  IT2_PLIST_URL="https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/iterm/com.googlecode.iterm2.plist"
-  IT2_PLIST_PATH="${USER_HOME}/Library/Preferences/com.googlecode.iterm2.plist"
-  curl -fsSL "$IT2_PLIST_URL" -o "$IT2_PLIST_PATH"
+  echo "Downloading iTerm2 profile JSON..."
+  IT2_PROFILE_JSON_URL="https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/iterm/suhail_item2_profiles.json"
+  IT2_PROFILE_JSON_PATH="${USER_HOME}/iterm/suhail_item2_profiles.json"
+  mkdir -p "$(dirname "$IT2_PROFILE_JSON_PATH")"
+  curl -fsSL "$IT2_PROFILE_JSON_URL" -o "$IT2_PROFILE_JSON_PATH"
 
-  # Optionally: tell iTerm2 to always load custom preferences from helix repo folder
-  # CUSTOM_PREFS_DIR="${USER_HOME}/Library/CloudStorage/Dropbox/matrix/helix/iterm"
-  # defaults write com.googlecode.iterm2 PrefsCustomFolder -string "$CUSTOM_PREFS_DIR"
-  # defaults write com.googlecode.iterm2 LoadPrefsFromCustomFolder -bool true
+  echo "Importing iTerm2 profile..."
+  # This will run only if iTerm2 is installed at the default location
+  if [ -e "/Applications/iTerm.app/Contents/MacOS/iTerm2" ]; then
+    # Import profile via CLI (no window will pop up)
+    /Applications/iTerm.app/Contents/MacOS/iTerm2 --import-profile "$IT2_PROFILE_JSON_PATH"
+  else
+    echo "iTerm2 not found at /Applications/iTerm.app. Please launch iTerm2 once and then rerun the import command manually:"
+    echo "/Applications/iTerm.app/Contents/MacOS/iTerm2 --import-profile $IT2_PROFILE_JSON_PATH"
+  fi
 
   echo "iTerm2 and font setup complete."
 }
