@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
 
-# install_mac.sh
-# Usage: curl -fsSL https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/scripts/install_mac.sh | bash
-
 set -euo pipefail
 
 USER_HOME="${HOME}"
@@ -41,13 +38,34 @@ install_prereqs() {
   fi
 }
 
-#--------------------#
-#  Install iTerm2    #
-#--------------------#
-install_iterm2() {
+#------------------------------#
+#  Install font and iTerm2     #
+#------------------------------#
+install_iterm2_and_font() {
+  echo "Installing MesloLGS Nerd Font..."
+  brew tap homebrew/cask-fonts
+  brew install --cask font-meslo-lg-nerd-font
+
   echo "Installing iTerm2 via Homebrew..."
   brew install --cask iterm2
 
+  echo "Configuring iTerm2 preferences..."
+  IT2_PLIST_URL="https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/iterm/com.googlecode.iterm2.plist"
+  IT2_PLIST_PATH="${USER_HOME}/Library/Preferences/com.googlecode.iterm2.plist"
+  curl -fsSL "$IT2_PLIST_URL" -o "$IT2_PLIST_PATH"
+
+  # Optionally: tell iTerm2 to always load custom preferences from helix repo folder
+  # CUSTOM_PREFS_DIR="${USER_HOME}/Library/CloudStorage/Dropbox/matrix/helix/iterm"
+  # defaults write com.googlecode.iterm2 PrefsCustomFolder -string "$CUSTOM_PREFS_DIR"
+  # defaults write com.googlecode.iterm2 LoadPrefsFromCustomFolder -bool true
+
+  echo "iTerm2 and font setup complete."
+}
+
+#--------------------#
+#  Zsh + P10k setup  #
+#--------------------#
+install_zsh_and_p10k() {
   echo "Installing Oh My Zsh..."
   export RUNZSH=no  # Prevent Oh My Zsh installer from launching zsh interactively
   export CHSH=no    # Prevent changing shell during install
@@ -73,19 +91,13 @@ install_iterm2() {
   echo "Fetching Powerlevel10k config (.p10k.zsh)..."
   curl -fsSL "https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/iterm/.p10k.zsh" -o "${USER_HOME}/.p10k.zsh"
 
-  echo "Fetching and importing iTerm2 color preset..."
+  echo "Fetching iTerm2 color preset..."
   COLOR_FILE="${USER_HOME}/iterm/suhailTerm2.itermcolors"
   mkdir -p "$(dirname "$COLOR_FILE")"
   curl -fsSL "https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/iterm/suhailTerm2.itermcolors" -o "$COLOR_FILE"
 
-  # Optionally: auto-import the color preset into iTerm2 by opening it (requires GUI):
-  if [ -x "$(command -v open)" ]; then
-    open "$COLOR_FILE"
-  else
-    echo "To import the iTerm2 color scheme, open $COLOR_FILE in iTerm2 manually."
-  fi
-
-  echo "iTerm2 setup complete."
+  # DO NOT open iTerm2 or the color preset—avoid popups
+  echo "Oh My Zsh and Powerlevel10k setup complete."
 }
 
 #--------------------#
@@ -93,8 +105,13 @@ install_iterm2() {
 #--------------------#
 main() {
   install_prereqs
-  install_iterm2
+  install_iterm2_and_font
+  install_zsh_and_p10k
   # Call more install functions here: install_neovim, install_tmux, etc.
+
+  echo
+  echo "🎉 All done! Open iTerm2 and enjoy your custom Zsh + Powerlevel10k environment."
+  echo "If you ever want to re-import color schemes, just double-click ${COLOR_FILE}."
 }
 
 main "$@"
