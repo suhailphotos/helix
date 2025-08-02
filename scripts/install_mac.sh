@@ -8,6 +8,9 @@ USER_HOME="${HOME}"
 #  Prerequisites     #
 #--------------------#
 install_prereqs() {
+  echo "Requesting admin access for Homebrew installation if needed..."
+  sudo -v
+
   echo "Checking for Xcode Command Line Tools..."
   if ! xcode-select -p &> /dev/null; then
     echo "Xcode Command Line Tools not found."
@@ -48,24 +51,34 @@ install_iterm2_and_font() {
   echo "Installing iTerm2 via Homebrew..."
   brew install --cask iterm2
 
-  echo "Downloading iTerm2 profile JSON..."
+  # Download iTerm2 profile and color scheme to Downloads for user import
   IT2_PROFILE_JSON_URL="https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/iterm/suhail_item2_profiles.json"
-  IT2_PROFILE_JSON_PATH="${USER_HOME}/iterm/suhail_item2_profiles.json"
-  mkdir -p "$(dirname "$IT2_PROFILE_JSON_PATH")"
+  IT2_PROFILE_JSON_PATH="${USER_HOME}/Downloads/suhail_item2_profiles.json"
+  echo "Downloading iTerm2 profile JSON to ~/Downloads..."
   curl -fsSL "$IT2_PROFILE_JSON_URL" -o "$IT2_PROFILE_JSON_PATH"
 
+  COLOR_FILE_URL="https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/iterm/suhailTerm2.itermcolors"
+  COLOR_FILE_PATH="${USER_HOME}/Downloads/suhailTerm2.itermcolors"
+  echo "Downloading iTerm2 color preset to ~/Downloads..."
+  curl -fsSL "$COLOR_FILE_URL" -o "$COLOR_FILE_PATH"
+
   echo
-  echo "iTerm2 will open to import your profile. Please QUIT iTerm2 after it opens to continue the script."
-  sleep 2
-
-  if [ -e "/Applications/iTerm.app/Contents/MacOS/iTerm2" ]; then
-    /Applications/iTerm.app/Contents/MacOS/iTerm2 --import-profile "$IT2_PROFILE_JSON_PATH"
-  else
-    echo "iTerm2 not found at /Applications/iTerm.app. Please launch iTerm2 once and then rerun the import command manually:"
-    echo "/Applications/iTerm.app/Contents/MacOS/iTerm2 --import-profile $IT2_PROFILE_JSON_PATH"
-  fi
-
-  echo "iTerm2 and font setup complete."
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "To finish setting up iTerm2:"
+  echo
+  echo "1. Open iTerm2."
+  echo "2. Go to Preferences > Profiles > Other Actions (gear) > Import."
+  echo "   Import:  ~/Downloads/suhail_item2_profiles.json"
+  echo "3. Right-click your imported profile and choose Set as Default."
+  echo
+  echo "To import colors:"
+  echo "4. Go to Preferences > Profiles > Colors."
+  echo "5. Click Color Presets… > Import…"
+  echo "   Import:  ~/Downloads/suhailTerm2.itermcolors"
+  echo "6. With your profile selected, choose 'suhailTerm2' from the Color Presets list."
+  echo
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo
 }
 
 #------------------------------#
@@ -128,12 +141,6 @@ install_zsh_and_p10k() {
   # Patch .zshrc for instant prompt and sourcing
   patch_zshrc_for_p10k
 
-  echo "Fetching iTerm2 color preset..."
-  COLOR_FILE="${USER_HOME}/iterm/suhailTerm2.itermcolors"
-  mkdir -p "$(dirname "$COLOR_FILE")"
-  curl -fsSL "https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/iterm/suhailTerm2.itermcolors" -o "$COLOR_FILE"
-
-  # DO NOT open iTerm2 or the color preset—avoid popups
   echo "Oh My Zsh and Powerlevel10k setup complete."
 }
 
@@ -147,8 +154,7 @@ main() {
   # Call more install functions here: install_neovim, install_tmux, etc.
 
   echo
-  echo "🎉 All done! Open iTerm2 and enjoy your custom Zsh + Powerlevel10k environment."
-  echo "If you ever want to re-import color schemes, just double-click ${COLOR_FILE}."
+  echo "🎉 All done! Open iTerm2 and finish importing your profile and colors as instructed above."
 }
 
 main "$@"
