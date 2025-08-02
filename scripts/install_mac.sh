@@ -54,7 +54,10 @@ install_iterm2_and_font() {
   mkdir -p "$(dirname "$IT2_PROFILE_JSON_PATH")"
   curl -fsSL "$IT2_PROFILE_JSON_URL" -o "$IT2_PROFILE_JSON_PATH"
 
-  echo "Importing iTerm2 profile..."
+  echo
+  echo "iTerm2 will open to import your profile. Please QUIT iTerm2 after it opens to continue the script."
+  sleep 2
+
   if [ -e "/Applications/iTerm.app/Contents/MacOS/iTerm2" ]; then
     /Applications/iTerm.app/Contents/MacOS/iTerm2 --import-profile "$IT2_PROFILE_JSON_PATH"
   else
@@ -65,21 +68,31 @@ install_iterm2_and_font() {
   echo "iTerm2 and font setup complete."
 }
 
-add_p10k_instant_prompt_block() {
-  ZSHRC="${USER_HOME}/.zshrc"
-  BLOCK_START="# Enable Powerlevel10k instant prompt."
-  if ! grep -qF "$BLOCK_START" "$ZSHRC"; then
-    echo "Injecting Powerlevel10k instant prompt block into .zshrc"
-    cat <<'EOF' > /tmp/p10k_instant_prompt_block
+#------------------------------#
+#  Patch .zshrc for Powerlevel10k
+#------------------------------#
+patch_zshrc_for_p10k() {
+  local ZSHRC="${USER_HOME}/.zshrc"
+  local INSTANT_BLOCK="# Enable Powerlevel10k instant prompt."
+  local P10K_SOURCE='[[ -f ~/.p10k.zsh ]] && source ~/.p10k.zsh'
+  local TMP=/tmp/zshrc_patched
+
+  # 1. Add instant prompt block to very top if missing
+  if ! grep -qF "$INSTANT_BLOCK" "$ZSHRC"; then
+    cat <<'EOF' > "$TMP"
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
 if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 
 EOF
-    cat /tmp/p10k_instant_prompt_block "$ZSHRC" > /tmp/zshrc_new
-    mv /tmp/zshrc_new "$ZSHRC"
-    rm /tmp/p10k_instant_prompt_block
+    cat "$ZSHRC" >> "$TMP"
+    mv "$TMP" "$ZSHRC"
+  fi
+
+  # 2. Ensure .p10k.zsh is sourced at the end
+  if ! grep -qF "$P10K_SOURCE" "$ZSHRC"; then
+    echo "$P10K_SOURCE" >> "$ZSHRC"
   fi
 }
 
@@ -110,15 +123,15 @@ install_zsh_and_p10k() {
   fi
 
   echo "Fetching Powerlevel10k config (.p10k.zsh)..."
-  curl -fsSL "https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/iterm/.p10k.zsh" -o "${USER_HOME}/.p10k.zsh"
+  curl -L -o "${USER_HOME}/.p10k.zsh" "https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/iterm/.p10k.zsh"
+
+  # Patch .zshrc for instant prompt and sourcing
+  patch_zshrc_for_p10k
 
   echo "Fetching iTerm2 color preset..."
   COLOR_FILE="${USER_HOME}/iterm/suhailTerm2.itermcolors"
   mkdir -p "$(dirname "$COLOR_FILE")"
   curl -fsSL "https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/iterm/suhailTerm2.itermcolors" -o "$COLOR_FILE"
-
-  # Add the instant prompt block if needed
-  add_p10k_instant_prompt_block
 
   # DO NOT open iTerm2 or the color preset—avoid popups
   echo "Oh My Zsh and Powerlevel10k setup complete."
