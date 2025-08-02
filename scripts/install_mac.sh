@@ -65,6 +65,24 @@ install_iterm2_and_font() {
   echo "iTerm2 and font setup complete."
 }
 
+add_p10k_instant_prompt_block() {
+  ZSHRC="${USER_HOME}/.zshrc"
+  BLOCK_START="# Enable Powerlevel10k instant prompt."
+  if ! grep -qF "$BLOCK_START" "$ZSHRC"; then
+    echo "Injecting Powerlevel10k instant prompt block into .zshrc"
+    cat <<'EOF' > /tmp/p10k_instant_prompt_block
+# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
+
+EOF
+    cat /tmp/p10k_instant_prompt_block "$ZSHRC" > /tmp/zshrc_new
+    mv /tmp/zshrc_new "$ZSHRC"
+    rm /tmp/p10k_instant_prompt_block
+  fi
+}
+
 #--------------------#
 #  Zsh + P10k setup  #
 #--------------------#
@@ -98,6 +116,9 @@ install_zsh_and_p10k() {
   COLOR_FILE="${USER_HOME}/iterm/suhailTerm2.itermcolors"
   mkdir -p "$(dirname "$COLOR_FILE")"
   curl -fsSL "https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/iterm/suhailTerm2.itermcolors" -o "$COLOR_FILE"
+
+  # Add the instant prompt block if needed
+  add_p10k_instant_prompt_block
 
   # DO NOT open iTerm2 or the color preset—avoid popups
   echo "Oh My Zsh and Powerlevel10k setup complete."
