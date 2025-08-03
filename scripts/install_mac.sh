@@ -136,7 +136,7 @@ install_zsh_and_p10k() {
   fi
 
   echo "Fetching Powerlevel10k config (.p10k.zsh)..."
-  curl -L -o "${USER_HOME}/.p10k.zsh" "https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/iterm/.p10k.zsh"
+  curl -L -o "${USER_HOME}/.p10k.zsh" "https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/p10k/.p10k.zsh"
 
   # Patch .zshrc for instant prompt and sourcing
   patch_zshrc_for_p10k
