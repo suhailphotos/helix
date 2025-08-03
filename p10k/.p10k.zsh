@@ -927,7 +927,13 @@
   #
   # -------------------   Suhail's adjustments -----------------
   # Below are the adjustments made by Suhail feel free comment out the ones you don't want
-  typeset -g POWERLEVEL9K_CONTEXT_TEMPLATE='%F{244}%n%f%F{180}@%m%f'
+  case "$OSTYPE" in
+    darwin*) CONTEXT_SUFFIX="" ;;
+    linux*) CONTEXT_SUFFIX=":" ;;
+    *) CONTEXT_SUFFIX="" ;;
+  esac
+
+  typeset -g POWERLEVEL9K_CONTEXT_TEMPLATE="%F{244}%n%f%F{180}@%m%f${CONTEXT_SUFFIX}"
   typeset -g POWERLEVEL9K_CONTEXT_ROOT_TEMPLATE='%F{244}%n%f%F{180}@%m%f'
   typeset -g POWERLEVEL9K_CONTEXT_REMOTE_TEMPLATE='%F{244}%n%f%F{180}@%m%f'
   typeset -g POWERLEVEL9K_CONTEXT_REMOTE_SUDO_TEMPLATE='%F{244}%n%f%F{180}@%m%f'
