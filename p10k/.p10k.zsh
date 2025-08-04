@@ -975,7 +975,7 @@
   case "$OSTYPE" in
     darwin*)        user_colour=004 ;;     # macOS
     linux-gnu*|linux*)
-                    user_colour=010 ;;     # Linux
+                    user_colour=014 ;;     # Linux
     cygwin*|msys*|win32|mingw*)
                     user_colour=011 ;;     # Windows terminals
     *)              user_colour=004 ;;     # fallback
