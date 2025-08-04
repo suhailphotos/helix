@@ -969,17 +969,34 @@
   #
   #
   # -------------------   Suhail's adjustments -----------------
-  # Below are the adjustments made by Suhail feel free comment out the ones you don't want
+  # ── per-platform colours for the *user* part of user@host ───────────────
+  # 004 = blue, 010 = green, 011 = yellow, 013 = magenta … change as you like
+  local user_colour
   case "$OSTYPE" in
-    darwin*) CONTEXT_SUFFIX="" ;;
-    linux-gnu*) CONTEXT_SUFFIX=":" ;;
-    *) CONTEXT_SUFFIX="" ;;
+    darwin*)        user_colour=004 ;;     # macOS
+    linux-gnu*|linux*)
+                    user_colour=010 ;;     # Linux
+    cygwin*|msys*|win32|mingw*)
+                    user_colour=011 ;;     # Windows terminals
+    *)              user_colour=004 ;;     # fallback
   esac
-
-  typeset -g POWERLEVEL9K_CONTEXT_TEMPLATE="%F{004}%n%f%F{default}@%m%f${CONTEXT_SUFFIX}"
-  typeset -g POWERLEVEL9K_CONTEXT_ROOT_TEMPLATE="%F{004}%n%f%F{default}@%m%f${CONTEXT_SUFFIX}"
-  typeset -g POWERLEVEL9K_CONTEXT_REMOTE_TEMPLATE="%F{004}%n%f%F{default}@%m%f${CONTEXT_SUFFIX}"
-  typeset -g POWERLEVEL9K_CONTEXT_REMOTE_SUDO_TEMPLATE="%F{004}%n%f%F{default}@%m%f${CONTEXT_SUFFIX}"
+  
+  # root (UID 0) overrides everything
+  [[ $EUID -eq 0 ]] && user_colour=013
+  
+  # Optional: different punctuation on Linux (":"), nothing on others
+  case "$OSTYPE" in
+    linux-gnu*|linux*) CONTEXT_SUFFIX=":" ;;
+    *)                 CONTEXT_SUFFIX=""  ;;
+  esac
+  
+  # Build templates.  %F{…} sets colour, %f resets.
+  typeset -g POWERLEVEL9K_CONTEXT_TEMPLATE="%F{$user_colour}%n%f%F{default}@%m%f${CONTEXT_SUFFIX}"
+  
+  # Root and remote templates – keep the same colouring rule
+  typeset -g POWERLEVEL9K_CONTEXT_ROOT_TEMPLATE="%F{$user_colour}%n%f%F{default}@%m%f${CONTEXT_SUFFIX}"
+  typeset -g POWERLEVEL9K_CONTEXT_REMOTE_TEMPLATE="%F{$user_colour}%n%f%F{default}@%m%f${CONTEXT_SUFFIX}"
+  typeset -g POWERLEVEL9K_CONTEXT_REMOTE_SUDO_TEMPLATE="%F{$user_colour}%n%f%F{default}@%m%f${CONTEXT_SUFFIX}"
   # --------------------  end suhail's adjustments --------------------------
 
 
