@@ -929,7 +929,7 @@
   # Below are the adjustments made by Suhail feel free comment out the ones you don't want
   case "$OSTYPE" in
     darwin*) CONTEXT_SUFFIX="" ;;
-    linux-gnu*) CONTEXT_SUFFIX=":" ;;
+    linux*|*linux*) CONTEXT_SUFFIX=":" ;;
     *) CONTEXT_SUFFIX="" ;;
   esac
 
