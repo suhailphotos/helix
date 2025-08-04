@@ -41,12 +41,31 @@ install_prereqs() {
   fi
 }
 
+install_meslo_fonts() {
+  echo "Installing MesloLGS NF fonts directly (recommended by Powerlevel10k)..."
+  FONT_DIR="${USER_HOME}/Library/Fonts"
+  mkdir -p "$FONT_DIR"
+
+  # Download each style
+  curl -fsSL -o "$FONT_DIR/MesloLGS NF Regular.ttf" \
+    "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Regular.ttf"
+  curl -fsSL -o "$FONT_DIR/MesloLGS NF Bold.ttf" \
+    "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold.ttf"
+  curl -fsSL -o "$FONT_DIR/MesloLGS NF Italic.ttf" \
+    "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Italic.ttf"
+  curl -fsSL -o "$FONT_DIR/MesloLGS NF Bold Italic.ttf" \
+    "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold%20Italic.ttf"
+
+  echo "MesloLGS NF fonts installed. You may need to restart iTerm2 to see them."
+}
+
+
 #------------------------------#
 #  Install font and iTerm2     #
 #------------------------------#
 install_iterm2_and_font() {
   echo "Installing MesloLGS Nerd Font..."
-  brew install --cask font-meslo-lg-nerd-font
+  install_meslo_fonts
 
   echo "Installing iTerm2 via Homebrew..."
   brew install --cask iterm2
