@@ -220,7 +220,8 @@
   typeset -g POWERLEVEL9K_DIR_FOREGROUND=024
   # If directory is too long, shorten some of its segments to the shortest possible unique
   # prefix. The shortened directory can be tab-completed to the original.
-  typeset -g POWERLEVEL9K_SHORTEN_STRATEGY=truncate_to_unique
+  # typeset -g POWERLEVEL9K_SHORTEN_STRATEGY=truncate_to_unique <-- commented by suhail
+  # typeset -g POWERLEVEL9K_SHORTEN_STRATEGY=truncate_from_left <-- commented by suhail
   # Replace removed segment suffixes with this symbol.
   typeset -g POWERLEVEL9K_SHORTEN_DELIMITER=
   # Color of the shortened directory segments.
@@ -269,7 +270,7 @@
   typeset -g POWERLEVEL9K_DIR_TRUNCATE_BEFORE_MARKER=false
   # Don't shorten this many last directory segments. They are anchors.
 
-  typeset -g POWERLEVEL9K_SHORTEN_DIR_LENGTH=1 
+  typeset -g POWERLEVEL9K_SHORTEN_DIR_LENGTH=2 
   # typeset -g POWERLEVEL9K_SHORTEN_DIR_LENGTH=0 # <- commented out by Suhail
   # Shorten directory if it's longer than this even if there is space for it. The value can
   # be either absolute (e.g., '80') or a percentage of terminal width (e.g, '50%'). If empty,
@@ -278,8 +279,50 @@
   # If set to `0`, directory will always be shortened to its minimum length.
 
   typeset -g POWERLEVEL9K_DIR_MAX_LENGTH=80
-  typeset -g POWERLEVEL9K_DIR_CONTENT_EXPANSION='${${PWD/#$HOME/~}:t}'
+  # typeset -g POWERLEVEL9K_DIR_CONTENT_EXPANSION='${${PWD/#$HOME/~}:t}'  <- commented by Suhail to keep only top level directory showing
   # typeset -g POWERLEVEL9K_DIR_MAX_LENGTH=1 # <- commented by Suhail to keep only top level directory showing
+  #
+  # --- Show parent + current dir, truncate anything before with ".." ----------
+  # typeset -g POWERLEVEL9K_DIR_MAX_DEPTH=2   # keep exactly 2 right-most segments
+  # --- custom “.. / parent / current” path -------------------------------
+  # ---------- coloured  ../parent/current  helper (depth-aware) -----------
+  : ${P10K_ELLIPSIS_COLOR:=245}       # set to any 0-255 xterm colour
+  
+  function _p10k_last2_or_parent() {
+    local dir_fg=${POWERLEVEL9K_DIR_FOREGROUND:-7}   # original dir colour
+    local home=$HOME
+    local path=$PWD
+  
+    # ── 1.  exactly $HOME  ────────────────────────────────────────────────
+    [[ $path == $home ]] && { print -r -- "~"; return }
+  
+    # ── 2.  inside $HOME  ─────────────────────────────────────────────────
+    if [[ $path == $home/* ]]; then
+      local rel=${path#$home/}               # strip $HOME/
+      local -a parts=("${(@s:/:)rel}")       # split
+  
+      (( ${#parts} <= 2 )) && {              # depth 1 or 2
+        print -r -- "~/${(j:/:)parts}"
+        return
+      }
+  
+      # deeper than 2  →  ../parent/current
+      print -r -- "%F{$P10K_ELLIPSIS_COLOR}../%f%F{$dir_fg}${parts[-2]}/${parts[-1]}%f"
+      return
+    fi
+  
+    # ── 3.  outside $HOME  ────────────────────────────────────────────────
+    local -a parts=("${(@s:/:)path}")
+  
+    if (( ${#parts} <= 2 )); then           # keep short absolute paths
+      print -r -- "$path"
+    else                                     # ellipsis for deeper ones
+      print -r -- "%F{$P10K_ELLIPSIS_COLOR}../%f%F{$dir_fg}${parts[-2]}/${parts[-1]}%f"
+    fi
+  }
+  
+  typeset -g POWERLEVEL9K_DIR_CONTENT_EXPANSION='${$(_p10k_last2_or_parent)}'
+  # ------------------------------------------------------------------------
 
   # When `dir` segment is on the last prompt line, try to shorten it enough to leave at least this
   # many columns for typing commands.
