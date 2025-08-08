@@ -1,0 +1,7 @@
+- name: Create empty tmux.conf if none (customize later from helix/tmux if desired)
+  copy:
+    dest: "{{ lookup('env','HOME') }}/.tmux.conf"
+    content: |
+      # placeholder — add your tmux config or copy from helix/tmux
+    force: no
+    mode: "0644"

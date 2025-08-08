@@ -1,0 +1,36 @@
+- name: Ensure MesloLGS NF fonts directory exists
+  file:
+    path: "{{ lookup('env','HOME') }}/Library/Fonts"
+    state: directory
+
+- name: Install MesloLGS Nerd Fonts (4 styles)
+  get_url:
+    url: "{{ item.url }}"
+    dest: "{{ lookup('env','HOME') }}/Library/Fonts/{{ item.name }}"
+    mode: "0644"
+  loop:
+    - { name: "MesloLGS NF Regular.ttf", url: "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Regular.ttf" }
+    - { name: "MesloLGS NF Bold.ttf", url: "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold.ttf" }
+    - { name: "MesloLGS NF Italic.ttf", url: "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Italic.ttf" }
+    - { name: "MesloLGS NF Bold Italic.ttf", url: "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold%20Italic.ttf" }
+
+- name: Download iTerm2 profile JSON to Downloads (manual import step)
+  get_url:
+    url: "{{ iterm_profile_json_url }}"
+    dest: "{{ lookup('env','HOME') }}/Downloads/suhail_item2_profiles.json"
+    mode: "0644"
+
+- name: Download iTerm2 color preset to Downloads (manual import step)
+  get_url:
+    url: "{{ iterm_color_preset_url }}"
+    dest: "{{ lookup('env','HOME') }}/Downloads/suhailTerm2.itermcolors"
+    mode: "0644"
+
+- name: Show post-steps for iTerm2 import
+  debug:
+    msg: |
+      To finish iTerm2:
+        1) Preferences > Profiles > Other Actions (gear) > Import → ~/Downloads/suhail_item2_profiles.json
+        2) Set imported profile as Default.
+        3) Preferences > Profiles > Colors > Color Presets… > Import → ~/Downloads/suhailTerm2.itermcolors
+        4) Select "suhailTerm2" for your profile.
