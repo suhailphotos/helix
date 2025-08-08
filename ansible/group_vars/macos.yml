@@ -1,4 +1,3 @@
-# Homebrew formulas (CLI)
 brew_packages:
   - git
   - neovim
@@ -15,18 +14,14 @@ brew_packages:
   - pipx
   - stow
 
-# Homebrew casks (GUI)
 brew_casks:
   - iterm2
 
-# Where to clone helix (cache) before copying NVIM
 helix_cache_path: "{{ lookup('env','HOME') }}/.cache/helix_checkout"
 helix_repo_url: "https://github.com/suhailphotos/helix.git"
 helix_repo_branch: "main"
 
-# Raw content base for helix on GitHub (for .p10k and iterm downloads)
 helix_repo_raw_base: "https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main"
 
-# iTerm2 artifacts to fetch for manual import
 iterm_profile_json_url: "{{ helix_repo_raw_base }}/iterm/suhail_item2_profiles.json"
 iterm_color_preset_url: "{{ helix_repo_raw_base }}/iterm/suhailTerm2.itermcolors"

@@ -1,4 +1,3 @@
-# Host-specific zshrc template vars
 ORBIT_HOME: "{{ lookup('env','HOME') }}/Library/CloudStorage/Dropbox/matrix/orbit"
 ORBIT_REMOTE: "https://github.com/suhailphotos/orbit.git"
 ORBIT_BRANCH: "main"

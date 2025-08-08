@@ -1,0 +1,7 @@
+- name: Bootstrap Linux basics (Ubuntu/Debian) remotely
+  hosts: linux
+  gather_facts: yes
+  become: yes
+
+  roles:
+    - linux_bootstrap

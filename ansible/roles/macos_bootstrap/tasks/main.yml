@@ -35,7 +35,6 @@
     line: "eval \"$( {{ brew_bin }} shellenv )\""
     state: present
 
-# We call brew by absolute path below, so no PATH issues inside Ansible.
 - name: Install Homebrew packages
   shell: |
     {{ brew_bin }} list {{ item }} >/dev/null 2>&1 || {{ brew_bin }} install {{ item }}

@@ -9,10 +9,9 @@ fi
 
 HELIX_REPO_URL="${HELIX_REPO_URL:-https://github.com/suhailphotos/helix.git}"
 HELIX_BRANCH="${HELIX_BRANCH:-main}"
-# Where to clone helix if this script is run via curl (no repo checkout yet)
 HELIX_LOCAL_DIR="${HELIX_LOCAL_DIR:-$HOME/.cache/helix_bootstrap}"
 
-# Try to detect if we're already inside a checked-out helix repo (scripts/ at repo root)
+# Are we in a helix checkout already?
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PARENT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 if [[ -d "$PARENT_DIR/ansible" && -f "$PARENT_DIR/scripts/install_ansible_local.sh" ]]; then
@@ -66,13 +65,11 @@ echo "==> Ensuring brew shellenv in ~/.zprofile and current shell"
 ZPROFILE="$HOME/.zprofile"
 LINE='eval "$('"$BREW_BIN"' shellenv)"'
 grep -qxF "$LINE" "$ZPROFILE" 2>/dev/null || echo "$LINE" >> "$ZPROFILE"
-# Also in the current shell so the rest of this script sees brew-installed tools
 eval "$("$BREW_BIN" shellenv)"
 
 echo "==> Installing Ansible via Homebrew (if missing)"
 if ! command -v ansible-playbook >/dev/null 2>&1; then
   "$BREW_BIN" install ansible
-  # Refresh command lookup for both bash and zsh
   hash -r 2>/dev/null || true
   rehash 2>/dev/null || true
 fi

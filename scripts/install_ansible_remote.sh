@@ -61,3 +61,5 @@ esac
 
 echo "==> Ready. cd into: $HELIX_LOCAL_DIR"
 echo "    ansible-playbook -i ansible/inventory.yml ansible/playbooks/macos_remote.yml --limit eclipse -K"
+echo "    # Linux baseline (tree):"
+echo "    ansible-playbook -i ansible/inventory.yml ansible/playbooks/linux_remote.yml --limit nimbus -K"
