@@ -1,0 +1,51 @@
+- name: Check for Xcode Command Line Tools
+  command: xcode-select -p
+  register: xcode_clt
+  ignore_errors: yes
+
+- name: Fail if Xcode Command Line Tools are missing
+  fail:
+    msg: "Xcode Command Line Tools missing. Run: xcode-select --install"
+  when: xcode_clt.rc != 0
+
+- name: Detect Homebrew (Apple Silicon path)
+  stat:
+    path: /opt/homebrew/bin/brew
+  register: brew_path_opt
+
+- name: Detect Homebrew (Intel mac path)
+  stat:
+    path: /usr/local/bin/brew
+  register: brew_path_usr
+
+- name: Install Homebrew (non-interactive) if missing
+  shell: NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  when: not brew_path_opt.stat.exists and not brew_path_usr.stat.exists
+
+- name: Set brew_bin path fact
+  set_fact:
+    brew_bin: >-
+      {{ '/opt/homebrew/bin/brew' if brew_path_opt.stat.exists
+         else '/usr/local/bin/brew' }}
+
+- name: Ensure brew shellenv is in .zprofile
+  lineinfile:
+    path: "{{ lookup('env','HOME') }}/.zprofile"
+    create: yes
+    line: "eval \"$( {{ brew_bin }} shellenv )\""
+    state: present
+
+# We call brew by absolute path below, so no PATH issues inside Ansible.
+- name: Install Homebrew packages
+  shell: |
+    {{ brew_bin }} list {{ item }} >/dev/null 2>&1 || {{ brew_bin }} install {{ item }}
+  args:
+    executable: /bin/bash
+  loop: "{{ brew_packages }}"
+
+- name: Install Homebrew casks
+  shell: |
+    {{ brew_bin }} list --cask {{ item }} >/dev/null 2>&1 || {{ brew_bin }} install --cask {{ item }}
+  args:
+    executable: /bin/bash
+  loop: "{{ brew_casks }}"

@@ -1,0 +1,10 @@
+- name: Bootstrap macOS remotely
+  hosts: macos
+  gather_facts: yes
+
+  roles:
+    - macos_bootstrap
+    - zsh_p10k
+    - iterm
+    - nvim
+    - tmux_setup
