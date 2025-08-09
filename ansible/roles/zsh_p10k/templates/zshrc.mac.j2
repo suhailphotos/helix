@@ -13,9 +13,9 @@ plugins=(git)
 [[ -f "$HOME/.p10k.zsh" ]] && source "$HOME/.p10k.zsh"
 
 # --- Orbit location + remote (templated) ---
-export ORBIT_HOME="{{ ORBIT_HOME }}"
-export ORBIT_REMOTE="{{ ORBIT_REMOTE }}"
-export ORBIT_BRANCH="{{ ORBIT_BRANCH }}"
+export ORBIT_HOME="{{ ORBIT_HOME | default('$HOME/.orbit') }}"
+export ORBIT_REMOTE="{{ ORBIT_REMOTE | default('https://github.com/suhailphotos/orbit.git') }}"
+export ORBIT_BRANCH="{{ ORBIT_BRANCH | default('main') }}"
 
 # First-time install
 if [[ ! -d "$ORBIT_HOME/.git" ]]; then

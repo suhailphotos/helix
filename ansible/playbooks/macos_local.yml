@@ -5,6 +5,7 @@
 
   roles:
     - macos_bootstrap
+    - orbit
     - zsh_p10k
     - iterm
     - nvim

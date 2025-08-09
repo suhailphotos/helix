@@ -1,0 +1,25 @@
+# Manage ONLY the runtime clone that your shell sources.
+# Dev copy in Dropbox is user-managed (sync) and left untouched.
+
+- name: Ensure runtime Orbit (~/.orbit) exists & is on origin/main (clean)
+  git:
+    repo: "{{ ORBIT_REMOTE }}"
+    dest: "{{ ORBIT_HOME | default(ansible_env.HOME + '/.orbit') }}"
+    version: "{{ ORBIT_BRANCH | default('main') }}"
+    depth: 1
+    single_branch: yes
+    update: yes          # pull updates if already cloned
+    force: yes           # keep this repo clean; runtime-only
+    accept_hostkey: yes
+
+# Optional: just warn if Dropbox dev tree isn't present yet (don’t modify it)
+- name: Check if Dropbox dev Orbit exists
+  stat:
+    path: "{{ ORBIT_DEV_HOME | default('') }}"
+  register: orbit_dev_dir
+  when: ORBIT_DEV_HOME is defined
+
+- name: Warn if Dropbox dev Orbit not found (maybe still syncing)
+  debug:
+    msg: "ORBIT_DEV_HOME not present: {{ ORBIT_DEV_HOME }} (Dropbox may still be syncing)"
+  when: ORBIT_DEV_HOME is defined and not orbit_dev_dir.stat.exists
