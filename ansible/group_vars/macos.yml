@@ -48,3 +48,10 @@ helix_repo_raw_base: "https://raw.githubusercontent.com/suhailphotos/helix/refs/
 
 iterm_profile_json_url: "{{ helix_repo_raw_base }}/iterm/suhail_item2_profile.json"
 iterm_color_preset_url: "{{ helix_repo_raw_base }}/iterm/suhailTerm.itermcolors"
+
+# Apple SF fonts to fetch/install
+apple_sf_fonts:
+  - { name: "SF Pro",     url: "https://developer.apple.com/download/files/SF-Pro.dmg" }
+  - { name: "SF Compact", url: "https://developer.apple.com/download/files/SF-Compact.dmg" }
+  - { name: "SF Mono",    url: "https://devimages-cdn.apple.com/design/resources/download/SF-Mono.dmg" }
+  - { name: "New York",   url: "https://devimages-cdn.apple.com/design/resources/download/NY.dmg" }
