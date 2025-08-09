@@ -22,3 +22,50 @@
     dest: "{{ lookup('env','HOME') }}/.config/nvim/"
     remote_src: yes
     mode: preserve
+
+# --- NEW: remove leftovers from Packer / Harpoon v1 (prevents weird errors)
+- name: Remove old packer 'start' dir if present
+  file:
+    path: "{{ lookup('env','HOME') }}/.local/share/nvim/site/pack/packer"
+    state: absent
+
+- name: Remove old packer_compiled.lua if present
+  file:
+    path: "{{ lookup('env','HOME') }}/.config/nvim/plugin/packer_compiled.lua"
+    state: absent
+
+- name: Remove old harpoon v1 state (if present)
+  file:
+    path: "{{ lookup('env','HOME') }}/.local/share/nvim/harpoon.json"
+    state: absent
+
+# --- NEW: ensure undodir so your config's undofile works
+- name: Ensure Vim undodir exists
+  file:
+    path: "{{ lookup('env','HOME') }}/.vim/undodir"
+    state: directory
+    mode: "0755"
+
+# --- NEW: Preinstall plugins with lazy (headless)
+- name: Preinstall Neovim plugins via lazy.nvim (headless)
+  shell: |
+    nvim --headless "+Lazy! sync" "+qa"
+  args:
+    executable: /bin/bash
+  environment:
+    # Make sure brew & node are visible to this non-login shell step
+    PATH: "{{ ansible_env.PATH }}:/opt/homebrew/bin:/usr/local/bin"
+  changed_when: false
+
+# --- NEW: Preinstall LSP servers via Mason (headless)
+# Note: ts_ls requires npm; installing 'node' above provides it.
+- name: Install Mason LSP servers (lua, rust, python, typescript)
+  shell: |
+    nvim --headless \
+      "+MasonInstall lua-language-server rust-analyzer python-lsp-server typescript-language-server" \
+      "+qa"
+  args:
+    executable: /bin/bash
+  environment:
+    PATH: "{{ ansible_env.PATH }}:/opt/homebrew/bin:/usr/local/bin"
+  changed_when: false
