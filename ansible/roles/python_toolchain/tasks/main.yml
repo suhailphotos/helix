@@ -1,0 +1,57 @@
+---
+# Ensure PATHs that pipx/pyenv expect are present for login shells
+- name: Ensure ~/.local/bin is on PATH (pipx)
+  lineinfile:
+    path: "{{ lookup('env','HOME') }}/.zprofile"
+    create: yes
+    line: 'export PATH="$HOME/.local/bin:$PATH"'
+    state: present
+
+- name: Ensure pyenv init in .zprofile
+  lineinfile:
+    path: "{{ lookup('env','HOME') }}/.zprofile"
+    create: yes
+    line: "{{ item }}"
+    state: present
+  loop:
+    - 'export PYENV_ROOT="$HOME/.pyenv"'
+    - 'command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"'
+    - 'eval "$(pyenv init -)"'
+
+# (optional) run pipx ensurepath once; harmless if already correct
+- name: pipx ensurepath (idempotent-ish)
+  shell: pipx ensurepath
+  args: { executable: /bin/zsh }
+  changed_when: false
+
+# Install pipx packages via module (uses community.general)
+- name: Install pipx packages
+  community.general.pipx:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ pipx_packages | default([]) }}"
+  tags: ['cli']
+
+# Install requested Python versions with pyenv
+- name: Install pyenv Python versions (-s = skip if present)
+  shell: |
+    pyenv install -s {{ item }}
+  args:
+    executable: /bin/zsh
+  environment:
+    PYENV_ROOT: "{{ lookup('env','HOME') }}/.pyenv"
+    PATH: "{{ lookup('env','HOME') }}/.pyenv/bin:{{ lookup('env','HOME') }}/.pyenv/shims:/opt/homebrew/bin:/usr/local/bin:{{ ansible_env.PATH }}"
+  loop: "{{ pyenv_versions | default([]) }}"
+  tags: ['cli']
+
+- name: Set pyenv global version
+  shell: |
+    pyenv global {{ pyenv_global }}
+    pyenv rehash
+  args:
+    executable: /bin/zsh
+  environment:
+    PYENV_ROOT: "{{ lookup('env','HOME') }}/.pyenv"
+    PATH: "{{ lookup('env','HOME') }}/.pyenv/bin:{{ lookup('env','HOME') }}/.pyenv/shims:/opt/homebrew/bin:/usr/local/bin:{{ ansible_env.PATH }}"
+  when: pyenv_global is defined
+  tags: ['cli']

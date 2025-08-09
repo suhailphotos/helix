@@ -15,6 +15,26 @@ brew_packages:
   - stow
   - 1password-cli
   - node
+  - pyenv
+
+# ---- Optional: build deps to Python builds smoother on macOS ----
+#  - openssl@3
+#  - readline
+#  - xz
+#  - zlib
+#  - bzip2
+#  - sqlite
+#  - libffi
+#  - gdbm
+
+# ---- Python toolchain knobs ----
+pyenv_versions:
+  - "3.11.7"     # matches Houdini’s current line, good to have locally
+  - "3.12.4"     # whatever you want as your “latest” dev version
+pyenv_global: "3.12.4"  # which one becomes `pyenv global`
+
+pipx_packages:
+  - poetry
 
 brew_casks:
   - iterm2
@@ -26,5 +46,5 @@ helix_repo_branch: "main"
 
 helix_repo_raw_base: "https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main"
 
-iterm_profile_json_url: "{{ helix_repo_raw_base }}/iterm/suhail_item2_profiles.json"
-iterm_color_preset_url: "{{ helix_repo_raw_base }}/iterm/suhailTerm2.itermcolors"
+iterm_profile_json_url: "{{ helix_repo_raw_base }}/iterm/suhail_item2_profile.json"
+iterm_color_preset_url: "{{ helix_repo_raw_base }}/iterm/suhailTerm.itermcolors"

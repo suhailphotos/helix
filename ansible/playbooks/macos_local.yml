@@ -8,5 +8,6 @@
     - orbit
     - zsh_p10k
     - iterm
+    - python_toolchain
     - nvim
     - tmux_setup
