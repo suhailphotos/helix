@@ -13,9 +13,11 @@ brew_packages:
   - python
   - pipx
   - stow
+  - 1password-cli
 
 brew_casks:
   - iterm2
+  - 1password
 
 helix_cache_path: "{{ lookup('env','HOME') }}/.cache/helix_checkout"
 helix_repo_url: "https://github.com/suhailphotos/helix.git"
