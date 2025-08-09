@@ -74,6 +74,9 @@ if ! command -v ansible-playbook >/dev/null 2>&1; then
   rehash 2>/dev/null || true
 fi
 
+echo "==> Installing required Ansible collections"
+ansible-galaxy collection install -r "$REPO_ROOT/ansible/collections/requirements.yml"
+
 echo "==> Running Ansible playbook (local) from $REPO_ROOT/ansible"
 cd "$REPO_ROOT/ansible"
 ansible-playbook -i inventory.yml playbooks/macos_local.yml -K
