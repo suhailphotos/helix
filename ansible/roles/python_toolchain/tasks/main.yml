@@ -18,21 +18,37 @@
     - 'command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"'
     - 'eval "$(pyenv init -)"'
 
-# (optional) run pipx ensurepath once; harmless if already correct
-- name: pipx ensurepath (idempotent-ish)
-  shell: pipx ensurepath
-  args: { executable: /bin/zsh }
-  changed_when: false
+# --- pipx path (prefer Homebrew pipx; fall back to system pipx if needed)
+- name: Compute pipx executable path from brew_bin
+  set_fact:
+    pipx_executable: "{{ brew_bin | regex_replace('/brew$', '/pipx') }}"
+  when: pipx_executable is not defined and (brew_bin is defined)
 
-# Install pipx packages via module (uses community.general)
+- name: "Fallback: discover pipx in PATH if brew_bin not set"
+  command: bash -lc 'command -v pipx || true'
+  register: pipx_which
+  changed_when: false
+  when: pipx_executable is not defined
+
+- name: Set pipx_executable fallback fact
+  set_fact:
+    pipx_executable: "{{ pipx_which.stdout | default('/opt/homebrew/bin/pipx') }}"
+  when: pipx_executable is not defined
+
+- name: pipx ensurepath (idempotent)
+  command: "{{ pipx_executable }} ensurepath"
+  changed_when: false
+  when: pipx_executable is defined
+
 - name: Install pipx packages
   community.general.pipx:
     name: "{{ item }}"
     state: present
+    executable: "{{ pipx_executable }}"
   loop: "{{ pipx_packages | default([]) }}"
   tags: ['cli']
 
-# Install requested Python versions with pyenv
+# --- pyenv installs
 - name: Install pyenv Python versions (-s = skip if present)
   shell: |
     pyenv install -s {{ item }}
