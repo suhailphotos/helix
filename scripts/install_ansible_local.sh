@@ -6,6 +6,7 @@ set -euo pipefail
 # -----------------------------
 ENABLE_SF_FONTS=0
 RUN_ALL=0
+ONLY_SF_FONTS=0
 
 print_usage() {
   cat <<'EOF'
@@ -20,9 +21,10 @@ Usage:
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/scripts/install_ansible_local.sh)" -- --sf_fonts
 
 Flags:
-  --sf_fonts   Include Apple SF fonts role
-  --all        Run everything (implies --sf_fonts)
-  -h, --help   Show this help
+  --sf_fonts       Include Apple SF fonts role
+  --only_sf_fonts  Run only SF fonts (implies --sf_fonts)
+  --all            Run everything (implies --sf_fonts)
+  -h, --help       Show this help
 EOF
 }
 
@@ -30,6 +32,7 @@ EOF
 for arg in "${@:-}"; do
   case "$arg" in
     --sf_fonts|--sf-fonts) ENABLE_SF_FONTS=1 ;;
+    --only_sf_fonts|--fonts-only) ENABLE_SF_FONTS=1; ONLY_SF_FONTS=1 ;;
     --all) RUN_ALL=1 ;;
     -h|--help) print_usage; exit 0 ;;
     *) echo "Unknown flag: $arg"; echo; print_usage; exit 2 ;;
@@ -117,13 +120,18 @@ echo "==> Installing required Ansible collections"
 ansible-galaxy collection install -r "$REPO_ROOT/ansible/collections/requirements.yml"
 
 EXTRA_VARS=()
+PLAY_OPTS=()
+
 if [[ "$ENABLE_SF_FONTS" -eq 1 ]]; then
   EXTRA_VARS+=( -e enable_sf_fonts=true )
 fi
+if [[ "$ONLY_SF_FONTS" -eq 1 ]]; then
+  PLAY_OPTS+=( --tags fonts )
+fi
 
-echo "==> Running Ansible playbook (local) from $REPO_ROOT/ansible"
 cd "$REPO_ROOT/ansible"
-ansible-playbook -i inventory.yml playbooks/macos_local.yml -K "${EXTRA_VARS[@]}"
+ansible-playbook -i inventory.yml playbooks/macos_local.yml -K \
+  "${EXTRA_VARS[@]}" "${PLAY_OPTS[@]}"
 
 echo
 echo "🎉 Done."

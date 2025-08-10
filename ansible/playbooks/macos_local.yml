@@ -13,3 +13,4 @@
     - tmux_setup
     - role: apple_sf_fonts
       when: (enable_sf_fonts | default(false)) | bool
+      tags: ['fonts']
