@@ -17,7 +17,7 @@ Usage:
   With SF fonts:
     curl -fsSL https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/scripts/install_ansible_local.sh | bash -s -- --sf_fonts
 
-  Or with your original form (note the extra -- before flags):
+  Or with your original form:
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/scripts/install_ansible_local.sh)" -- --sf_fonts
 
 Flags:
@@ -28,15 +28,17 @@ Flags:
 EOF
 }
 
-# Capture flags if provided (works with both `... | bash -s -- ...` and `bash -c "..." -- ...`)
-for arg in "${@:-}"; do
-  case "$arg" in
+# Parse flags robustly
+while [[ $# -gt 0 ]]; do
+  case "$1" in
     --sf_fonts|--sf-fonts) ENABLE_SF_FONTS=1 ;;
     --only_sf_fonts|--fonts-only) ENABLE_SF_FONTS=1; ONLY_SF_FONTS=1 ;;
     --all) RUN_ALL=1 ;;
     -h|--help) print_usage; exit 0 ;;
-    *) echo "Unknown flag: $arg"; echo; print_usage; exit 2 ;;
+    --) shift; break ;;   # stop parsing at '--'
+    *) echo "Unknown flag: $1"; echo; print_usage; exit 2 ;;
   esac
+  shift
 done
 
 if [[ "$RUN_ALL" -eq 1 ]]; then
