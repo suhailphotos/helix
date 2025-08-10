@@ -1,0 +1,86 @@
+---
+# Derive paths for this font
+- set_fact:
+    sf_tmp_dir: "{{ ansible_env.TMPDIR | default('/tmp') }}/apple_sf_fonts"
+    sf_safe: "{{ font.name | regex_replace('[^A-Za-z0-9_.-]','_') }}"
+    sf_dmg: "{{ sf_tmp_dir }}/{{ sf_safe }}.dmg"
+    sf_mount: "{{ sf_tmp_dir }}/mnt/{{ sf_safe }}"
+
+# Quick check (Apple may require login)
+- name: Check URL accessibility (may require Apple login)
+  uri:
+    url: "{{ font.url }}"
+    method: HEAD
+    follow_redirects: all
+    status_code: [200,301,302]
+  register: sf_head
+  failed_when: false
+  changed_when: false
+
+- name: Download DMG when accessible (or if already downloaded)
+  get_url:
+    url: "{{ font.url }}"
+    dest: "{{ sf_dmg }}"
+    mode: "0644"
+    force: no
+  when: sf_head.status in [200,301,302]
+  failed_when: false
+
+- name: Check if DMG exists
+  stat:
+    path: "{{ sf_dmg }}"
+  register: sf_dmg_stat
+
+- name: Warn if download blocked for {{ font.name }}
+  debug:
+    msg: >
+      Could not download {{ font.name }} ({{ font.url }}).
+      Sign in to Apple Developer and accept the license, then rerun.
+  when: not sf_dmg_stat.stat.exists
+
+- name: Stop processing this font if DMG missing
+  meta: end_task
+  when: not sf_dmg_stat.stat.exists
+
+# ----- Mount, install, unmount -----
+- name: Attach DMG
+  shell: >
+    hdiutil attach -nobrowse -readonly -noverify
+    -mountpoint "{{ sf_mount }}" "{{ sf_dmg }}"
+  args: { executable: /bin/zsh }
+  changed_when: true
+
+- name: Find .pkg inside mounted volume
+  find:
+    paths: "{{ sf_mount }}"
+    patterns: "*.pkg"
+    recurse: yes
+  register: sf_pkg
+
+- name: Install via pkg (system-wide /Library/Fonts)
+  become: yes
+  command: /usr/sbin/installer -pkg "{{ sf_pkg.files[0].path }}" -target /
+  when: sf_pkg.matched | int > 0
+
+- name: Find raw font files if no pkg (.otf/.ttf)
+  find:
+    paths: "{{ sf_mount }}"
+    patterns: "*.otf,*.ttf"
+    use_regex: no
+    recurse: yes
+  register: sf_fonts
+  when: sf_pkg.matched | int == 0
+
+- name: Copy raw font files to user Fonts
+  copy:
+    src: "{{ item.path }}"
+    dest: "{{ lookup('env','HOME') }}/Library/Fonts/{{ item.path | basename }}"
+    mode: "0644"
+    remote_src: yes
+  loop: "{{ sf_fonts.files | default([]) }}"
+  when: sf_pkg.matched | int == 0
+
+- name: Detach DMG (best effort)
+  shell: hdiutil detach "{{ sf_mount }}" || true
+  args: { executable: /bin/zsh }
+  changed_when: false

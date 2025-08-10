@@ -3,88 +3,20 @@
   meta: end_host
   when: ansible_system != "Darwin"
 
-- name: Ensure temp dir for Apple fonts
+- name: Prepare temp + mount dirs
   file:
-    path: "{{ ansible_env.TMPDIR | default('/tmp') }}/apple_sf_fonts"
+    path: "{{ item }}"
     state: directory
     mode: "0755"
+  loop:
+    - "{{ ansible_env.TMPDIR | default('/tmp') }}/apple_sf_fonts"
+    - "{{ ansible_env.TMPDIR | default('/tmp') }}/apple_sf_fonts/mnt"
 
-- name: Download Apple SF font DMGs (handles 403/401 gracefully)
-  uri:
-    url: "{{ item.url }}"
-    method: GET
-    follow_redirects: all
-    return_content: no
-    dest: "{{ ansible_env.TMPDIR | default('/tmp') }}/apple_sf_fonts/{{ item.name | regex_replace('[^A-Za-z0-9_.-]','_') }}.dmg"
-    status_code: [200, 302, 301]
-  register: font_fetch
-  failed_when: false
+# Loop per font by including a sub-task file
+- name: Process Apple SF font
+  include_tasks: install_from_dmg.yml
   loop: "{{ apple_sf_fonts }}"
   loop_control:
-    label: "{{ item.name }}"
-
-- name: Report downloads that were blocked (login needed)
-  debug:
-    msg: >
-      Could not download {{ apple_sf_fonts[idx].name }} ({{ apple_sf_fonts[idx].url }}).
-      Apple may require you to sign in to Developer and accept the license, then rerun.
-  loop: "{{ font_fetch.results | list }}"
-  loop_control:
-    index_var: idx
-    label: "{{ apple_sf_fonts[idx].name }}"
-  when: item.status not in [200, 0]  # 0 if file already present at dest
-
-- name: Install fonts from DMGs
-  block:
-    - name: Attach DMG
-      shell: >
-        hdiutil attach -nobrowse -readonly -noverify
-        -mountpoint "{{ mount_base }}/{{ item.name | regex_replace('[^A-Za-z0-9_.-]','_') }}"
-        "{{ dmg_path }}"
-      args:
-        executable: /bin/zsh
-      vars:
-        mount_base: "{{ ansible_env.TMPDIR | default('/tmp') }}/apple_sf_fonts/mnt"
-        dmg_path: "{{ ansible_env.TMPDIR | default('/tmp') }}/apple_sf_fonts/{{ item.name | regex_replace('[^A-Za-z0-9_.-]','_') }}.dmg"
-      changed_when: true
-
-    - name: Find .pkg inside mounted volume
-      find:
-        paths: "{{ mount_base }}/{{ item.name | regex_replace('[^A-Za-z0-9_.-]','_') }}"
-        patterns: "*.pkg"
-        recurse: yes
-      register: pkg_found
-
-    - name: Install via pkg (system-wide /Library/Fonts)
-      become: yes
-      command: >
-        /usr/sbin/installer -pkg "{{ pkg_found.files[0].path }}" -target /
-      when: pkg_found.matched | int > 0
-
-    - name: If no pkg, copy raw font files to user Fonts
-      copy:
-        src: "{{ font_file.path }}"
-        dest: "{{ lookup('env','HOME') }}/Library/Fonts/{{ font_file.path | basename }}"
-        mode: "0644"
-        remote_src: yes
-      loop: "{{ lookup('ansible.builtin.fileglob', mount_base ~ '/' ~ (item.name | regex_replace('[^A-Za-z0-9_.-]','_')) ~ '/**/*.otf', wantlist=True)
-                + lookup('ansible.builtin.fileglob', mount_base ~ '/' ~ (item.name | regex_replace('[^A-Za-z0-9_.-]','_')) ~ '/**/*.ttf', wantlist=True) }}"
-      loop_control:
-        loop_var: font_file
-      when: pkg_found.matched | int == 0
-
-  rescue:
-    - debug:
-        msg: "Skipping {{ item.name }} install—download likely blocked or mount failed."
-  always:
-    - name: Detach DMG (best effort)
-      shell: >
-        hdiutil detach "{{ mount_base }}/{{ item.name | regex_replace('[^A-Za-z0-9_.-]','_') }}" || true
-      args:
-        executable: /bin/zsh
-      changed_when: false
-  loop: "{{ apple_sf_fonts }}"
-  loop_control:
-    label: "{{ item.name }}"
-  vars:
-    mount_base: "{{ ansible_env.TMPDIR | default('/tmp') }}/apple_sf_fonts/mnt"
+    loop_var: font
+    label: "{{ font.name }}"
+  tags: ['fonts']
