@@ -56,7 +56,7 @@
     "Alpha Component" : 1,
     "Green Component" : 0.026829112321138382
   },
-  "Columns" : 200,
+  "Columns" : 150,
   "Ansi 8 Color" : {
     "Red Component" : 0.30000001192092896,
     "Color Space" : "sRGB",
@@ -150,7 +150,7 @@
     "Green Component" : 0.29159542918205261
   },
   "Silence Bell" : false,
-  "Rows" : 48,
+  "Rows" : 42,
   "Draw Powerline Glyphs" : true,
   "Guid" : "40B42325-50DD-4C68-9D06-7B40558A0572",
   "Ansi 14 Color (Dark)" : {

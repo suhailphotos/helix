@@ -50,11 +50,11 @@
     "Green Component" : 0.40782788395881653
   },
   "Background Color" : {
-    "Red Component" : 0.023848101496696465,
+    "Red Component" : 0.023848101496696472,
     "Color Space" : "sRGB",
     "Blue Component" : 0.0327911376953125,
     "Alpha Component" : 1,
-    "Green Component" : 0.026829112321138392
+    "Green Component" : 0.026829112321138382
   },
   "Columns" : 150,
   "Ansi 8 Color" : {
@@ -100,7 +100,7 @@
   "Visual Bell" : true,
   "Only The Default BG Color Uses Transparency" : true,
   "Cursor Text Color" : {
-    "Red Component" : 0.062745101749896975,
+    "Red Component" : 0.062745101749897003,
     "Color Space" : "sRGB",
     "Blue Component" : 0.086274512112140656,
     "Alpha Component" : 1,
@@ -190,7 +190,7 @@
     "Color Space" : "sRGB",
     "Blue Component" : 0.3515625,
     "Alpha Component" : 1,
-    "Green Component" : 0.090728402137756375
+    "Green Component" : 0.090728402137756348
   },
   "Prompt Before Closing 2" : false,
   "Command" : "",
