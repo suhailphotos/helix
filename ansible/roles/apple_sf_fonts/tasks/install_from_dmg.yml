@@ -43,18 +43,14 @@
       Sign in to Apple Developer and accept the license, then rerun.
   when: not sf_dmg_stat.stat.exists
 
-- name: Stop processing this font if DMG missing (don’t fail play)
-  meta: end_task
-  when: not sf_dmg_stat.stat.exists
-
-# 4) Mount → install → unmount (errors per-font are contained)
-- name: Ensure mountpoint exists
-  file:
-    path: "{{ sf_mount }}"
-    state: directory
-    mode: "0755"
-
+# 4) Mount → install → unmount (only if DMG present)
 - block:
+    - name: Ensure mountpoint exists
+      file:
+        path: "{{ sf_mount }}"
+        state: directory
+        mode: "0755"
+
     - name: Attach DMG
       command: >
         hdiutil attach -nobrowse -readonly -noverify
@@ -103,3 +99,4 @@
       command: hdiutil detach "{{ sf_mount }}"
       changed_when: false
       failed_when: false
+  when: sf_dmg_stat.stat.exists
