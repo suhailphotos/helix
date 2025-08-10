@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+trap 'echo "❌ ERROR at line $LINENO while running: $BASH_COMMAND" >&2' ERR
+
 # -----------------------------
 # Flags
 # -----------------------------
@@ -114,9 +116,17 @@ eval "$("$BREW_BIN" shellenv)"
 echo "==> Installing Ansible via Homebrew (if missing)"
 if ! command -v ansible-playbook >/dev/null 2>&1; then
   "$BREW_BIN" install ansible
-  hash -r 2>/dev/null || true
-  rehash 2>/dev/null || true
+
+  # Refresh command cache *safely* (bash has `hash -r`, zsh has `rehash`)
+  if hash hash 2>/dev/null; then hash -r || true; fi
+  if command -v rehash >/dev/null 2>&1; then rehash || true; fi
+
+  # Make sure PATH and Python shims from Homebrew are live in this process
+  eval "$("$BREW_BIN" shellenv)"
 fi
+
+# Sanity check so we know we got past this point
+echo "==> Ansible detected: $(ansible-playbook --version | head -1)"
 
 echo "==> Installing required Ansible collections"
 ansible-galaxy collection install -r "$REPO_ROOT/ansible/collections/requirements.yml"
