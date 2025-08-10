@@ -2,8 +2,7 @@
 set -euo pipefail
 trap 'echo "❌ ERROR at line $LINENO while running: $BASH_COMMAND" >&2' ERR
 
-# Detach stdin so subcommands that read stdin (e.g., sudo/tee during brew install)
-# don't slurp the rest of this script when using `curl ... | bash`.
+# Detach stdin so subcommands (e.g. brew's internal tee) don't eat the rest of this script when using `curl ... | bash`.
 exec </dev/null
 
 # -----------------------------
@@ -32,7 +31,7 @@ Only SF fonts:
   # or
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/scripts/install_ansible_local.sh)" -- --only_sf_fonts
 
-All (future catch-all):
+All:
   curl -fsSL https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/scripts/install_ansible_local.sh | bash -s -- --all
   # or
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/scripts/install_ansible_local.sh)" -- --all
@@ -40,7 +39,7 @@ All (future catch-all):
 Flags:
   --sf_fonts       Include Apple SF fonts role
   --only_sf_fonts  Run only the fonts role (implies --sf_fonts)
-  --all            Run everything (currently implies --sf_fonts)
+  --all            Run everything (currently includes fonts)
   -h, --help       Show this help
 EOF
 }
@@ -73,7 +72,7 @@ HELIX_BRANCH="${HELIX_BRANCH:-main}"
 HELIX_LOCAL_DIR="${HELIX_LOCAL_DIR:-$HOME/.cache/helix_bootstrap}"
 
 # Detect whether we're running from a file or via stdin (curl | bash)
-SCRIPT_PATH="${BASH_SOURCE[0]:-}"  # may be empty when read from stdin or bash -c
+SCRIPT_PATH="${BASH_SOURCE[0]:-}"  # empty when read from stdin or bash -c
 if [[ -n "$SCRIPT_PATH" && -f "$SCRIPT_PATH" ]]; then
   SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
   PARENT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -149,22 +148,20 @@ fi
 echo "==> Ansible detected: $(ansible-playbook --version | head -1)"
 
 echo "==> Installing required Ansible collections"
-ansible-galaxy collection install -r "$REPO_ROOT/ansible/collections/requirements.yml"
+ansible-galaxy collection install -r "$REPO_ROOT/ansible/collections/requirements.yml" || true
 
-EXTRA_VARS=()
-PLAY_OPTS=()
-
+# Build arg list safely (works with set -u)
+cd "$REPO_ROOT/ansible"
+PLAYBOOK_ARGS=( -i inventory.yml playbooks/macos_local.yml -K )
 if [[ "$ENABLE_SF_FONTS" -eq 1 ]]; then
-  EXTRA_VARS+=( -e enable_sf_fonts=true )
+  PLAYBOOK_ARGS+=( -e enable_sf_fonts=true )
 fi
 if [[ "$ONLY_SF_FONTS" -eq 1 ]]; then
-  PLAY_OPTS+=( --tags fonts )
+  PLAYBOOK_ARGS+=( --tags fonts )
 fi
 
-echo "==> Running Ansible playbook (local)"
-cd "$REPO_ROOT/ansible"
-ansible-playbook -i inventory.yml playbooks/macos_local.yml -K \
-  "${EXTRA_VARS[@]}" "${PLAY_OPTS[@]}"
+echo "==> Running Ansible playbook (local) ${ONLY_SF_FONTS:+[fonts only]}"
+ansible-playbook "${PLAYBOOK_ARGS[@]}"
 
 echo
 echo "🎉 Done."
