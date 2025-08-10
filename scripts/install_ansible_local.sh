@@ -1,6 +1,45 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# -----------------------------
+# Flags
+# -----------------------------
+ENABLE_SF_FONTS=0
+RUN_ALL=0
+
+print_usage() {
+  cat <<'EOF'
+Usage:
+  Default (skip SF fonts):
+    curl -fsSL https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/scripts/install_ansible_local.sh | bash
+
+  With SF fonts:
+    curl -fsSL https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/scripts/install_ansible_local.sh | bash -s -- --sf_fonts
+
+  Or with your original form (note the extra -- before flags):
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/scripts/install_ansible_local.sh)" -- --sf_fonts
+
+Flags:
+  --sf_fonts   Include Apple SF fonts role
+  --all        Run everything (implies --sf_fonts)
+  -h, --help   Show this help
+EOF
+}
+
+# Capture flags if provided (works with both `... | bash -s -- ...` and `bash -c "..." -- ...`)
+for arg in "${@:-}"; do
+  case "$arg" in
+    --sf_fonts|--sf-fonts) ENABLE_SF_FONTS=1 ;;
+    --all) RUN_ALL=1 ;;
+    -h|--help) print_usage; exit 0 ;;
+    *) echo "Unknown flag: $arg"; echo; print_usage; exit 2 ;;
+  esac
+done
+
+if [[ "$RUN_ALL" -eq 1 ]]; then
+  ENABLE_SF_FONTS=1
+fi
+
 # Ask for sudo upfront (brew installer sometimes needs it) and keep alive.
 if command -v sudo >/dev/null 2>&1; then
   sudo -v || true
@@ -11,10 +50,10 @@ HELIX_REPO_URL="${HELIX_REPO_URL:-https://github.com/suhailphotos/helix.git}"
 HELIX_BRANCH="${HELIX_BRANCH:-main}"
 HELIX_LOCAL_DIR="${HELIX_LOCAL_DIR:-$HOME/.cache/helix_bootstrap}"
 
-# Are we in a helix checkout already?
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PARENT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-if [[ -d "$PARENT_DIR/ansible" && -f "$PARENT_DIR/scripts/install_ansible_local.sh" ]]; then
+# Detect whether we're already in a helix checkout (dev runs)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd || true)"
+PARENT_DIR="$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd || true)"
+if [[ -n "${PARENT_DIR:-}" && -d "$PARENT_DIR/ansible" && -f "$PARENT_DIR/scripts/install_ansible_local.sh" ]]; then
   REPO_ROOT="$PARENT_DIR"
 else
   # No local helix — clone/update to cache
@@ -77,9 +116,14 @@ fi
 echo "==> Installing required Ansible collections"
 ansible-galaxy collection install -r "$REPO_ROOT/ansible/collections/requirements.yml"
 
+EXTRA_VARS=()
+if [[ "$ENABLE_SF_FONTS" -eq 1 ]]; then
+  EXTRA_VARS+=( -e enable_sf_fonts=true )
+fi
+
 echo "==> Running Ansible playbook (local) from $REPO_ROOT/ansible"
 cd "$REPO_ROOT/ansible"
-ansible-playbook -i inventory.yml playbooks/macos_local.yml -K
+ansible-playbook -i inventory.yml playbooks/macos_local.yml -K "${EXTRA_VARS[@]}"
 
 echo
 echo "🎉 Done."
