@@ -11,6 +11,8 @@ exec </dev/null
 ENABLE_SF_FONTS=0
 RUN_ALL=0
 ONLY_SF_FONTS=0
+RUN_POETRY=0
+LIMIT_HOST="eclipse"   # default alias; override with --limit quasar
 
 print_usage() {
   cat <<'EOF'
@@ -22,25 +24,24 @@ Default (skip SF fonts):
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/scripts/install_ansible_local.sh)"
 
 Include SF fonts:
-  curl -fsSL https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/scripts/install_ansible_local.sh | bash -s -- --sf_fonts
-  # or
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/scripts/install_ansible_local.sh)" -- --sf_fonts
 
 Only SF fonts:
-  curl -fsSL https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/scripts/install_ansible_local.sh | bash -s -- --only_sf_fonts
-  # or
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/scripts/install_ansible_local.sh)" -- --only_sf_fonts
 
-All:
-  curl -fsSL https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/scripts/install_ansible_local.sh | bash -s -- --all
-  # or
-  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/scripts/install_ansible_local.sh)" -- --all
+All (base + fonts + poetry):
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/scripts/install_ansible_local.sh)" -- --all --limit quasar
+
+Poetry only (after a base run):
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/scripts/install_ansible_local.sh)" -- --poetry --limit quasar
 
 Flags:
-  --sf_fonts       Include Apple SF fonts role
-  --only_sf_fonts  Run only the fonts role (implies --sf_fonts)
-  --all            Run everything (currently includes fonts)
-  -h, --help       Show this help
+  --sf_fonts         Include Apple SF fonts role
+  --only_sf_fonts    Run only the fonts role (implies --sf_fonts)
+  --poetry           Run the Poetry envs playbook (after base playbook)
+  --limit HOST       Limit Poetry envs run to a host in inventory (default: eclipse)
+  --all              Run everything (base + fonts + poetry)
+  -h, --help         Show this help
 EOF
 }
 
@@ -50,8 +51,10 @@ while [[ $# -gt 0 ]]; do
     --sf_fonts|--sf-fonts) ENABLE_SF_FONTS=1 ;;
     --only_sf_fonts|--fonts-only) ENABLE_SF_FONTS=1; ONLY_SF_FONTS=1 ;;
     --all) RUN_ALL=1 ;;
+    --poetry) RUN_POETRY=1 ;;
+    --limit) LIMIT_HOST="${2:-}"; shift ;;
     -h|--help) print_usage; exit 0 ;;
-    --) shift; break ;;   # stop parsing flags
+    --) shift; break ;;
     *) echo "Unknown flag: $1"; echo; print_usage; exit 2 ;;
   esac
   shift
@@ -59,6 +62,14 @@ done
 
 if [[ "$RUN_ALL" -eq 1 ]]; then
   ENABLE_SF_FONTS=1
+  RUN_POETRY=1
+fi
+
+# Disallow: --only_sf_fonts together with --poetry (poetry needs base toolchain)
+if [[ "$ONLY_SF_FONTS" -eq 1 && "$RUN_POETRY" -eq 1 ]]; then
+  echo "Refusing to run: --only_sf_fonts cannot be combined with --poetry (poetry needs the base toolchain)."
+  echo "Run without --only_sf_fonts, or run --poetry after a normal base run."
+  exit 2
 fi
 
 # Ask for sudo upfront (keep alive)
@@ -162,6 +173,12 @@ fi
 
 echo "==> Running Ansible playbook (local) ${ONLY_SF_FONTS:+[fonts only]}"
 ansible-playbook "${PLAYBOOK_ARGS[@]}"
+
+# Optionally run Poetry envs (after base has installed pyenv/poetry)
+if [[ "$RUN_POETRY" -eq 1 ]]; then
+  echo "==> Running Poetry envs (limit=${LIMIT_HOST})"
+  ansible-playbook -i inventory.yml playbooks/poetry_envs.yml --limit "${LIMIT_HOST}" -K
+fi
 
 echo
 echo "🎉 Done."
