@@ -1,0 +1,166 @@
+---
+# Drive this role with:
+#  - matrix_packages_dir
+#  - houdini_python_patch
+#  - poetry_projects_macos / poetry_projects_linux
+
+- name: Compute paths and PATH for pyenv/poetry
+  set_fact:
+    matrix_root: "{{ matrix_root | default(lookup('env','MATRIX') | default(ansible_env.HOME + '/Library/CloudStorage/Dropbox/matrix', true)) }}"
+    matrix_packages_dir: "{{ matrix_packages_dir | default(matrix_root + '/packages') }}"
+    poetry_path_env: "{{ ansible_env.HOME }}/.local/bin:/opt/homebrew/bin:/usr/local/bin:{{ ansible_env.HOME }}/.pyenv/bin:{{ ansible_env.HOME }}/.pyenv/shims:{{ ansible_env.PATH }}"
+    houdini_python_patch: "{{ houdini_python_patch | default('3.11.7') }}"
+
+- name: Make sure community.general is available (toml filter)
+  assert:
+    that: "'community.general' in ansible_collections"
+  failed_when: false
+
+- name: Determine project list for this OS
+  set_fact:
+    poetry_projects: >-
+      {{ poetry_projects
+         | default((poetry_projects_macos | default([])) if ansible_system == 'Darwin'
+                   else (poetry_projects_linux | default([]))) }}
+
+- name: Get pyenv root
+  command: bash -lc 'pyenv root'
+  environment: { PATH: "{{ poetry_path_env }}" }
+  register: pyenv_root
+  changed_when: false
+  failed_when: false
+
+- name: Fail early if no projects were provided
+  fail:
+    msg: "No projects to process. Set poetry_projects_macos / poetry_projects_linux."
+  when: (poetry_projects | length) == 0
+
+# ----- loop per project -----------------------------------------------------
+
+- name: Configure Poetry envs per project
+  vars:
+    pkg_dir: "{{ matrix_packages_dir }}/{{ item }}"
+  block:
+
+    - name: Check for pyproject.toml
+      stat:
+        path: "{{ pkg_dir }}/pyproject.toml"
+      register: pyproj
+      changed_when: false
+
+    - name: Skip non-Poetry project
+      debug:
+        msg: "Skipping {{ item }} (no pyproject.toml)"
+      when: not pyproj.stat.exists
+
+    - name: Read pyproject.toml
+      slurp:
+        path: "{{ pkg_dir }}/pyproject.toml"
+      register: pyproj_raw
+      when: pyproj.stat.exists
+
+    - name: Parse pyproject.toml -> dict
+      set_fact:
+        pyproj_dict: "{{ (pyproj_raw.content | b64decode) | from_toml }}"
+      when: pyproj.stat.exists
+
+    - name: Extract python spec (default to >=3.11,<4.0)
+      set_fact:
+        python_spec: "{{ pyproj_dict.tool.poetry.dependencies.python | default('>=3.11,<4.0') }}"
+      when: pyproj.stat.exists
+
+    - name: Choose interpreter that satisfies spec (prefer {{ houdini_python_patch }})
+      shell: |
+        set -e
+        export PATH="{{ poetry_path_env }}"
+        pe="{{ pyenv_root.stdout | default(ansible_env.HOME + '/.pyenv') }}/versions"
+        spec='{{ python_spec }}'
+        prefer='{{ houdini_python_patch }}'
+
+        choose_for_minor() {
+          minor="$1"
+          if [ -x "$pe/$prefer/bin/python" ] && printf '%s\n' "$prefer" | grep -q "^$minor\." ; then
+            echo "$pe/$prefer/bin/python"; return 0
+          fi
+          v="$(pyenv versions --bare | grep "^${minor}\." | sort -V | tail -1 || true)"
+          [ -n "$v" ] && [ -x "$pe/$v/bin/python" ] && { echo "$pe/$v/bin/python"; return 0; }
+          return 1
+        }
+
+        # Prefer 3.11 if allowed
+        if printf '%s' "$spec" | grep -Eq '(^|[<>=,[:space:]])\^?3\.11|>=\s*3\.11'; then
+          choose_for_minor "3.11" && exit 0
+        fi
+
+        # Next most common: 3.12
+        if printf '%s' "$spec" | grep -Eq '(^|[<>=,[:space:]])\^?3\.12|>=\s*3\.12'; then
+          choose_for_minor "3.12" && exit 0
+        fi
+
+        # Fallback: first X.Y we can spot in the spec
+        minor="$(printf '%s' "$spec" | grep -Eo '[0-9]+\.[0-9]+' | head -1 || true)"
+        if [ -n "$minor" ]; then
+          choose_for_minor "$minor" && exit 0
+        fi
+
+        # Last resort: pyenv global (or system python3)
+        g="$(pyenv global | awk '{print $1}' 2>/dev/null || true)"
+        if [ -n "$g" ] && [ -x "$pe/$g/bin/python" ]; then
+          echo "$pe/$g/bin/python"; exit 0
+        fi
+        command -v python3
+      args: { executable: /bin/bash, chdir: "{{ pkg_dir }}" }
+      environment: { PATH: "{{ poetry_path_env }}" }
+      register: chosen_python
+      changed_when: false
+      when: pyproj.stat.exists
+
+    - name: Report chosen interpreter
+      debug:
+        msg: "Project {{ item }} → python: {{ chosen_python.stdout | default('n/a') }}  (spec: {{ python_spec | default('n/a') }})"
+      when: pyproj.stat.exists
+
+    - name: poetry env use
+      shell: poetry env use "{{ chosen_python.stdout }}"
+      args: { executable: /bin/bash, chdir: "{{ pkg_dir }}" }
+      environment: { PATH: "{{ poetry_path_env }}" }
+      register: env_use
+      changed_when: >
+        env_use.stdout is search('Creating virtualenv')
+        or env_use.stdout is search('Using virtualenv')
+
+    # Try a quick, idempotent lock (best-effort) then install.
+    - name: poetry lock --no-update (best-effort)
+      shell: poetry lock --no-update
+      args: { executable: /bin/bash, chdir: "{{ pkg_dir }}" }
+      environment: { PATH: "{{ poetry_path_env }}" }
+      register: lock_out
+      failed_when: false
+      changed_when: lock_out.stdout is search('Writing lock file')
+
+    - name: poetry install (handle lock drift gracefully)
+      shell: poetry install -n
+      args: { executable: /bin/bash, chdir: "{{ pkg_dir }}" }
+      environment: { PATH: "{{ poetry_path_env }}" }
+      register: install_out
+      failed_when: false
+
+    - name: If install failed, try lock then install again
+      when: install_out.rc != 0
+      block:
+        - name: Repair lock then install
+          shell: |
+            set -e
+            poetry lock --no-update
+            poetry install -n
+          args: { executable: /bin/bash, chdir: "{{ pkg_dir }}" }
+          environment: { PATH: "{{ poetry_path_env }}" }
+
+  rescue:
+    - name: Soft-fail this project but continue
+      debug:
+        msg: "Poetry setup FAILED for {{ item }} — {{ ansible_failed_result.msg | default(ansible_failed_result.stderr, true) }}"
+  loop: "{{ poetry_projects }}"
+  loop_control:
+    label: "{{ item }}"
+  tags: ['poetry_envs']

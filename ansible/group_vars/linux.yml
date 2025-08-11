@@ -1,2 +1,8 @@
 apt_packages:
   - tree
+
+matrix_root: "{{ lookup('env','MATRIX') | default('/home/' + ansible_user + '/Dropbox/matrix', true) }}"
+matrix_packages_dir: "{{ matrix_root }}/packages"
+houdini_python_patch: "3.11.7"
+
+poetry_projects_linux: []

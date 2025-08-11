@@ -1,0 +1,6 @@
+- name: Build Poetry envs for listed projects
+  hosts: macos,linux
+  gather_facts: yes
+
+  roles:
+    - poetry_envs

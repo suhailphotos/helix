@@ -56,3 +56,26 @@ apple_sf_fonts:
   - { name: "SF Compact", url: "https://developer.apple.com/download/files/SF-Compact.dmg" }
   - { name: "SF Mono",    url: "https://devimages-cdn.apple.com/design/resources/download/SF-Mono.dmg" }
   - { name: "New York",   url: "https://devimages-cdn.apple.com/design/resources/download/NY.dmg" }
+
+
+matrix_root: "{{ lookup('env','MATRIX') | default(ansible_env.HOME + '/Library/CloudStorage/Dropbox/matrix', true) }}"
+matrix_packages_dir: "{{ matrix_root }}/packages"
+
+# Prefer this exact patch when a project allows 3.11.* (Houdini parity)
+houdini_python_patch: "3.11.7"
+
+# Only process what you list here (skip houdiniLab, etc.)
+poetry_projects_macos:
+  - hdrUtils
+  - helperScripts
+  - oauthManager
+  - ocioTools
+  - pythonKitchen
+  - Incept
+  - Ledu
+  - Lumiera
+  - notionManager
+  - nukeUtils
+  - pariVaha
+  - usdUtils
+  - webUtils
