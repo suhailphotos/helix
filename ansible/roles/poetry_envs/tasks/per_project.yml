@@ -13,18 +13,28 @@
   when: not pyproj.stat.exists
 
 - block:
-    - name: Read pyproject.toml
-      slurp:
-        path: "{{ pkg_dir }}/pyproject.toml"
-      register: pyproj_raw
+    - name: Extract python spec from pyproject.toml (via Python tomllib/tomli)
+      shell: |
+        python3 - <<'PY'
+        import sys, json, pathlib
+        p = pathlib.Path(r'{{ pkg_dir }}/pyproject.toml')
+        try:
+            import tomllib  # Py 3.11+
+        except ModuleNotFoundError:
+            import tomli as tomllib  # fallback if tomllib missing
+        with p.open('rb') as f:
+            data = tomllib.load(f)
+        spec = (data.get('tool', {}).get('poetry', {})
+                    .get('dependencies', {}).get('python', '>=3.11,<4.0'))
+        print(spec)
+        PY
+      args: { executable: /bin/bash }
+      register: py_spec_cmd
+      changed_when: false
 
-    - name: Parse pyproject.toml -> dict
+    - name: Save python_spec
       set_fact:
-        pyproj_dict: "{{ (pyproj_raw.content | b64decode) | from_toml }}"
-
-    - name: Extract python spec (default to >=3.11,<4.0)
-      set_fact:
-        python_spec: "{{ pyproj_dict.tool.poetry.dependencies.python | default('>=3.11,<4.0') }}"
+        python_spec: "{{ py_spec_cmd.stdout | trim }}"
 
     - name: Choose interpreter that satisfies spec (prefer {{ houdini_python_patch }})
       shell: |
