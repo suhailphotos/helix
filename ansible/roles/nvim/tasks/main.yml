@@ -59,11 +59,11 @@
 
 # --- NEW: Preinstall LSP servers via Mason (headless)
 # Note: ts_ls requires npm; installing 'node' above provides it.
-- name: Install Mason LSP servers (lua, rust, python, typescript)
+- name: Install Mason LSP servers (lua, python, typescript)
   shell: |
     nvim --headless \
-      "+MasonInstall lua-language-server rust-analyzer python-lsp-server typescript-language-server" \
-      "+qa"
+      "+MasonInstall lua-language-server python-lsp-server typescript-language-server" \
+      "+qa" || true
   args:
     executable: /bin/bash
   environment:

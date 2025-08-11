@@ -16,6 +16,7 @@ brew_packages:
   - 1password-cli
   - node
   - pyenv
+  - rust-analyzer
 
 # ---- Optional: build deps to Python builds smoother on macOS ----
 #  - openssl@3

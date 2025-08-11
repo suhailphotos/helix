@@ -25,9 +25,8 @@ return {
     require("fidget").setup({})
     require("mason").setup()
     require("mason-lspconfig").setup({
-      -- if you’re on Neovim 0.10.x, keep this false to avoid calling vim.lsp.enable()
       automatic_enable = false,
-      ensure_installed = { "lua_ls", "rust_analyzer", "pylsp", "ts_ls" }, -- <— was tsserver
+      ensure_installed = { "lua_ls", "pylsp", "ts_ls" },  -- ← no rust_analyzer here
       handlers = {
         function(server) require("lspconfig")[server].setup({ capabilities = capabilities }) end,
         ["lua_ls"] = function()
@@ -55,6 +54,9 @@ return {
         end,
       },
     })
+
+    -- Use Homebrew's rust-analyzer found on PATH
+    require("lspconfig").rust_analyzer.setup({ capabilities = capabilities })
 
     local cmp_select = { behavior = cmp.SelectBehavior.Select }
     cmp.setup({
