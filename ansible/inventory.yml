@@ -7,6 +7,9 @@ all:
           ansible_python_interpreter: /usr/bin/python3
     linux:
       hosts:
-        flicker: {}
-        nimbus: {}
-        nexus: {}
+        flicker:
+          ansible_host: flicker.suhail.tech
+        nimbus:
+          ansible_host: nimbus.suhail.tech
+        nexus:
+          ansible_host: nexus.suhail.tech
