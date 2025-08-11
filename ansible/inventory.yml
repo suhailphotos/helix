@@ -5,6 +5,12 @@ all:
         eclipse:
           ansible_connection: local
           ansible_python_interpreter: /usr/bin/python3
+        quasar:
+          ansible_connection: local
+          ansible_python_interpreter: /usr/bin/python3
+        feather:
+          ansible_connection: local
+          ansible_python_interpreter: /usr/bin/python3
     linux:
       hosts:
         flicker:

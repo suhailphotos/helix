@@ -1,0 +1,10 @@
+ORBIT_HOME: "{{ lookup('env','HOME') }}/.orbit"  # runtime (sourced)
+ORBIT_DEV_HOME: "{{ lookup('env','HOME') }}/Library/CloudStorage/Dropbox/matrix/orbit"  # dev (Dropbox)
+ORBIT_REMOTE: "https://github.com/suhailphotos/orbit.git"
+ORBIT_BRANCH: "main"
+
+brew_taps_extra:
+  - epk/epk
+
+brew_casks_extra:
+  - font-sf-mono-nerd-font
