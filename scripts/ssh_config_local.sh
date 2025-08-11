@@ -13,9 +13,9 @@ HELIX_BRANCH="${HELIX_BRANCH:-main}"
 HELIX_LOCAL_DIR="${HELIX_LOCAL_DIR:-$HOME/.cache/helix_bootstrap}"
 
 SSH_DIR="${SSH_DIR:-$HOME/.ssh}"
-USE_1PASSWORD=0                      # if 1 -> uncomment IdentityAgent in base, omit IdentityFile in snippets
+USE_1PASSWORD=0                      # if 1 -> uncomment IdentityAgent in base; omit IdentityFile in snippets
 INCLUDE_MACOS=0                      # if 1 -> include macOS group too
-DEFAULT_DOMAIN="${DEFAULT_DOMAIN:-}" # e.g. "suhail.tech" to turn "nimbus" into "nimbus.suhail.tech"
+DEFAULT_DOMAIN="${DEFAULT_DOMAIN:-}" # e.g. "suhail.tech" to turn "nimbus" -> "nimbus.suhail.tech" if no ansible_host
 DEFAULT_USER="${DEFAULT_USER:-$USER}"
 IDENTITY_FILE="${IDENTITY_FILE:-$HOME/.ssh/id_rsa}"  # ignored when USE_1PASSWORD=1
 DRY_RUN=0
@@ -122,7 +122,7 @@ if [[ -f "$BASE_CFG" && $DRY_RUN -eq 0 ]]; then
 fi
 
 # Your standard base config (with IdentityAgent commented)
-read -r -d '' BASE_STANDARD <<'STD'
+BASE_STANDARD="$(cat <<'STD'
 # Managed by helix ssh_config_local.sh
 
 Host *
@@ -147,10 +147,12 @@ Host *
 # Pull in all host snippets
 Include ~/.ssh/config.d/*.conf
 STD
+)"
 
-# If --use-1password, produce a version with the agent line uncommented.
+# If --use-1password, uncomment the IdentityAgent line
 if [[ $USE_1PASSWORD -eq 1 ]]; then
-  BASE_CONTENT="$(printf "%s\n" "$BASE_STANDARD" | sed 's/# \(IdentityAgent ~/.1password\/agent.sock\)/\1/')"
+  BASE_CONTENT="$(printf "%s\n" "$BASE_STANDARD" \
+    | sed 's/^  # IdentityAgent \(~\/\.1password\/agent\.sock\)$/  IdentityAgent \1/')"
 else
   BASE_CONTENT="$BASE_STANDARD"
 fi
