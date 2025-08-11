@@ -12,7 +12,13 @@ ENABLE_SF_FONTS=0
 RUN_ALL=0
 ONLY_SF_FONTS=0
 RUN_POETRY=0
-LIMIT_HOST="eclipse"   # default alias; override with --limit quasar
+# --- Default Host
+DEFAULT_HOST="$(scutil --get LocalHostName 2>/dev/null || hostname -s)"
+if [[ -z "${LIMIT_HOST:-}" ]]; then
+  LIMIT_HOST="$DEFAULT_HOST"
+fi
+echo "==> Target host: ${LIMIT_HOST}"
+# ---- end flags --------------
 
 print_usage() {
   cat <<'EOF'
@@ -163,7 +169,7 @@ ansible-galaxy collection install -r "$REPO_ROOT/ansible/collections/requirement
 
 # Build arg list safely (works with set -u)
 cd "$REPO_ROOT/ansible"
-PLAYBOOK_ARGS=( -i inventory.yml playbooks/macos_local.yml -K )
+PLAYBOOK_ARGS=( -i inventory.yml playbooks/macos_local.yml --limit "${LIMIT_HOST}" -K )
 if [[ "$ENABLE_SF_FONTS" -eq 1 ]]; then
   PLAYBOOK_ARGS+=( -e enable_sf_fonts=true )
 fi
@@ -171,7 +177,7 @@ if [[ "$ONLY_SF_FONTS" -eq 1 ]]; then
   PLAYBOOK_ARGS+=( --tags fonts )
 fi
 
-echo "==> Running Ansible playbook (local) ${ONLY_SF_FONTS:+[fonts only]}"
+echo "==> Running Ansible playbook (local) ${ONLY_SF_FONTS:+[fonts only]} (limit=${LIMIT_HOST})"
 ansible-playbook "${PLAYBOOK_ARGS[@]}"
 
 # Optionally run Poetry envs (after base has installed pyenv/poetry)
@@ -183,3 +189,5 @@ fi
 echo
 echo "🎉 Done."
 echo "Open iTerm2 and import: ~/Downloads/suhail_item2_profiles.json + ~/Downloads/suhailTerm2.itermcolors"
+
+
