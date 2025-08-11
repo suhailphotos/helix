@@ -218,9 +218,9 @@ done < <(yq -r "$YQ_QUERY" "$INVENTORY")
 
 echo
 if [[ $DRY_RUN -eq 1 ]]; then
-  echo "✅ Dry run complete. No files changed."
+  echo "Dry run complete. No files changed."
 else
-  echo "✅ SSH config generated:"
+  echo "SSH config generated:"
   echo "   - Base: $BASE_CFG"
   echo "   - Snippets: $SSH_DIR/config.d/*.conf"
   echo "Tip: test with 'ssh -v nimbus' (or any host)."
