@@ -1,5 +1,8 @@
-- name: Install desktop apps on macOS (per host)
+# ansible/playbooks/desktop_apps.yml
+- name: macOS Desktop Apps
   hosts: macos
+  connection: local
   gather_facts: yes
+
   roles:
     - desktop_apps
