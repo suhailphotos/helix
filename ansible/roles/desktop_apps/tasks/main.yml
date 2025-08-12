@@ -21,28 +21,35 @@
 
 - name: Set brew_bin path fact
   set_fact:
-    brew_bin: >-
-      {{ '/opt/homebrew/bin/brew' if brew_path_opt.stat.exists else '/usr/local/bin/brew' }}
+    brew_bin: "{{ '/opt/homebrew/bin/brew' if brew_path_opt.stat.exists else '/usr/local/bin/brew' }}"
 
-# Compute final list, honoring host-level skips
+# Build final list: baseline + host extras – host skips
 - name: Build desktop cask target list
   set_fact:
-    desktop_casks_targets: "{{ (desktop_casks | default([])) | difference(desktop_casks_skip | default([])) }}"
+    desktop_casks_final: >-
+      {{ ((desktop_casks | default([])) + (desktop_casks_extra | default([])))
+         | unique
+         | difference(desktop_casks_skip | default([])) }}
 
-- name: Install/overwrite casks per item with graceful fallback
-  block:
-    - name: Install/overwrite {{ cask }} (force)
-      community.general.homebrew_cask:
-        name: "{{ cask }}"
-        state: present
-        path: "{{ brew_bin }}"
-        install_options: ['force']
-  rescue:
-    - name: Accept external app for {{ cask }} (skip)
-      community.general.homebrew_cask:
-        name: "{{ cask }}"
-        state: present
-        path: "{{ brew_bin }}"
-        accept_external_apps: true
-  loop: "{{ desktop_casks_targets }}"
-  loop_control: { loop_var: cask, label: "{{ cask }}" }
+# Pass 1: try to bring apps under brew with --force
+- name: Try install/overwrite casks with --force
+  community.general.homebrew_cask:
+    name: "{{ item }}"
+    state: present
+    path: "{{ brew_bin }}"
+    install_options: [force]
+  loop: "{{ desktop_casks_final }}"
+  loop_control: { label: "{{ item }}" }
+  register: cask_force
+  ignore_errors: yes
+
+# Pass 2: for failures, accept external apps (graceful, no hard fail)
+- name: Accept external apps for failed items
+  community.general.homebrew_cask:
+    name: "{{ item.item }}"
+    state: present
+    path: "{{ brew_bin }}"
+    accept_external_apps: true
+  when: item.failed | default(false)
+  loop: "{{ cask_force.results | default([]) }}"
+  loop_control: { label: "{{ item.item }}" }
