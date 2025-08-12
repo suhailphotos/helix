@@ -29,4 +29,7 @@ return {
 
   -- tmux navigation between splits/panes
   require("suhail.lazy.tmux_nav"),
+
+  -- vim be good
+  require("suhail.lazy.vim_be_good"),
 }
