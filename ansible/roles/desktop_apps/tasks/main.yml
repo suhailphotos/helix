@@ -1,0 +1,40 @@
+---
+- name: Only run on macOS
+  meta: end_host
+  when: ansible_system != "Darwin"
+
+# Find Homebrew
+- name: Detect Homebrew (Apple Silicon path)
+  stat:
+    path: /opt/homebrew/bin/brew
+  register: brew_path_opt
+
+- name: Detect Homebrew (Intel path)
+  stat:
+    path: /usr/local/bin/brew
+  register: brew_path_usr
+
+- name: Fail if Homebrew not found
+  fail:
+    msg: "Homebrew not found. Run the base macOS play first."
+  when: not brew_path_opt.stat.exists and not brew_path_usr.stat.exists
+
+- name: Set brew_bin path fact
+  set_fact:
+    brew_bin: >-
+      {{ '/opt/homebrew/bin/brew' if brew_path_opt.stat.exists else '/usr/local/bin/brew' }}
+
+# Compose final list (group defaults + host extras, minus host skips)
+- name: Build final desktop cask list
+  set_fact:
+    desktop_casks_final: >-
+      {{ ((desktop_casks | default([])) + (desktop_casks_extra | default([])))
+          | unique
+          | difference(desktop_casks_skip | default([])) }}
+
+- name: Install desktop apps (Homebrew Casks)
+  community.general.homebrew_cask:
+    name: "{{ desktop_casks_final }}"
+    state: present
+    path: "{{ brew_bin }}"
+  tags: ['desktop']

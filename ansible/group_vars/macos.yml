@@ -79,3 +79,12 @@ poetry_projects_macos:
   - pariVaha
   - usdUtils
   - webUtils
+
+# Desktop apps you usually want on macOS (baseline; host can extend/trim)
+desktop_casks:
+  - inkscape
+  - discord
+  - jellyfin-media-player
+  - obsidian
+  - spotify
+  - blender

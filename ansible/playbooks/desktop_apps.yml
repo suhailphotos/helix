@@ -1,0 +1,5 @@
+- name: Install desktop apps on macOS (per host)
+  hosts: macos
+  gather_facts: yes
+  roles:
+    - desktop_apps

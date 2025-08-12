@@ -8,3 +8,12 @@ brew_taps_extra:
 
 brew_casks_extra:
   - font-sf-mono-nerd-font
+
+desktop_casks_extra: []
+desktop_casks_skip: []
+
+# Include machine specfic apps like this:
+#desktop_casks_extra:
+#  - blender
+#desktop_casks_skip:
+#  - inkscape
