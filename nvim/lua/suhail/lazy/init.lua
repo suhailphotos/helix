@@ -30,6 +30,9 @@ return {
   -- tmux navigation between splits/panes
   require("suhail.lazy.tmux_nav"),
 
+  -- Clipboard (local system clipboard or OSC52 over SSH)
+  require("suhail.lazy.clipboard"),
+
   -- vim be good
   require("suhail.lazy.vim_be_good"),
 }

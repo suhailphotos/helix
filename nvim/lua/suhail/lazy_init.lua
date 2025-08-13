@@ -10,8 +10,12 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
+-- opt-in switch (only enable rocks if LAZY_ROCKS=1 is set)
+local rocks_enabled = (vim.env.LAZY_ROCKS == "1")
+
 require("lazy").setup({
   spec = "suhail.lazy",
   change_detection = { notify = false },
   install = { colorscheme = { "rose-pine", "tokyonight" } },
+  rocks = { enabled = rocks_enabled, hererocks = false },
 })
