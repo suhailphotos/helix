@@ -5,3 +5,4 @@
 
   roles:
     - linux_bootstrap
+    - tmux_setup

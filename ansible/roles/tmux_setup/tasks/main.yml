@@ -1,7 +1,41 @@
-- name: Create empty tmux.conf if none (customize later from helix/tmux if desired)
+---
+# Ensure tmux present (Linux only here; mac installs via Homebrew elsewhere)
+- name: Install tmux and clipboard helpers (Linux)
+  become: yes
+  apt:
+    name:
+      - tmux
+      - wl-clipboard
+      - xclip
+    state: present
+    update_cache: yes
+  when: ansible_system != "Darwin"
+
+# Ensure we know where to fetch raw files from this repo
+- name: Set helix_repo_raw_base if missing (default main branch)
+  set_fact:
+    helix_repo_raw_base: "https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main"
+  when: helix_repo_raw_base is not defined
+
+# Backup existing config once (first run) and install the one tracked in helix/tmux/tmux.conf
+- name: Backup existing ~/.tmux.conf if present
   copy:
-    dest: "{{ lookup('env','HOME') }}/.tmux.conf"
-    content: |
-      # placeholder — add your tmux config or copy from helix/tmux
+    src: "{{ lookup('env','HOME') }}/.tmux.conf"
+    dest: "{{ lookup('env','HOME') }}/.tmux.conf.bak"
+    remote_src: yes
     force: no
+  ignore_errors: yes
+
+- name: Install tmux.conf from helix repo (raw)
+  get_url:
+    url: "{{ helix_repo_raw_base }}/tmux/tmux.conf"
+    dest: "{{ lookup('env','HOME') }}/.tmux.conf"
     mode: "0644"
+
+# If we're already inside tmux, reload config (non-fatal if not in tmux)
+- name: Reload tmux config if running inside tmux
+  shell: tmux source-file ~/.tmux.conf
+  args: { executable: /bin/bash }
+  changed_when: false
+  failed_when: false
+  when: ansible_env.TMUX is defined and ansible_env.TMUX | length > 0
