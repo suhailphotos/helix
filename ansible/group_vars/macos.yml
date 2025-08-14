@@ -17,6 +17,8 @@ brew_packages:
   - node
   - pyenv
   - rust-analyzer
+  - pngpaste
+  - tree-sitter
 
 # ---- Optional: build deps to Python builds smoother on macOS ----
 #  - openssl@3
