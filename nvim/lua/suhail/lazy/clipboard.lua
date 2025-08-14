@@ -5,41 +5,52 @@ return {
     event = "VeryLazy",
     config = function()
       local osc52 = require("osc52")
-      osc52.setup({}) -- defaults are fine
+      osc52.setup({
+        -- helpful defaults; tune if you like
+        max_length = 0,  -- no limit (some terminals truncate long OSC52)
+        silent = true,
+        trim = false,
+      })
 
       local uname = vim.loop.os_uname().sysname
       local is_darwin = uname == "Darwin"
       local is_linux  = uname == "Linux"
       local function has(cmd) return vim.fn.executable(cmd) == 1 end
 
-      -- Do we have a native system clipboard provider available?
+      -- Native clipboard available locally?
       local has_sysclip = (is_darwin and has("pbcopy") and has("pbpaste"))
         or (is_linux and (has("wl-copy") or has("xclip") or has("xsel")))
 
-      -- Are we on a remote host?
+      -- On a remote shell?
       local is_ssh = (vim.env.SSH_CONNECTION ~= nil) or (vim.env.SSH_TTY ~= nil)
 
       if not is_ssh and has_sysclip then
-        -- Local machine with system clipboard → use it
-        -- (Neovim will use pbcopy/pbpaste on macOS, wl-copy/xclip/xsel on Linux)
+        -- Local machine with a system clipboard → let Neovim use it
         vim.opt.clipboard = "unnamedplus"
         return
       end
 
-      -- Remote (SSH) OR no native provider → use OSC52 to copy to the local terminal’s clipboard
+      -- Remote (SSH) or no native provider → OSC52 provider
+      local function copy_lines(lines, _)
+        osc52.copy(table.concat(lines, "\n"))
+      end
+      local function paste_stub()
+        -- We generally don't paste from the local clipboard back to remote
+        return { "" }, { "" }
+      end
+
       vim.g.clipboard = {
         name = "osc52",
-        copy = { ["+"] = osc52.copy, ["*"] = osc52.copy },
-        -- We don’t try to paste *from* local into remote; keep it empty.
-        paste = {
-          ["+"] = function() return { "" }, { "" } end,
-          ["*"] = function() return { "" }, { "" } end,
-        },
+        copy = { ["+"] = copy_lines, ["*"] = copy_lines },
+        paste = { ["+"] = paste_stub, ["*"] = paste_stub },
       }
 
-      -- Make normal yanks hit the + register so they go through the provider.
-      -- If you prefer to keep default yanks internal, remove this line and use your <leader>y maps.
+      -- Send default yanks to + so they run through the provider
       vim.opt.clipboard = "unnamedplus"
+
+      -- Optional: mappings to force OSC52 copy on demand
+      -- vim.keymap.set("n", "<leader>cy", function() osc52.copy(vim.fn.getreg("%")) end)
+      -- vim.keymap.set("v", "<leader>y", osc52.copy_visual)
     end,
   },
 }
