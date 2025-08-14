@@ -25,7 +25,12 @@ return {
     "nvim-lua/plenary.nvim",
     "MunifTanjim/nui.nvim",
     -- markdown / images (recommended)
-    { "MeanderingProgrammer/render-markdown.nvim", opts = {} },
+    { "MeanderingProgrammer/render-markdown.nvim",
+      opts = {
+        latex = { enable = false },
+        html = { enable = false },
+      }
+    },
     { "HakonHarnes/img-clip.nvim", opts = { default = { embed_image_as_base64 = false, prompt_for_file_name = false } } },
     -- optional quality-of-life
     "hrsh7th/nvim-cmp",

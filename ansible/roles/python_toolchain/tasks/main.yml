@@ -71,3 +71,22 @@
     PATH: "{{ lookup('env','HOME') }}/.pyenv/bin:{{ lookup('env','HOME') }}/.pyenv/shims:/opt/homebrew/bin:/usr/local/bin:{{ ansible_env.PATH }}"
   when: pyenv_global is defined
   tags: ['cli']
+
+# --- Neovim Python host (dedicated venv) -------------------------
+- name: Ensure ~/.venvs exists
+  file:
+    path: "{{ lookup('env','HOME') }}/.venvs"
+    state: directory
+    mode: "0755"
+
+- name: Create nvim python venv if missing
+  shell: |
+    test -x ~/.venvs/nvim/bin/python || python3 -m venv ~/.venvs/nvim
+  args: { executable: /bin/bash }
+  changed_when: false
+
+- name: Install/upgrade pynvim in the nvim venv
+  shell: |
+    ~/.venvs/nvim/bin/pip install -U pip pynvim
+  args: { executable: /bin/bash }
+  changed_when: false

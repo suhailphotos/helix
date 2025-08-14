@@ -57,6 +57,13 @@
     PATH: "{{ ansible_env.PATH }}:/opt/homebrew/bin:/usr/local/bin"
   changed_when: false
 
+- name: Build LuaSnip jsregexp (if plugin is present)
+  shell: |
+    [ -d "{{ lookup('env','HOME') }}/.local/share/nvim/lazy/LuaSnip" ] && \
+    make -C "{{ lookup('env','HOME') }}/.local/share/nvim/lazy/LuaSnip" install_jsregexp || true
+  args: { executable: /bin/bash }
+  changed_when: false
+
 # --- NEW: Preinstall LSP servers via Mason (headless)
 # Note: ts_ls requires npm; installing 'node' above provides it.
 - name: Install Mason LSP servers (lua, python, typescript)
