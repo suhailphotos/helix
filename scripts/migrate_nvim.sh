@@ -76,7 +76,7 @@ install_base_packages() {
   sudo apt-get update -y
   sudo apt-get install -y software-properties-common >/dev/null 2>&1 || true
   sudo apt-get install -y build-essential pkg-config git curl unzip tar gzip file ca-certificates \
-                          ripgrep fd-find xclip wl-clipboard python3 python3-pip
+                          ripgrep fd-find xclip wl-clipboard python3 python3-pip python3-venv
   # fd convenience
   if ! command -v fd >/dev/null 2>&1 && command -v fdfind >/dev/null 2>&1; then
     mkdir -p "${HOME}/.local/bin"
@@ -207,6 +207,14 @@ ensure_local_bin_on_path() {
   export PATH="$HOME/.local/bin:$PATH"
 }
 
+ensure_python_venv() {
+  if python3 -c "import venv" >/dev/null 2>&1; then
+    return 0
+  fi
+  sudo apt-get install -y python3-venv \
+    || sudo apt-get install -y "python3.$(python3 -c 'import sys;print(sys.version_info.minor)')-venv"
+}
+
 verify_versions() {
   echo
   log "Verifying installs"
@@ -245,6 +253,7 @@ main() {
   remove_packer_artifacts
   remove_user_local_nvim_symlink
   install_base_packages
+  ensure_python_venv
   purge_old_neovim
   install_neovim_deb
   [ "$APT_HOLD" -eq 1 ] && { log "Holding neovim package"; sudo apt-mark hold neovim || true; }
