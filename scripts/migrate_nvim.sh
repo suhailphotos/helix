@@ -195,6 +195,13 @@ install_tmux_fallback() {
   sudo apt-get install -y tmux
 }
 
+ensure_local_bin_on_path() {
+  if ! printf '%s' "$PATH" | grep -q "$HOME/.local/bin"; then
+    log "Adding ~/.local/bin to PATH in ~/.profile"
+    printf '\n# helix: user bin\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$HOME/.profile"
+  fi
+}
+
 verify_versions() {
   echo
   log "Verifying installs"
@@ -238,7 +245,7 @@ main() {
   if ! build_tmux_35a; then
     install_tmux_fallback
   fi
-
+  ensure_local_bin_on_path
   verify_versions
 
   echo
