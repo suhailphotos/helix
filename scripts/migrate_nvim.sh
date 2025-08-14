@@ -131,7 +131,10 @@ install_node_lts() {
   sudo -E bash /tmp/nodesource_setup.sh
   sudo apt-get install -y nodejs
   # Optional: corepack to enable yarn/pnpm if needed by other packages
-  if command -v corepack >/dev/null 2>&1; then corepack enable || true; fi
+  if command -v corepack >/dev/null 2>&1; then
+    # Create shims in ~/.local/bin to avoid EACCES noise
+    corepack enable --install-directory "$HOME/.local/bin" || true
+  fi
   if ! command -v npm >/dev/null 2>&1; then warn "npm not found after Node install"; fi
   node -v || true
   npm -v || true
@@ -200,15 +203,25 @@ ensure_local_bin_on_path() {
     log "Adding ~/.local/bin to PATH in ~/.profile"
     printf '\n# helix: user bin\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$HOME/.profile"
   fi
+  # Also update the PATH for *this* run so verify doesn’t complain.
+  export PATH="$HOME/.local/bin:$PATH"
 }
 
 verify_versions() {
   echo
   log "Verifying installs"
   nvim --version | head -n 2 || die "nvim not found on PATH"
-  tmux -V || [ -x "${HOME}/.local/bin/tmux" ] && "${HOME}/.local/bin/tmux" -V || true
+
+  if command -v tmux >/dev/null 2>&1; then
+    tmux -V
+  elif [ -x "$HOME/.local/bin/tmux" ]; then
+    "$HOME/.local/bin/tmux" -V
+  else
+    warn "tmux not found"
+  fi
+
   node -v || warn "node not found"
-  npm -v || warn "npm not found"
+  npm -v  || warn "npm not found"
 }
 
 main() {
