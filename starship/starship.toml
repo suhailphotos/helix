@@ -3,36 +3,82 @@ format = '$os$hostname${env_var.context_sep}${custom.dir_ell}${custom.dir_parent
 right_format = "$status$cmd_duration$jobs$time$git_branch$git_status"
 add_newline = false
 
-# --- Ellipsis (prints "…/" when depth >= 3 relative to / or $HOME) ---
+# --- Ellipsis: print "…/" only when depth >= 3 (home-relative if inside ~) ---
 [custom.dir_ell]
 when = true
 command = '''
 p="$PWD"
+
+# at ~ -> nothing
 [ "$p" = "$HOME" ] && exit 0
-gp="$(dirname "$(dirname "$p")")"
-if [ "$gp" != "/" ] && [ "$gp" != "$HOME" ]; then
-  printf "…/"
-fi
+
+case "$p" in
+  "$HOME"/*)
+    rel=${p#"$HOME"/}
+    [ -z "$rel" ] && exit 0
+    slashes=$(printf '%s' "$rel" | tr -cd '/' | wc -c | tr -d ' ')
+    depth=$((slashes + 1))
+    [ "$depth" -ge 3 ] && printf "…/"
+    ;;
+  *)
+    pp=${p#/}
+    if [ -n "$pp" ]; then
+      slashes=$(printf '%s' "$pp" | tr -cd '/' | wc -c | tr -d ' ')
+      depth=$((slashes + 1))
+    else
+      depth=0
+    fi
+    [ "$depth" -ge 3 ] && printf "…/"
+    ;;
+esac
 '''
 format = '[$output](fg:bright-black)'
 
-# --- Parent directory (prints "parent/" only when parent isn't / or $HOME) ---
+# --- Parent directory: adds "~/" for depth==2 under ~; plain for deeper ---
 [custom.dir_parent]
 when = true
 command = '''
 p="$PWD"
-parent="$(dirname "$p")"
-if [ "$p" != "$HOME" ] && [ "$parent" != "/" ] && [ "$parent" != "$HOME" ]; then
-  printf "%s/" "$(basename "$parent")"
-fi
+
+# at ~ -> nothing
+[ "$p" = "$HOME" ] && exit 0
+
+case "$p" in
+  "$HOME"/*)
+    rel=${p#"$HOME"/}
+    if [ -n "$rel" ]; then
+      slashes=$(printf '%s' "$rel" | tr -cd '/' | wc -c | tr -d ' ')
+      depth=$((slashes + 1))   # 1: ~/X, 2: ~/X/Y, 3+: deeper
+    else
+      depth=0
+    fi
+
+    if [ "$depth" -eq 1 ]; then
+      printf "~/"
+    elif [ "$depth" -eq 2 ]; then
+      par="$(basename "$(dirname "$p")")"
+      printf "~/%s/" "$par"
+    elif [ "$depth" -ge 3 ]; then
+      par="$(basename "$(dirname "$p")")"
+      printf "%s/" "$par"
+    fi
+    ;;
+  *)
+    parent="$(dirname "$p")"
+    if [ "$parent" != "/" ] && [ "$parent" != "$HOME" ]; then
+      printf "%s/" "$(basename "$parent")"
+    fi
+    ;;
+esac
 '''
 format = '[$output](italic fg:bright-black)'
 
-# --- Current directory (always prints; "~" for home) ---
+# --- Current directory: "~" at home; otherwise just the basename (no "~/" here) ---
 [custom.dir_current]
 when = true
 command = '''
 p="$PWD"
+
 if [ "$p" = "$HOME" ]; then
   printf "~"
 else
