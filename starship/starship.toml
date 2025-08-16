@@ -1,0 +1,101 @@
+# Left: OS host(: on linux)  dir(3 parts)  git  PS
+format = '$os$hostname${env_var.context_sep}${custom.dir_ell}${custom.dir_parent}${custom.dir_current}$character'
+right_format = "$status$cmd_duration$jobs$time$git_branch$git_status"
+add_newline = false
+
+# --- Ellipsis (prints "…/" when depth >= 3 relative to / or $HOME) ---
+[custom.dir_ell]
+when = true
+command = '''
+p="$PWD"
+[ "$p" = "$HOME" ] && exit 0
+gp="$(dirname "$(dirname "$p")")"
+if [ "$gp" != "/" ] && [ "$gp" != "$HOME" ]; then
+  printf "…/"
+fi
+'''
+format = '[$output](fg:bright-black)'
+
+# --- Parent directory (prints "parent/" only when parent isn't / or $HOME) ---
+[custom.dir_parent]
+when = true
+command = '''
+p="$PWD"
+parent="$(dirname "$p")"
+if [ "$p" != "$HOME" ] && [ "$parent" != "/" ] && [ "$parent" != "$HOME" ]; then
+  printf "%s/" "$(basename "$parent")"
+fi
+'''
+format = '[$output](italic fg:bright-black)'
+
+# --- Current directory (always prints; "~" for home) ---
+[custom.dir_current]
+when = true
+command = '''
+p="$PWD"
+if [ "$p" = "$HOME" ]; then
+  printf "~"
+else
+  printf "%s" "$(basename "$p")"
+fi
+'''
+format = '[$output](italic fg:purple)'
+
+[os]
+disabled = false
+format = "[$symbol]($style) "
+style = "fg:#9e9e9e"
+[os.symbols]
+Macos = ""
+Linux = ""
+Windows = ""
+
+[hostname]
+ssh_only = false
+format = "[$hostname]($style)"
+style = "fg:blue"
+
+[env_var.context_sep]
+variable = "PROMPT_CONTEXT_SEP"
+default = ":"
+format = '[$env_value](fg:bright-black)'
+
+[git_branch]
+# leading space here ensures spacing only when in a repo
+format = " [$symbol$branch]($style)"
+symbol = "·"            # or " "
+style = "fg:bright-black"
+
+[git_status]
+# Show one leading space and parentheses only when there’s anything to show.
+format = """\
+            ([·❪](fg:bright-black)\
+            $staged\
+            $modified\
+            $renamed\
+            $deleted\
+            $conflicted\
+            [$untracked](yellow)\
+            $ahead_behind\
+            $stashed\
+            [❫](fg:bright-black))\
+            """
+style = "fg:bright-black"
+
+# Per-status strings with counts
+staged    = '+${count}'
+modified  = '!${count}'
+renamed   = '»${count}'
+deleted   = '✘${count}'
+conflicted= '~${count}'
+untracked = '?${count}'
+stashed   = '*${count}'
+
+# Sync counts
+ahead     = '⇡${count} '
+behind    = '⇣${count} '
+diverged  = '⇕⇡${ahead_count}⇣${behind_count} '
+
+[character]
+success_symbol = ' [%](bold fg:green)'
+error_symbol = ' [%](bold fg:red)'
