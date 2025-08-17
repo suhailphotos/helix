@@ -71,12 +71,12 @@ install_iterm2_and_font() {
   brew install --cask iterm2
 
   # Download iTerm2 profile and color scheme to Downloads for user import
-  IT2_PROFILE_JSON_URL="https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/iterm/suhail_item2_profiles.json"
+  IT2_PROFILE_JSON_URL="https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/dotfiles/iterm/suhail_item2_profiles.json"
   IT2_PROFILE_JSON_PATH="${USER_HOME}/Downloads/suhail_item2_profiles.json"
   echo "Downloading iTerm2 profile JSON to ~/Downloads..."
   curl -fsSL "$IT2_PROFILE_JSON_URL" -o "$IT2_PROFILE_JSON_PATH"
 
-  COLOR_FILE_URL="https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/iterm/suhailTerm2.itermcolors"
+  COLOR_FILE_URL="https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/dotfiles/iterm/suhailTerm2.itermcolors"
   COLOR_FILE_PATH="${USER_HOME}/Downloads/suhailTerm2.itermcolors"
   echo "Downloading iTerm2 color preset to ~/Downloads..."
   curl -fsSL "$COLOR_FILE_URL" -o "$COLOR_FILE_PATH"
@@ -155,7 +155,7 @@ install_zsh_and_p10k() {
   fi
 
   echo "Fetching Powerlevel10k config (.p10k.zsh)..."
-  curl -L -o "${USER_HOME}/.p10k.zsh" "https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/p10k/.p10k.zsh"
+  curl -L -o "${USER_HOME}/.p10k.zsh" "https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/dotfiles/p10k/.p10k.zsh"
 
   # Patch .zshrc for instant prompt and sourcing
   patch_zshrc_for_p10k

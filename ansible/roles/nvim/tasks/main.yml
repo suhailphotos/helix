@@ -18,7 +18,7 @@
 
 - name: Copy helix nvim to ~/.config/nvim
   copy:
-    src: "{{ helix_cache_path }}/nvim/"
+    src: "{{ helix_cache_path }}/dotfiles/nvim/"
     dest: "{{ lookup('env','HOME') }}/.config/nvim/"
     remote_src: yes
     mode: preserve

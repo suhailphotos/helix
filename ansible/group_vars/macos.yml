@@ -56,9 +56,10 @@ helix_repo_url: "https://github.com/suhailphotos/helix.git"
 helix_repo_branch: "main"
 
 helix_repo_raw_base: "https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main"
+helix_dotfiles_raw_base: "{{ helix_repo_raw_base }}/dotfiles"
 
-iterm_profile_json_url: "{{ helix_repo_raw_base }}/iterm/suhail_item2_profile.json"
-iterm_color_preset_url: "{{ helix_repo_raw_base }}/iterm/suhailTerm.itermcolors"
+iterm_profile_json_url: "{{ helix_dotfiles_raw_base }}/iterm/suhail_item2_profile.json"
+iterm_color_preset_url: "{{ helix_dotfiles_raw_base }}/iterm/suhailTerm.itermcolors"
 
 # Apple SF fonts to fetch/install
 apple_sf_fonts:
