@@ -1,11 +1,11 @@
 - name: Remove existing nvim config (if any)
   file:
-    path: "{{ lookup('env','HOME') }}/.config/nvim"
+    path: "{{ ansible_env.HOME }}/.config/nvim"
     state: absent
 
 - name: Ensure config dir exists
   file:
-    path: "{{ lookup('env','HOME') }}/.config"
+    path: "{{ ansible_env.HOME }}/.config"
     state: directory
 
 - name: Clone helix repo to cache
@@ -15,8 +15,8 @@
     version: "{{ helix_repo_branch }}"
     depth: 1
     update: yes
-    # If you want dry-runs to not to fetch then comment check_mode
-    check_mode: no
+    # If you want dry-runs to actually fetch so later tasks can diff, uncomment:
+    # check_mode: no
 
 - name: Check for nvim source in cache
   stat:
@@ -40,28 +40,36 @@
 # --- NEW: remove leftovers from Packer / Harpoon v1 (prevents weird errors)
 - name: Remove old packer 'start' dir if present
   file:
-    path: "{{ lookup('env','HOME') }}/.local/share/nvim/site/pack/packer"
+    path: "{{ ansible_env.HOME }}/.local/share/nvim/site/pack/packer"
     state: absent
 
 - name: Remove old packer_compiled.lua if present
   file:
-    path: "{{ lookup('env','HOME') }}/.config/nvim/plugin/packer_compiled.lua"
+    path: "{{ ansible_env.HOME }}/.config/nvim/plugin/packer_compiled.lua"
     state: absent
 
 - name: Remove old harpoon v1 state (if present)
   file:
-    path: "{{ lookup('env','HOME') }}/.local/share/nvim/harpoon.json"
+    path: "{{ ansible_env.HOME }}/.local/share/nvim/harpoon.json"
     state: absent
 
 # --- NEW: ensure undodir so your config's undofile works
 - name: Ensure Vim undodir exists
   file:
-    path: "{{ lookup('env','HOME') }}/.vim/undodir"
+    path: "{{ ansible_env.HOME }}/.vim/undodir"
     state: directory
     mode: "0755"
 
+# --- Guard with a check if nvim is available
+- name: Check if nvim is available
+  command: bash -lc 'command -v nvim >/dev/null && echo present || echo missing'
+  register: nvim_check
+  changed_when: false
+  failed_when: false
+
 # --- NEW: Preinstall plugins with lazy (headless)
 - name: Preinstall Neovim plugins via lazy.nvim (headless)
+  when: nvim_check.stdout == 'present' and not ansible_check_mode
   shell: |
     nvim --headless "+Lazy! sync" "+qa"
   args:
@@ -72,15 +80,17 @@
   changed_when: false
 
 - name: Build LuaSnip jsregexp (if plugin is present)
+  when: not ansible_check_mode
   shell: |
-    [ -d "{{ lookup('env','HOME') }}/.local/share/nvim/lazy/LuaSnip" ] && \
-    make -C "{{ lookup('env','HOME') }}/.local/share/nvim/lazy/LuaSnip" install_jsregexp || true
+    [ -d "{{ ansible_env.HOME }}/.local/share/nvim/lazy/LuaSnip" ] && \
+    make -C "{{ ansible_env.HOME }}/.local/share/nvim/lazy/LuaSnip" install_jsregexp || true
   args: { executable: /bin/bash }
   changed_when: false
 
 # --- NEW: Preinstall LSP servers via Mason (headless)
 # Note: ts_ls requires npm; installing 'node' above provides it.
 - name: Install Mason LSP servers (lua, python, typescript)
+  when: nvim_check.stdout == 'present' and not ansible_check_mode
   shell: |
     nvim --headless \
       "+MasonInstall lua-language-server python-lsp-server typescript-language-server" \
