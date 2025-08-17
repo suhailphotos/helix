@@ -6,12 +6,12 @@
   roles:
     - macos_bootstrap
     - orbit
-    - eza
     - zsh_p10k
     - iterm
     - python_toolchain
     - nvim
     - tmux_setup
+    - { role: eza, tags: ['eza'] }
     - role: apple_sf_fonts
       when: (enable_sf_fonts | default(false)) | bool
       tags: ['fonts']
