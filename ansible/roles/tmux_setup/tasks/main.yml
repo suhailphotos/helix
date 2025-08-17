@@ -28,7 +28,7 @@
 
 - name: Install tmux.conf from helix repo (raw)
   get_url:
-    url: "{{ helix_dotfiles_raw_base }}/tmux/tmux.conf"
+    url: "{{ helix_repo_raw_base }}/{{ helix_dotfiles_dir }}/tmux/tmux.conf"
     dest: "{{ lookup('env','HOME') }}/.tmux.conf"
     mode: "0644"
 

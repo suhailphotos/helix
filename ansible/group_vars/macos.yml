@@ -57,6 +57,7 @@ helix_repo_branch: "main"
 
 helix_repo_raw_base: "https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main"
 helix_dotfiles_raw_base: "{{ helix_repo_raw_base }}/dotfiles"
+helix_dotfiles_dir: "dotfiles"
 
 iterm_profile_json_url: "{{ helix_dotfiles_raw_base }}/iterm/suhail_item2_profile.json"
 iterm_color_preset_url: "{{ helix_dotfiles_raw_base }}/iterm/suhailTerm.itermcolors"

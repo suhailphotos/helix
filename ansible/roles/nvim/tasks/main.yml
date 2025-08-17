@@ -15,13 +15,27 @@
     version: "{{ helix_repo_branch }}"
     depth: 1
     update: yes
+    # If you want dry-runs to not to fetch then comment check_mode
+    check_mode: no
+
+- name: Check for nvim source in cache
+  stat:
+    path: "{{ helix_cache_path }}/{{ helix_dotfiles_dir }}/nvim"
+  register: nvim_src
+  changed_when: false
 
 - name: Copy helix nvim to ~/.config/nvim
   copy:
-    src: "{{ helix_cache_path }}/dotfiles/nvim/"
-    dest: "{{ lookup('env','HOME') }}/.config/nvim/"
+    src: "{{ helix_cache_path }}/{{ helix_dotfiles_dir }}/nvim/"
+    dest: "{{ ansible_env.HOME }}/.config/nvim/"
     remote_src: yes
     mode: preserve
+  when: nvim_src.stat.exists
+
+- name: Skip copy in check mode until cache exists
+  debug:
+    msg: "Skipping copy in --check: {{ helix_cache_path }}/{{ helix_dotfiles_dir }}/nvim not present yet. Run once without --check (or set check_mode: no on the git task) to prime the cache."
+  when: ansible_check_mode and not nvim_src.stat.exists
 
 # --- NEW: remove leftovers from Packer / Harpoon v1 (prevents weird errors)
 - name: Remove old packer 'start' dir if present
