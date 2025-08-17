@@ -20,6 +20,14 @@ brew_packages:
   - pngpaste
   - tree-sitter
 
+  # --- GNU userland (for consistent flags & color across macOS) ---
+  - coreutils    # installs gls/gdate/... (gnubin path available)
+  - findutils    # gfind/gxargs
+  - gnu-sed      # gsed
+  - eza
+  - gawk
+  - grep         # ggrep (GNU), BSD /usr/bin/grep remains
+
 # ---- Optional: build deps to Python builds smoother on macOS ----
 #  - openssl@3
 #  - readline
@@ -90,3 +98,20 @@ desktop_casks:
   - obsidian
   - spotify
   - blender
+
+# examples — all optional
+eza_dir_foreground: Cyan
+eza_build_underline: false
+eza_readmemd_bold: true
+eza_dot_italic_names:
+  - ".backups"
+  - ".git"
+  - ".github"
+  - ".config"
+  - ".cache"
+  - ".vscode"
+  - ".idea"
+  - ".venv"
+  - ".mypy_cache"
+  - ".pytest_cache"
+  - "__pycache__"

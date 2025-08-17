@@ -7,3 +7,4 @@ poetry_projects_linux: []
 
 apt_packages:
   - tree
+  - eza

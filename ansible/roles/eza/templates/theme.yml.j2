@@ -1,0 +1,57 @@
+colourful: {{ eza_colourful | default(true) | to_json }}
+
+# Folder color override
+filekinds:
+  directory:
+    foreground: {{ eza_dir_foreground | default('Cyan') }}
+
+# Exact-name overrides
+filenames:
+  README:
+    filename:
+      foreground: {{ eza_readme_foreground | default('Black') }}
+      is_bold: {{ eza_readme_bold | default(true) | to_json }}
+      is_underline: {{ eza_readme_underline | default(false) | to_json }}
+
+  README.md:
+    filename:
+      foreground: {{ eza_readmemd_foreground | default('Black') }}
+      is_dimmed: {{ eza_readmemd_dimmed | default(false) | to_json }}
+      is_bold: {{ eza_readmemd_bold | default(true) | to_json }}
+      is_underline: {{ eza_readmemd_underline | default(false) | to_json }}
+
+  LICENSE:
+    filename:
+      foreground: {{ eza_license_foreground | default('Black') }}
+      is_dimmed: {{ eza_license_dimmed | default(false) | to_json }}
+      is_bold: {{ eza_license_bold | default(true) | to_json }}
+      is_underline: {{ eza_license_underline | default(false) | to_json }}
+
+{% set dot_italic_names = eza_dot_italic_names
+   | default(['.backups','.git','.github','.config','.cache','.vscode','.idea','.venv','.mypy_cache','.pytest_cache','__pycache__']) %}
+{% for name in dot_italic_names %}
+  "{{ name }}":
+    filename:
+      foreground: {{ eza_dot_italic_foreground | default('Black') }}
+      is_dimmed: {{ eza_dot_italic_dimmed | default(false) | to_json }}
+      is_italic: {{ eza_dot_italic_italic | default(true) | to_json }}
+{% endfor %}
+
+  "__init__.py":
+    filename:
+      foreground: {{ eza_initpy_foreground | default('BrightBlack') }}
+      is_italic: {{ eza_initpy_italic | default(true) | to_json }}
+      is_underline: {{ eza_initpy_underline | default(false) | to_json }}
+
+file_type:
+  build:
+    foreground: {{ eza_build_foreground | default('Yellow') }}
+    is_bold: {{ eza_build_bold | default(true) | to_json }}
+    is_underline: {{ eza_build_underline | default(false) | to_json }}
+
+# Extension-wide styling
+extensions:
+  md:
+    filename:
+      foreground: {{ eza_md_foreground | default('Black') }}
+      is_underline: {{ eza_md_underline | default(false) | to_json }}

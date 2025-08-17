@@ -5,6 +5,7 @@
   roles:
     - macos_bootstrap
     - orbit
+    - eza
     - zsh_p10k
     - iterm
     - python_toolchain

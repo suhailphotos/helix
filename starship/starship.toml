@@ -3,88 +3,28 @@ format = '$os$hostname${env_var.context_sep}${custom.dir_ell}${custom.dir_parent
 right_format = "$status$cmd_duration$jobs$time$git_branch$git_status"
 add_newline = false
 
-# --- Ellipsis: print "…/" only when depth >= 3 (home-relative if inside ~) ---
+# --- Ellipsis: "…/" only when depth >= 3 (home-relative if inside ~) ---
 [custom.dir_ell]
 when = true
-command = '''
-p="$PWD"
-
-# at ~ -> nothing
-[ "$p" = "$HOME" ] && exit 0
-
-case "$p" in
-  "$HOME"/*)
-    rel=${p#"$HOME"/}
-    [ -z "$rel" ] && exit 0
-    slashes=$(printf '%s' "$rel" | tr -cd '/' | wc -c | tr -d ' ')
-    depth=$((slashes + 1))
-    [ "$depth" -ge 3 ] && printf "…/"
-    ;;
-  *)
-    pp=${p#/}
-    if [ -n "$pp" ]; then
-      slashes=$(printf '%s' "$pp" | tr -cd '/' | wc -c | tr -d ' ')
-      depth=$((slashes + 1))
-    else
-      depth=0
-    fi
-    [ "$depth" -ge 3 ] && printf "…/"
-    ;;
-esac
-'''
+shell = ["zsh", "-f", "-c"]
+use_stdin = false
+command = '~/.config/starship/smart_path.zsh ell'
 format = '[$output](fg:bright-black)'
 
-# --- Parent directory: adds "~/" for depth==2 under ~; plain for deeper ---
+# --- Parent: "~/"" at depth 1; "~/<parent>/" at depth 2; "parent/" deeper ---
 [custom.dir_parent]
 when = true
-command = '''
-p="$PWD"
-
-# at ~ -> nothing
-[ "$p" = "$HOME" ] && exit 0
-
-case "$p" in
-  "$HOME"/*)
-    rel=${p#"$HOME"/}
-    if [ -n "$rel" ]; then
-      slashes=$(printf '%s' "$rel" | tr -cd '/' | wc -c | tr -d ' ')
-      depth=$((slashes + 1))   # 1: ~/X, 2: ~/X/Y, 3+: deeper
-    else
-      depth=0
-    fi
-
-    if [ "$depth" -eq 1 ]; then
-      printf "~/"
-    elif [ "$depth" -eq 2 ]; then
-      par="$(basename "$(dirname "$p")")"
-      printf "~/%s/" "$par"
-    elif [ "$depth" -ge 3 ]; then
-      par="$(basename "$(dirname "$p")")"
-      printf "%s/" "$par"
-    fi
-    ;;
-  *)
-    parent="$(dirname "$p")"
-    if [ "$parent" != "/" ] && [ "$parent" != "$HOME" ]; then
-      printf "%s/" "$(basename "$parent")"
-    fi
-    ;;
-esac
-'''
+shell = ["zsh", "-f", "-c"]
+use_stdin = false
+command = '~/.config/starship/smart_path.zsh parent'
 format = '[$output](italic fg:bright-black)'
 
-# --- Current directory: "~" at home; otherwise just the basename (no "~/" here) ---
+# --- Current: "~" at home; otherwise just the basename (cwd) ---
 [custom.dir_current]
 when = true
-command = '''
-p="$PWD"
-
-if [ "$p" = "$HOME" ]; then
-  printf "~"
-else
-  printf "%s" "$(basename "$p")"
-fi
-'''
+shell = ["zsh", "-f", "-c"]
+use_stdin = false
+command = '~/.config/starship/smart_path.zsh current'
 format = '[$output](italic fg:purple)'
 
 [os]
@@ -108,9 +48,9 @@ format = '[$env_value](fg:bright-black)'
 
 [git_branch]
 # leading space here ensures spacing only when in a repo
-format = " [$symbol$branch]($style)"
-symbol = "·"            # or " "
-style = "fg:bright-black"
+format = " [$symbol](fg:bright-black)[$branch]($style)"
+symbol = "·"
+style = "italic fg:cyan"
 
 [git_status]
 # Show one leading space and parentheses only when there’s anything to show.

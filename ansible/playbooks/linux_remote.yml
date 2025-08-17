@@ -5,4 +5,5 @@
 
   roles:
     - linux_bootstrap
+    - eza
     - tmux_setup

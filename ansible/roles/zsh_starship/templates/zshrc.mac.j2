@@ -1,0 +1,26 @@
+# --- Optional: p10k instant prompt if Starship is missing ---
+# (Instant prompt must be at top; only do it when starship isn't present.)
+if ! command -v starship >/dev/null 2>&1; then
+  if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+    source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+  fi
+fi
+
+# --- Orbit location + remote (templated) ---
+export ORBIT_HOME="{{ ORBIT_HOME | default('$HOME/.orbit') }}"
+export ORBIT_REMOTE="{{ ORBIT_REMOTE | default('https://github.com/suhailphotos/orbit.git') }}"
+export ORBIT_BRANCH="{{ ORBIT_BRANCH | default('main') }}"
+
+# First-time install (quiet)
+if [[ ! -d "$ORBIT_HOME/.git" ]] && command -v git >/dev/null 2>&1; then
+  git clone --depth 1 --branch "$ORBIT_BRANCH" --quiet "$ORBIT_REMOTE" "$ORBIT_HOME" >/dev/null 2>&1
+fi
+
+# Background update (quiet)
+if command -v git >/dev/null 2>&1 && [[ -d "$ORBIT_HOME/.git" ]]; then
+  ( git -C "$ORBIT_HOME" fetch --quiet
+    git -C "$ORBIT_HOME" merge --ff-only "origin/$ORBIT_BRANCH" --quiet ) >/dev/null 2>&1 &!
+fi
+
+# Load Orbit (env/aliases/functions/completions + prompt last)
+source "$ORBIT_HOME/core/bootstrap.zsh"

@@ -1,0 +1,13 @@
+---
+- name: Ensure eza config dir exists
+  file:
+    path: "{{ ansible_env.HOME }}/.config/eza"
+    state: directory
+    mode: "0755"
+
+- name: Install eza theme.yml from template
+  template:
+    src: theme.yml.j2
+    dest: "{{ ansible_env.HOME }}/.config/eza/theme.yml"
+    mode: "0644"
+    backup: yes
