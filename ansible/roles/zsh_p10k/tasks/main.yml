@@ -14,7 +14,7 @@
 
 - name: Fetch .p10k.zsh from helix repo (raw)
   get_url:
-    url: "{{ helix_repo_raw_base }}/p10k/.p10k.zsh"
+    url: "{{ helix_dotfiles_raw_base }}/p10k/.p10k.zsh"
     dest: "{{ lookup('env','HOME') }}/.p10k.zsh"
     mode: "0644"
 

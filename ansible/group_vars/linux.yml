@@ -1,4 +1,5 @@
 helix_repo_raw_base: "https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main"
+helix_dotfiles_raw_base: "{{ helix_repo_raw_base }}/dotfiles"
 matrix_root: "{{ lookup('env','MATRIX') | default('/home/' + ansible_user + '/Dropbox/matrix', true) }}"
 matrix_packages_dir: "{{ matrix_root }}/packages"
 houdini_python_patch: "3.11.7"
