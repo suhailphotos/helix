@@ -8,11 +8,12 @@ palette = "suhail-macos-ansi"
 # Prompt layout
 # =========================
 # Left: OS  hostname  sep  dir(3 parts)  prompt-char
-format = '$os$hostname${env_var.context_sep}${custom.dir_ell}${custom.dir_parent}${custom.dir_current}$character'
+format = '$os$hostname${custom.dir_ell}${custom.dir_parent}${custom.dir_current}$character'
 
-# Right (keep this order): status, duration, python, conda, jobs, time, git status, git branch
+# Right (keep this order): status, duration, jobs, time, git status, git branch, python version, venv name, conda
 right_format = "$status$cmd_duration$jobs$time$git_status$git_branch${env_var.py_name}$python$conda"
 add_newline = false
+
 
 # -------------
 # OS indicator
@@ -31,16 +32,8 @@ Windows = " "
 # --------------------------
 [hostname]
 ssh_only = false
-format = "[$hostname]($style)"
+format = "[$hostname ]($style)"
 style = "fg:host"
-
-# --------------------
-# Context separator
-# --------------------
-[env_var.context_sep]
-variable = "PROMPT_CONTEXT_SEP"
-default = " "
-format = '[$env_value](fg:dim)'
 
 # ---------------------------------
 # Smart path (three compact pieces)
@@ -90,37 +83,35 @@ format = ' [${status}](fg:err)'
 min_time = 3000
 format = ' [$duration](fg:dim)'
 
-# Clean venv name (from PROMPT_PY_ENV_NAME); prints " lumiera·"
+# venv name from PROMPT_PY_ENV_NAME: no leading space, add trailing dot
 [env_var.py_name]
 variable = "PROMPT_PY_ENV_NAME"
-format   = " [$env_value](italic fg:python_fg)[·](fg:dim)"
+format   = '[$env_value](italic fg:python_fg)[·](fg:dim)'
 
-# Python: prints " ❪3.11❫·"
+# python: show ONLY the glyph, no leading dot/space
 [python]
-symbol               = ""
-style                = "fg:dim"
-pyenv_version_name   = false
-python_binary        = "python3"
-version_format       = "${major}.${minor}"
-detect_extensions    = []
-detect_files         = []
-detect_folders       = []
-format               = "([❪$version❫·$symbol](fg:dim))"
+symbol             = ""
+style              = "fg:dim"
+pyenv_version_name = false
+python_binary      = "python3"
+# keep default detection so it shows in python projects or active envs
+format             = '[$symbol]($style)'
 
 
-# Conda (only if active). Keeps it quiet and separate from Python.
+# Conda: same ordering—after the python version, show "·swara·🅒"
 [conda]
-symbol = ''
-style = 'fg:dim'
-format = ' [$environment]'
+symbol = ''                 # we place the glyph explicitly at the end
+style  = 'fg:dim'
+format = ' [·](fg:dim)[$environment](italic fg:python_fg)[·](fg:dim)[🅒](fg:dim)'
 
 [jobs]
 symbol = '⚙'
 format = ' [$symbol$number](fg:dim)'
 
+# time: add a trailing space so the next block (git or python) is spaced in non-git dirs
 [time]
 time_format = '%H:%M'
-format = ' [$time](fg:dim)'
+format = ' [$time](fg:dim) '
 
 
 # ----------
@@ -146,11 +137,10 @@ ahead       = '[⇡](bold fg:git_ahead)[${count}](fg:git_count)'
 behind      = '[⇣](bold fg:git_behind)[${count}](fg:git_count)'
 diverged    = '[⇕](bold fg:git_diverged)[⇡](fg:git_ahead)[${ahead_count}](fg:git_count)[⇣](fg:git_behind)[${behind_count}](fg:git_count)'
 
-# Branch renders immediately after status (or by itself if clean),
-# and appends the trailing "·".
+# git branch: add a trailing space to separate from the next “set”
 [git_branch]
 symbol = "·"
-format = "[$branch]($style)[$symbol](fg:dim)"
+format = "[$branch]($style)[$symbol](fg:dim) "
 style = "italic fg:git_branch"
 
 # =========================
