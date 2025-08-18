@@ -1,0 +1,103 @@
+colourful: true
+
+# Folder color override
+filekinds:
+  directory:
+    foreground: Cyan
+
+# Exact-name overrides
+filenames:
+  README:
+    filename:
+      foreground: Black
+      is_bold: true
+      is_underline: false
+
+  README.md:
+    filename:
+      foreground: Black
+      is_dimmed: false
+      is_bold: true
+      is_underline: false
+
+  LICENSE:
+    filename:
+      foreground: Black
+      is_dimmed: false
+      is_bold: true
+      is_underline: false
+
+  ".backups":
+    filename:
+      foreground: Black
+      is_dimmed: false
+      is_italic: true
+  ".git":
+    filename:
+      foreground: Black
+      is_dimmed: false
+      is_italic: true
+  ".github":
+    filename:
+      foreground: Black
+      is_dimmed: false
+      is_italic: true
+  ".config":
+    filename:
+      foreground: Black
+      is_dimmed: false
+      is_italic: true
+  ".cache":
+    filename:
+      foreground: Black
+      is_dimmed: false
+      is_italic: true
+  ".vscode":
+    filename:
+      foreground: Black
+      is_dimmed: false
+      is_italic: true
+  ".idea":
+    filename:
+      foreground: Black
+      is_dimmed: false
+      is_italic: true
+  ".venv":
+    filename:
+      foreground: Black
+      is_dimmed: false
+      is_italic: true
+  ".mypy_cache":
+    filename:
+      foreground: Black
+      is_dimmed: false
+      is_italic: true
+  ".pytest_cache":
+    filename:
+      foreground: Black
+      is_dimmed: false
+      is_italic: true
+  "__pycache__":
+    filename:
+      foreground: Black
+      is_dimmed: false
+      is_italic: true
+
+  "__init__.py":
+    filename:
+      foreground: BrightBlack
+      is_italic: true
+      is_underline: false
+
+file_type:
+  build:
+    foreground: Yellow
+    is_bold: true
+    is_underline: false
+
+# Extension-wide styling
+extensions:
+  md:
+    filename:
+      foreground: Black
+      is_underline: false
