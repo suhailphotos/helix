@@ -90,7 +90,7 @@ when = 'test -x "$HOME/.config/starship/smart_path.zsh"'
 shell = ["zsh", "-f", "-c"]
 use_stdin = false
 command = '$HOME/.config/starship/smart_path.zsh current'
-format = '[$output](italic fg:path_current)'
+format = '[$output](italic fg:path_current) '
 
 # ----------
 # Character
