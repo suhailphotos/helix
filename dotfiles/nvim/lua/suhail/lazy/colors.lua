@@ -1,9 +1,11 @@
 -- lua/suhail/lazy/colors.lua
 local function ColorMyPencils(color)
-  color = color or "rose-pine"
-  vim.cmd.colorscheme(color)
-  vim.api.nvim_set_hl(0, "Normal", { bg = "none" })
-  vim.api.nvim_set_hl(0, "NormalFloat", { bg = "none" })
+  if vim.env.NVIM_TRANSPARENT == "1" then
+    color = color or "rose-pine"
+    vim.cmd.colorscheme(color)
+    vim.api.nvim_set_hl(0, "Normal", { bg = "none" })
+    vim.api.nvim_set_hl(0, "NormalFloat", { bg = "none" })
+  end
 end
 
 return {
@@ -27,7 +29,7 @@ return {
     opts = { disable_background = true },
   },
 
-  -- 🔹 Your default theme at startup
+  -- Default theme at startup
   {
     "catppuccin/nvim",
     name = "catppuccin",
