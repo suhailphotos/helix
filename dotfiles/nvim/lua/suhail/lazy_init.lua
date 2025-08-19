@@ -16,6 +16,6 @@ local rocks_enabled = (vim.env.LAZY_ROCKS == "1")
 require("lazy").setup({
   spec = "suhail.lazy",
   change_detection = { notify = false },
-  install = { colorscheme = { "rose-pine", "tokyonight" } },
+  install = { colorscheme = { "rose-pine", "tokyonight", "catppuccin" } },
   rocks = { enabled = rocks_enabled, hererocks = false },
 })
