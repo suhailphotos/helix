@@ -7,7 +7,7 @@ palette = "suhail-macos-ansi"
 # =========================
 # Prompt layout
 # =========================
-format = '$os$hostname${env_var.not_home}$directory$python${env_var.py_name}$conda$git_branch$git_status$status$cmd_duration$line_break$character'
+format = '$os$hostname${env_var.not_home}$directory$python$conda${env_var.py_name}$git_branch$git_status$status$cmd_duration$line_break$character'
 add_newline = true
 
 
@@ -77,7 +77,7 @@ home_symbol = "~"
 # - before_root_path  (stuff above repo root): dim (like your "parent")
 # - repo_root         (the repo folder itself): italic, "current" color
 # - path              (subdirs under repo root): italic, "current" color
-format = '[$before_root_path]($before_repo_root_style)[$repo_root]($repo_root_style)[$path ]($style)'
+format = '[$before_root_path]($before_repo_root_style)[$repo_root]($repo_root_style)[$path]($style) '
 before_repo_root_style = 'fg:path_parent'
 repo_root_style        = 'italic fg:path_current'
 style                  = 'italic fg:path_default'
@@ -94,19 +94,19 @@ error_symbol   = '[%](bold fg:err)'
 # --------------------
 [status]
 disabled = false
-format = ' [${status}](fg:err) '              # ← trailing space
+format = ' [${status}](fg:err)'
 
 [cmd_duration]
 min_time = 3000
-format = ' [$duration](fg:dim) '              # ← trailing space
+format = ' [$duration](fg:dim)'
 
 [jobs]
 symbol = '⚙'
-format = ' [$symbol$number](fg:dim) '         # ← trailing space
+format = ' [$symbol$number](fg:dim)'
 
 [time]
 time_format = '%H:%M'
-format = ' [$time](fg:dim) '                  # ← trailing space (you already had this)
+format = ' [$time](fg:dim)'
 
 # venv name from PROMPT_PY_ENV_NAME: add trailing space after the joining dot
 [env_var.py_name]
@@ -121,11 +121,10 @@ pyenv_version_name = false
 python_binary      = "python3"
 format             = ' [$symbol]($style)'
 
-# Conda env block; add trailing space at the end
 [conda]
-symbol = ''
 style  = 'fg:dim'
-format = '[🅒](fg:dim) [$environment](italic fg:python_fg)'
+# Add ONE leading space before 🅒, and ONE between 🅒 and name
+format = ' [🅒](fg:dim) [$environment](italic fg:python_fg)'
 
 # ----------
 # Git status (dot + special parentheses, palette-driven colors)
