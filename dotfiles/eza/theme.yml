@@ -1,9 +1,9 @@
 colourful: true
 
 # Folder color override
-filekinds:
-  directory:
-    foreground: Cyan
+#filekinds:
+#  directory:
+#    foreground: Cyan
 
 # Exact-name overrides
 filenames:
@@ -96,8 +96,8 @@ file_type:
     is_underline: false
 
 # Extension-wide styling
-extensions:
-  md:
-    filename:
-      foreground: Black
-      is_underline: false
+#extensions:
+#  md:
+#    filename:
+#      foreground: Black
+#      is_underline: false
