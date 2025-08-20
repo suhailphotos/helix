@@ -169,7 +169,7 @@ path_parent    = "bright-black"
 path_current   = "purple"
 path_ellipsis  = "bright-black"
 # git
-git_branch     = "cyan"
+git_branch     = "bright-black"
 git_count      = "bright-black"
 git_untracked  = "yellow"
 git_modified   = "yellow"
