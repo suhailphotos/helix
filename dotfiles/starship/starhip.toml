@@ -60,7 +60,7 @@ style = "fg:host"
 
 [env_var.not_home]
 variable = "STARSHIP_NOT_HOME"
-format = '[ ](fg:dim)'
+format = '[ ](fg:dim)'
 
 # ---------------
 # Directory path
@@ -133,25 +133,25 @@ format = '[·](fg:dim)[$environment](italic fg:python_fg)[·](fg:dim)[🅒](fg:d
 [git_status]
 # Render only when there is something to show;
 # include special parens and trailing dot inside the module.
-format = '([·](fg:dim)[❪](fg:dim)$staged$modified$renamed$deleted$conflicted$untracked$ahead_behind$stashed[❫](fg:dim))'
+format = '($staged$modified$renamed$deleted$conflicted$untracked$ahead_behind$stashed)'
 style = "fg:dim"
 
 # Per-status strings with dedicated colors; counts are dim
-staged      = '[+](bold fg:git_staged)[${count}](fg:git_count)'
-modified    = '[!](bold fg:git_modified)[${count}](fg:git_count)'
-renamed     = '[»](bold fg:git_renamed)[${count}](fg:git_count)'
-deleted     = '[✘](bold fg:git_deleted)[${count}](fg:git_count)'
-conflicted  = '[~](bold fg:git_conflicted)[${count}](fg:git_count)'
-untracked   = '[?](bold fg:git_untracked)[${count}](fg:git_count)'
-stashed     = '[*](bold fg:git_stashed)[${count}](fg:git_count)'
+staged      = '[·](fg:dim)[+](bold fg:git_staged)[${count}](fg:git_staged)'
+modified    = '[·](fg:dim)[!](bold fg:git_modified)[${count}](fg:git_modified)'
+renamed     = '[·](fg:dim)[»](bold fg:git_renamed)[${count}](fg:git_renamed)'
+deleted     = '[·](fg:dim)[✘](bold fg:git_deleted)[${count}](fg:git_deleted)'
+conflicted  = '[·](fg:dim)[~](bold fg:git_conflicted)[${count}](fg:git_conflicted)'
+untracked   = '[·](fg:dim)[?](bold fg:git_untracked)[${count}](fg:git_untracked)'
+stashed     = '[·](fg:dim)[*](bold fg:git_stashed)[${count}](fg:git_stashed)'
 
 # Sync counts (arrows colored; numbers dim)
-ahead       = '[⇡](bold fg:git_ahead)[${count}](fg:git_count)'
-behind      = '[⇣](bold fg:git_behind)[${count}](fg:git_count)'
-diverged    = '[⇕](bold fg:git_diverged)[⇡](fg:git_ahead)[${ahead_count}](fg:git_count)[⇣](fg:git_behind)[${behind_count}](fg:git_count)'
+ahead       = '[·](fg:dim)[⇡](bold fg:git_ahead)[${count}](fg:git_count)'
+behind      = '[·](fg:dim)[⇣](bold fg:git_behind)[${count}](fg:git_count)'
+diverged    = '[·](fg:dim)[⇕](bold fg:git_diverged)[⇡](fg:git_ahead)[${ahead_count}](fg:git_count)[⇣](fg:git_behind)[${behind_count}](fg:git_count)'
 
 [git_branch]
-symbol = " "
+symbol = "·"
 format = " [$symbol](fg:dim)[$branch]($style)"
 style = "italic fg:git_branch"
 
@@ -169,7 +169,7 @@ path_parent    = "bright-black"
 path_current   = "purple"
 path_ellipsis  = "bright-black"
 # git
-git_branch     = "bright-black"
+git_branch     = "cyan"
 git_count      = "bright-black"
 git_untracked  = "yellow"
 git_modified   = "yellow"
@@ -184,7 +184,7 @@ git_diverged   = "yellow"
 # python
 python_fg      = "yellow"
 # prompt state + host color
-ok             = "#89d88b"
+ok             = "#a2f5a4"
 err            = "red"
 host           = "blue"
 
