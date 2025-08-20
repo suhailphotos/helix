@@ -2,7 +2,7 @@
 # Palette selection (Ansible/Orbit will set this per host)
 # Options: suhail-macos-ansi | suhail-linux-ansi | suhail-windows-ansi
 #          suhail-macos-truecolor | suhail-linux-truecolor | suhail-windows-truecolor
-palette = "suhail-linux-ansi"
+palette = "suhail-macos-ansi"
 
 # =========================
 # Prompt layout
@@ -81,7 +81,7 @@ truncation_symbol = "…/"
 # - before_root_path  (stuff above repo root): dim (like your "parent")
 # - repo_root         (the repo folder itself): italic, "current" color
 # - path              (subdirs under repo root): italic, "current" color
-format = '[$before_root_path]($before_repo_root_style)[$repo_root]($repo_root_style)[$path]($style) '
+format = '[$before_root_path]($before_repo_root_style)[$repo_root]($repo_root_style)[$path]($style)'
 before_repo_root_style = 'fg:path_parent'
 repo_root_style        = 'italic fg:path_current'
 style                  = 'fg:path_default'
@@ -156,7 +156,7 @@ diverged    = '[⇕](bold fg:git_diverged)[⇡](fg:git_ahead)[${ahead_count}](fg
 
 [git_branch]
 symbol = " "
-format = "  [$symbol](fg:dim)[$branch]($style)"
+format = " [$symbol](fg:dim)[$branch]($style)"
 style = "italic fg:git_branch"
 
 # =========================
@@ -195,12 +195,10 @@ host           = "blue"
 [palettes.suhail-linux-ansi]
 ui_mono        = "bright-black"
 dim            = "bright-black"
-# path
 path_default   = "cyan"
 path_parent    = "bright-black"
 path_current   = "purple"
 path_ellipsis  = "bright-black"
-# git
 git_branch     = "cyan"
 git_count      = "bright-black"
 git_untracked  = "yellow"
@@ -213,12 +211,9 @@ git_stashed    = "blue"
 git_ahead      = "green"
 git_behind     = "red"
 git_diverged   = "yellow"
-# python
-python_fg      = "yellow"
-# prompt state + host color
 ok             = "green"
 err            = "red"
-host           = "blue"
+host           = "green"
 
 [palettes.suhail-windows-ansi]
 ui_mono        = "bright-black"

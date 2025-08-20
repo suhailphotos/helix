@@ -81,7 +81,7 @@ truncation_symbol = "…/"
 # - before_root_path  (stuff above repo root): dim (like your "parent")
 # - repo_root         (the repo folder itself): italic, "current" color
 # - path              (subdirs under repo root): italic, "current" color
-format = '[$before_root_path]($before_repo_root_style)[$repo_root]($repo_root_style)[$path]($style) '
+format = '[$before_root_path]($before_repo_root_style)[$repo_root]($repo_root_style)[$path]($style)'
 before_repo_root_style = 'fg:path_parent'
 repo_root_style        = 'italic fg:path_current'
 style                  = 'fg:path_default'
@@ -156,7 +156,7 @@ diverged    = '[⇕](bold fg:git_diverged)[⇡](fg:git_ahead)[${ahead_count}](fg
 
 [git_branch]
 symbol = " "
-format = "  [$symbol](fg:dim)[$branch]($style)"
+format = " [$symbol](fg:dim)[$branch]($style)"
 style = "italic fg:git_branch"
 
 # =========================
