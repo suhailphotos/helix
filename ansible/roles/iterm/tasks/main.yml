@@ -14,23 +14,45 @@
     - { name: "MesloLGS NF Italic.ttf", url: "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Italic.ttf" }
     - { name: "MesloLGS NF Bold Italic.ttf", url: "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold%20Italic.ttf" }
 
-- name: Download iTerm2 profile JSON to Downloads (manual import step)
+# --- Download iTerm assets to ~/Downloads for manual import ---
+- name: Ensure iTerm downloads dir exists
+  file:
+    path: "{{ iterm_download_dir | default(lookup('env','HOME') + '/Downloads') }}"
+    state: directory
+    mode: "0755"
+
+- name: Download iTerm2 profile (JSON)
   get_url:
     url: "{{ iterm_profile_json_url }}"
-    dest: "{{ lookup('env','HOME') }}/Downloads/suhail_item2_profiles.json"
+    dest: "{{ iterm_download_dir }}/suhail-iterm-profile.json"
     mode: "0644"
 
-- name: Download iTerm2 color preset to Downloads (manual import step)
+- name: Download iTerm2 keymap (preset)
   get_url:
-    url: "{{ iterm_color_preset_url }}"
-    dest: "{{ lookup('env','HOME') }}/Downloads/suhailTerm2.itermcolors"
+    url: "{{ iterm_keymap_url }}"
+    dest: "{{ iterm_download_dir }}/suhail-nvim-tmux.itermkeymap"
     mode: "0644"
 
-- name: Show post-steps for iTerm2 import
+- name: Download iTerm2 color presets (light & dark)
+  get_url:
+    url: "{{ item }}"
+    dest: "{{ iterm_download_dir }}/{{ item | basename }}"
+    mode: "0644"
+  loop: "{{ iterm_color_preset_urls }}"
+
+- name: Show post-steps for iTerm2 import (4 items)
   debug:
     msg: |
-      To finish iTerm2:
-        1) Preferences > Profiles > Other Actions (gear) > Import → ~/Downloads/suhail_item2_profiles.json
-        2) Set imported profile as Default.
-        3) Preferences > Profiles > Colors > Color Presets… > Import → ~/Downloads/suhailTerm2.itermcolors
-        4) Select "suhailTerm2" for your profile.
+      iTerm setup (manual import):
+        1) Profile: Preferences → Profiles → Other Actions (gear) → Import JSON…
+           Import: ~/Downloads/suhail-iterm-profile.json
+           Then set it as Default.
+        2) Colors: Preferences → Profiles → Colors → Color Presets… → Import…
+           Import both:
+             - catppuccin-latte-mocha.itermcolors  (light)
+             - catppuccin-mocha_dark.itermcolors  (dark)
+           Pick the one you want active for the profile.
+        3) Key Bindings: Preferences → Keys → Key Bindings → Presets… → Import…
+           Import: ~/Downloads/suhail-nvim-tmux.itermkeymap
+           Then select that preset.
+        4) Fonts are installed already (MesloLGS NF Regular/Bold/Italic/Bold Italic).

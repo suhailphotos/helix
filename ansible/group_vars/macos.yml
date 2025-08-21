@@ -59,8 +59,16 @@ helix_repo_raw_base: "https://raw.githubusercontent.com/suhailphotos/helix/refs/
 helix_dotfiles_raw_base: "{{ helix_repo_raw_base }}/dotfiles"
 helix_dotfiles_dir: "dotfiles"
 
-iterm_profile_json_url: "{{ helix_dotfiles_raw_base }}/iterm/suhail_item2_profile.json"
-iterm_color_preset_url: "{{ helix_dotfiles_raw_base }}/iterm/suhailTerm.itermcolors"
+# --- iTerm assets (pulled from helix/dotfiles/iterm) ---
+iterm_download_dir: "{{ lookup('env','HOME') }}/Downloads"
+
+iterm_profile_json_url: "{{ helix_dotfiles_raw_base }}/iterm/suhail-iterm-profile.json"
+iterm_keymap_url: "{{ helix_dotfiles_raw_base }}/iterm/suhail-nvim-tmux.itermkeymap"
+
+# Two color presets (light + dark)
+iterm_color_preset_urls:
+  - "{{ helix_dotfiles_raw_base }}/iterm/catppuccin-latte-mocha.itermcolors"
+  - "{{ helix_dotfiles_raw_base }}/iterm/catppuccin-mocha_dark.itermcolors"
 
 # Apple SF fonts to fetch/install
 apple_sf_fonts:
