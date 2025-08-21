@@ -46,6 +46,14 @@ return {
         gitsigns = true,
         lsp_trouble = true,
       },
+      custom_highlights = function(C)
+        return {
+          StatusLine   = { fg = C.overlay2, bg = "NONE" },  -- softer gray, no bg
+          StatusLineNC = { fg = C.surface2, bg = "NONE" },
+          WinSeparator = { fg = C.surface1, bg = "NONE" },  -- optional: subtle split line
+          ModeMsg      = { fg = C.overlay2 },               -- optional: "-- INSERT --" color
+        }
+      end,
     },
     config = function(_, opts)
       require("catppuccin").setup(opts)   -- lazy.nvim will call this automatically when you use `opts`, but explicit is fine
