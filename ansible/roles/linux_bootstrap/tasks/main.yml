@@ -8,3 +8,21 @@
   apt:
     name: "{{ apt_packages }}"
     state: present
+
+# --- System UTF-8 locale (Debian/Ubuntu) ---
+- block:
+    - name: Ensure requested locales are present in /etc/locale.gen
+      lineinfile:
+        path: /etc/locale.gen
+        regexp: '^#?\s*{{ item }}$'
+        line: '{{ item }}'
+      loop: "{{ generate_locales | default([]) }}"
+      when: (generate_locales | default([])) | length > 0
+
+    - name: Run locale-gen if we touched /etc/locale.gen
+      command: locale-gen
+      when: (generate_locales | default([])) | length > 0
+
+    - name: Set system default UTF-8 locale
+      command: "update-locale LANG={{ default_locale }} LC_CTYPE={{ default_locale }}"
+  when: ansible_facts.os_family == "Debian"

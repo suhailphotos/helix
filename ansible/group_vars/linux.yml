@@ -7,5 +7,13 @@ houdini_python_patch: "3.11.7"
 poetry_projects_linux: []
 
 apt_packages:
+  - locales
   - tree
   - eza
+
+# choose the system-wide default (C.UTF-8 is present on Ubuntu/Debian by default)
+default_locale: "C.UTF-8"
+
+# if you prefer en_US.UTF-8, also generate it (harmless to leave as-is)
+generate_locales:
+  - "en_US.UTF-8 UTF-8"
