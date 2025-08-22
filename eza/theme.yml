@@ -1,9 +1,9 @@
 colourful: true
 
-# Folder color override
-#filekinds:
-#  directory:
-#    foreground: Cyan
+#Folder color override
+filekinds:
+  directory:
+    foreground: Cyan
 
 # Exact-name overrides
 filenames:
