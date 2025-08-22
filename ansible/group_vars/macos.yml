@@ -65,6 +65,9 @@ iterm_download_dir: "{{ lookup('env','HOME') }}/Downloads"
 iterm_profile_json_url: "{{ helix_dotfiles_raw_base }}/iterm/suhail-iterm-profile.json"
 iterm_keymap_url: "{{ helix_dotfiles_raw_base }}/iterm/suhail-nvim-tmux.itermkeymap"
 
+# --- nvim config file location
+nvim_src_rel: "nvim/.config/nvim"
+
 # Two color presets (light + dark)
 iterm_color_preset_urls:
   - "{{ helix_dotfiles_raw_base }}/iterm/catppuccin-latte-mocha.itermcolors"

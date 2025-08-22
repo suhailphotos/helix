@@ -18,19 +18,25 @@
     # If you want dry-runs to actually fetch so later tasks can diff, uncomment:
     # check_mode: no
 
+# (new) compute path once
+- name: Compute nvim source path in cache
+  set_fact:
+    nvim_src_path: "{{ helix_cache_path }}/{{ helix_dotfiles_dir }}/{{ nvim_src_rel | default('nvim') }}"
+
 - name: Check for nvim source in cache
   stat:
-    path: "{{ helix_cache_path }}/{{ helix_dotfiles_dir }}/nvim"
+    path: "{{ nvim_src_path }}"
   register: nvim_src
   changed_when: false
 
 - name: Copy helix nvim to ~/.config/nvim
   copy:
-    src: "{{ helix_cache_path }}/{{ helix_dotfiles_dir }}/nvim/"
+    src: "{{ nvim_src_path }}/"
     dest: "{{ ansible_env.HOME }}/.config/nvim/"
     remote_src: yes
     mode: preserve
   when: nvim_src.stat.exists
+
 
 - name: Skip copy in check mode until cache exists
   debug:
