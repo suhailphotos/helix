@@ -1,0 +1,310 @@
+# =========================
+# Palette selection (Ansible/Orbit will set this per host)
+# Options: suhail-macos-ansi | suhail-linux-ansi | suhail-windows-ansi
+#          suhail-macos-truecolor | suhail-linux-truecolor | suhail-windows-truecolor
+palette = "suhail-macos-ansi"
+
+# =========================
+# Prompt layout (two-line)
+# =========================
+# Left: OS  hostname  path  git-branch  git-status  ↵  prompt char
+format = '$os$hostname${custom.dir_ell}${custom.dir_parent}${custom.dir_current}$git_branch$git_status$line_break$character'
+
+# Right: status, duration, jobs, time, python, venv name, conda
+right_format = "$status$cmd_duration$jobs$time${env_var.py_name}$python$conda"
+#add_newline = false # default behavior is good here for now
+
+
+# -------------
+# OS indicator
+# -------------
+[os]
+disabled = false
+format = "[$symbol]($style)"
+style = "fg:ui_mono"
+
+[os.symbols]
+# mac / windows
+Macos   = " "
+Windows = " "
+
+# generic linux fallback (penguin)
+Linux   = " "
+
+# common distros (flat Nerd Font logos)
+Ubuntu      = " "
+Fedora      = " "
+Alpine      = " "
+Arch        = " "
+Debian      = " "
+Manjaro     = " "
+NixOS       = " "
+openSUSE    = " "
+SUSE        = " "
+CentOS      = " "
+Redhat      = " "
+RedHatEnterprise = " "
+Gentoo      = " "
+Mint        = " "
+Raspbian    = " "
+Pop         = " "   # Pop!_OS (alt: " " if your font has it)
+Void        = " "
+Kali        = " "
+Android     = " "
+FreeBSD     = " "
+
+
+# --------------------------
+# Hostname (built-in, fast)
+# --------------------------
+[hostname]
+ssh_only = false
+format = "[$hostname]($style) "
+style = "fg:host"
+
+# ---------------------------------
+# Smart path (three compact pieces)
+# ---------------------------------
+[custom.dir_ell]
+description = "Smart path ellipsis"
+os = "unix"
+when = 'test -x "$HOME/.config/starship/smart_path.zsh"'
+shell = ["zsh", "-f", "-c"]
+use_stdin = false
+command = '$HOME/.config/starship/smart_path.zsh ell'
+format = '[$output](fg:path_ellipsis)'
+
+[custom.dir_parent]
+description = "Smart path parent"
+os = "unix"
+when = 'test -x "$HOME/.config/starship/smart_path.zsh"'
+shell = ["zsh", "-f", "-c"]
+use_stdin = false
+command = '$HOME/.config/starship/smart_path.zsh parent'
+format = '[$output](italic fg:path_parent)'
+
+[custom.dir_current]
+description = "smart path current dir"
+os = "unix"
+when = 'test -x "$HOME/.config/starship/smart_path.zsh"'
+shell = ["zsh", "-f", "-c"]
+use_stdin = false
+command = '$HOME/.config/starship/smart_path.zsh current'
+format = '[$output](italic fg:path_current) '
+
+# ----------
+# Character
+# ----------
+[character]
+success_symbol = '[❯](bold fg:ok)'
+error_symbol   = '[❯](bold fg:err)'
+
+# --------------------
+# Right-side (minimal)
+# --------------------
+[status]
+disabled = false
+format = ' [${status}](fg:err) '              # ← trailing space
+
+[cmd_duration]
+min_time = 3000
+format = ' [$duration](fg:dim) '              # ← trailing space
+
+[jobs]
+symbol = '⚙'
+format = ' [$symbol$number](fg:dim) '         # ← trailing space
+
+[time]
+time_format = '%H:%M'
+format = ' [$time](fg:dim) '                  # ← trailing space (you already had this)
+
+# venv name from PROMPT_PY_ENV_NAME: add trailing space after the joining dot
+[env_var.py_name]
+variable = "PROMPT_PY_ENV_NAME"
+format   = '[$env_value](italic fg:python_fg)[·](fg:dim)'
+
+# Python glyph only; add trailing space (no leading dot)
+[python]
+symbol             = ""
+style              = "fg:dim"
+pyenv_version_name = false
+python_binary      = "python3"
+format             = '[$symbol]($style) '
+
+# Conda env block; add trailing space at the end
+[conda]
+symbol = ''
+style  = 'fg:dim'
+format = '[·](fg:dim)[$environment](italic fg:python_fg)[·](fg:dim)[🅒](fg:dim) '
+
+# ----------
+# Git status (dot + special parentheses, palette-driven colors)
+# ----------
+[git_status]
+# Render only when there is something to show;
+# include special parens and trailing dot inside the module.
+format = '([·❪](fg:dim)$staged$modified$renamed$deleted$conflicted$untracked$ahead_behind$stashed[❫](fg:dim))'
+style = "fg:dim"
+
+# Per-status strings with dedicated colors; counts are dim
+staged      = '[+](bold fg:git_staged)[${count}](fg:git_count)'
+modified    = '[!](bold fg:git_modified)[${count}](fg:git_count)'
+renamed     = '[»](bold fg:git_renamed)[${count}](fg:git_count)'
+deleted     = '[✘](bold fg:git_deleted)[${count}](fg:git_count)'
+conflicted  = '[~](bold fg:git_conflicted)[${count}](fg:git_count)'
+untracked   = '[?](bold fg:git_untracked)[${count}](fg:git_count)'
+stashed     = '[*](bold fg:git_stashed)[${count}](fg:git_count)'
+
+# Sync counts (arrows colored; numbers dim)
+ahead       = '[⇡](bold fg:git_ahead)[${count}](fg:git_count)'
+behind      = '[⇣](bold fg:git_behind)[${count}](fg:git_count)'
+diverged    = '[⇕](bold fg:git_diverged)[⇡](fg:git_ahead)[${ahead_count}](fg:git_count)[⇣](fg:git_behind)[${behind_count}](fg:git_count)'
+
+[git_branch]
+symbol = "·"
+format = "[$symbol](fg:dim)[$branch]($style)"
+style = "italic fg:git_branch"
+
+# =========================
+# Palettes (role → color)
+# =========================
+# ANSI variants (theme-aware)
+
+[palettes.suhail-macos-ansi]
+ui_mono        = "bright-black"
+dim            = "bright-black"
+# path
+path_parent    = "bright-black"
+path_current   = "purple"
+path_ellipsis  = "bright-black"
+# git
+git_branch     = "cyan"
+git_count      = "bright-black"
+git_untracked  = "yellow"
+git_modified   = "yellow"
+git_staged     = "green"
+git_deleted    = "red"
+git_conflicted = "purple"
+git_renamed    = "cyan"
+git_stashed    = "blue"
+git_ahead      = "green"
+git_behind     = "red"
+git_diverged   = "yellow"
+# python
+python_fg      = "yellow"
+# prompt state + host color
+ok             = "green"
+err            = "red"
+host           = "blue"
+
+[palettes.suhail-linux-ansi]
+ui_mono        = "bright-black"
+dim            = "bright-black"
+path_parent    = "bright-black"
+path_current   = "purple"
+path_ellipsis  = "bright-black"
+git_branch     = "cyan"
+git_count      = "bright-black"
+git_untracked  = "yellow"
+git_modified   = "yellow"
+git_staged     = "green"
+git_deleted    = "red"
+git_conflicted = "purple"
+git_renamed    = "cyan"
+git_stashed    = "blue"
+git_ahead      = "green"
+git_behind     = "red"
+git_diverged   = "yellow"
+ok             = "green"
+err            = "red"
+host           = "green"
+
+[palettes.suhail-windows-ansi]
+ui_mono        = "bright-black"
+dim            = "bright-black"
+path_parent    = "bright-black"
+path_current   = "purple"
+path_ellipsis  = "bright-black"
+git_branch     = "cyan"
+git_count      = "bright-black"
+git_untracked  = "yellow"
+git_modified   = "yellow"
+git_staged     = "green"
+git_deleted    = "red"
+git_conflicted = "purple"
+git_renamed    = "cyan"
+git_stashed    = "blue"
+git_ahead      = "green"
+git_behind     = "red"
+git_diverged   = "yellow"
+ok             = "green"
+err            = "red"
+host           = "yellow"
+
+# Truecolor variants (locked hues)
+
+[palettes.suhail-macos-truecolor]
+ui_mono        = "#9e9e9e"
+dim            = "#6b7280"
+path_parent    = "#6b7280"
+path_current   = "#a78bfa"
+path_ellipsis  = "#6b7280"
+git_branch     = "#06b6d4"
+git_count      = "#6b7280"
+git_untracked  = "#facc15"
+git_modified   = "#f59e0b"
+git_staged     = "#22c55e"
+git_deleted    = "#ef4444"
+git_conflicted = "#a855f7"
+git_renamed    = "#06b6d4"
+git_stashed    = "#3b82f6"
+git_ahead      = "#22c55e"
+git_behind     = "#ef4444"
+git_diverged   = "#eab308"
+ok             = "#22c55e"
+err            = "#ef4444"
+host           = "#3b82f6"
+
+[palettes.suhail-linux-truecolor]
+ui_mono        = "#9e9e9e"
+dim            = "#6b7280"
+path_parent    = "#6b7280"
+path_current   = "#a78bfa"
+path_ellipsis  = "#6b7280"
+git_branch     = "#06b6d4"
+git_count      = "#6b7280"
+git_untracked  = "#facc15"
+git_modified   = "#f59e0b"
+git_staged     = "#22c55e"
+git_deleted    = "#ef4444"
+git_conflicted = "#a855f7"
+git_renamed    = "#06b6d4"
+git_stashed    = "#3b82f6"
+git_ahead      = "#22c55e"
+git_behind     = "#ef4444"
+git_diverged   = "#eab308"
+ok             = "#22c55e"
+err            = "#ef4444"
+host           = "#22c55e"
+
+[palettes.suhail-windows-truecolor]
+ui_mono        = "#9e9e9e"
+dim            = "#6b7280"
+path_parent    = "#6b7280"
+path_current   = "#a78bfa"
+path_ellipsis  = "#6b7280"
+git_branch     = "#06b6d4"
+git_count      = "#6b7280"
+git_untracked  = "#facc15"
+git_modified   = "#f59e0b"
+git_staged     = "#22c55e"
+git_deleted    = "#ef4444"
+git_conflicted = "#a855f7"
+git_renamed    = "#06b6d4"
+git_stashed    = "#3b82f6"
+git_ahead      = "#22c55e"
+git_behind     = "#ef4444"
+git_diverged   = "#eab308"
+ok             = "#22c55e"
+err            = "#ef4444"
+host           = "#eab308"
