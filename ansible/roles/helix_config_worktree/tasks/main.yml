@@ -8,7 +8,7 @@
     helix_repo_dir: "{{ helix_home | default(ansible_env.HOME + '/.helix') }}"
     config_dir: "{{ ansible_env.HOME }}/.config"
 
-# Ensure runtime repo exists (keep it on 'main' so 'config' can be checked out in a worktree)
+# Ensure runtime helix exists (keep your current task)
 - name: Ensure runtime helix exists
   git:
     repo: "{{ helix_remote }}"
@@ -19,11 +19,24 @@
     update: yes
     accept_hostkey: yes
 
-# Fetch the remote config ref (safe; does not write to local refs/heads/config)
-- name: Fetch origin/config
-  shell: git -C "{{ helix_repo_dir }}" fetch origin config
+# NEW: allow fetching all branches even in a single-branch shallow clone
+- name: Broaden origin fetch refspec and fetch all
+  shell: |
+    set -e
+    git -C "{{ helix_repo_dir }}" config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+    git -C "{{ helix_repo_dir }}" fetch --prune origin
   args: { executable: /bin/bash }
   changed_when: false
+
+# (Optional) You can drop your earlier "Fetch origin/config" task now.
+# If you keep it, make it explicit:
+- name: Ensure origin/config remote-tracking ref exists
+  shell: |
+    git -C "{{ helix_repo_dir }}" fetch origin \
+      refs/heads/{{ helix_config_branch }}:refs/remotes/origin/{{ helix_config_branch }}
+  args: { executable: /bin/bash }
+  changed_when: false
+
 
 # Ensure a local branch 'config' that tracks origin/config (create once)
 - name: Create local branch 'config' tracking origin/config if missing
