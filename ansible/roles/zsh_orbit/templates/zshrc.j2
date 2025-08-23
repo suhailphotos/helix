@@ -1,16 +1,32 @@
-# ~/.zshrc — managed by Helix Ansible (role: zsh_orbit)
-# Minimal: ensure expected PATH (via .zprofile) and source Orbit.
+# --- Optional: p10k instant prompt if Starship is missing (must be at top)
+if ! command -v starship >/dev/null 2>&1; then
+  if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+    source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+  fi
+fi
 
-# On non-login interactive shells, pull in .zprofile (brew/pyenv/pipx paths, etc.)
-if [[ ! -o login && -r "$HOME/.zprofile" ]]; then
+# Bring in zprofile for non-login interactive shells (so tool installers that edit ~/.zprofile still work)
+if [[ -o interactive && ! -o login && -r "$HOME/.zprofile" ]]; then
   source "$HOME/.zprofile"
 fi
 
-# Orbit location (can be overridden via host_vars or env)
-: ${ORBIT_HOME:="{{ ORBIT_HOME | default(ansible_env.HOME + '/.orbit') }}"}
+# --- Orbit bootstrap
+export ORBIT_HOME="${HOME}/.orbit"
+export ORBIT_REMOTE="https://github.com/suhailphotos/orbit.git"
+export ORBIT_BRANCH="main"
 
-if [[ -r "$ORBIT_HOME/core/bootstrap.zsh" ]]; then
-  source "$ORBIT_HOME/core/bootstrap.zsh"
-else
-  echo "Orbit not found at $ORBIT_HOME. Open a new shell after Ansible or run the Orbit installer." >&2
+# First-time install
+if [[ ! -d "$ORBIT_HOME/.git" ]]; then
+  git clone --depth 1 --branch "$ORBIT_BRANCH" --quiet "$ORBIT_REMOTE" "$ORBIT_HOME" >/dev/null 2>&1
 fi
+
+# Silent background fast-forward update
+if command -v git >/dev/null && [[ -d "$ORBIT_HOME/.git" ]]; then
+  (
+    git -C "$ORBIT_HOME" fetch --quiet
+    git -C "$ORBIT_HOME" merge --ff-only "origin/$ORBIT_BRANCH" --quiet
+  ) >/dev/null 2>&1 &!
+fi
+
+# Source Orbit
+source "$ORBIT_HOME/core/bootstrap.zsh"
