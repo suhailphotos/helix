@@ -184,7 +184,7 @@ git_diverged   = "yellow"
 # python
 python_fg      = "yellow"
 # prompt state + host color
-ok             = "#a2f5a4"
+ok             = "bright-green"
 err            = "red"
 host           = "blue"
 
