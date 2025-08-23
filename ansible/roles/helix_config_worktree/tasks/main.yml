@@ -1,53 +1,50 @@
 ---
-# Choose a repo to host the worktree: prefer Dropbox dev, else runtime clone
+# Always use a runtime clone; never look at a dev copy.
 - name: Compute paths
   set_fact:
     helix_remote: "{{ helix_remote | default('https://github.com/suhailphotos/helix.git') }}"
     helix_main_branch: "{{ helix_main_branch | default('main') }}"
     helix_config_branch: "{{ helix_config_branch | default('config') }}"
-    helix_runtime_repo: "{{ helix_home | default(ansible_env.HOME + '/.helix') }}"
-    helix_dev_repo: "{{ helix_dev_home | default(matrix_root + '/helix') }}"
+    helix_repo_dir: "{{ helix_home | default(ansible_env.HOME + '/.helix') }}"
     config_dir: "{{ ansible_env.HOME }}/.config"
 
-- name: Check if Dropbox dev helix exists
-  stat:
-    path: "{{ helix_dev_repo }}"
-  register: helix_dev
-
-# Clone runtime helix if dev repo isn't there
-- name: Ensure runtime helix exists (when dev not found)
+# Ensure runtime repo exists (keep it on 'main' so 'config' can be checked out in a worktree)
+- name: Ensure runtime helix exists
   git:
     repo: "{{ helix_remote }}"
-    dest: "{{ helix_runtime_repo }}"
+    dest: "{{ helix_repo_dir }}"
     version: "{{ helix_main_branch }}"
     depth: 1
     single_branch: yes
     update: yes
     accept_hostkey: yes
-  when: not helix_dev.stat.exists
 
-- name: Pick repo_dir (prefer dev)
-  set_fact:
-    helix_repo_dir: "{{ helix_dev_repo if helix_dev.stat.exists else helix_runtime_repo }}"
-
-# Make sure 'config' exists locally
-- name: Fetch remote-tracking config (safe with worktrees)
-  shell: |
-    set -e
-    git -C "{{ helix_repo_dir }}" fetch origin "{{ helix_config_branch }}:refs/remotes/origin/{{ helix_config_branch }}"
+# Fetch the remote config ref (safe; does not write to local refs/heads/config)
+- name: Fetch origin/config
+  shell: git -C "{{ helix_repo_dir }}" fetch origin config
   args: { executable: /bin/bash }
   changed_when: false
 
-# If ~/.config is already our config worktree, skip everything
-- name: Detect current ~/.config git branch
+# Ensure a local branch 'config' that tracks origin/config (create once)
+- name: Create local branch 'config' tracking origin/config if missing
   shell: |
-    git -C "{{ config_dir }}" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "none"
+    set -e
+    if ! git -C "{{ helix_repo_dir }}" show-ref --verify --quiet refs/heads/{{ helix_config_branch }}; then
+      git -C "{{ helix_repo_dir }}" branch --track {{ helix_config_branch }} origin/{{ helix_config_branch }}
+    fi
+  args: { executable: /bin/bash }
+  changed_when: false
+
+# If ~/.config is already a git worktree on 'config', skip replacement
+- name: Detect current ~/.config branch
+  shell: git -C "{{ config_dir }}" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "none"
   args: { executable: /bin/bash }
   register: config_branch
   changed_when: false
   failed_when: false
 
-- name: Backup pre-existing ~/.config (not our worktree)
+# Backup a non-worktree ~/.config (only if it has contents)
+- name: Backup pre-existing ~/.config (non-worktree)
   when: config_branch.stdout != helix_config_branch
   shell: |
     set -e
@@ -56,28 +53,36 @@
     fi
   args: { executable: /bin/bash }
 
-- name: Ensure ~/.config exists (empty dir)
+# Ensure the target directory exists (empty) so worktree add succeeds
+- name: Ensure ~/.config exists
   file:
     path: "{{ config_dir }}"
     state: directory
     mode: "0755"
 
-- name: Add ~/.config worktree for 'config' branch (idempotent)
+# Add ~/.config as a worktree for the local 'config' branch (idempotent)
+- name: Add ~/.config worktree on 'config'
   shell: |
     set -e
     if [ "$(git -C '{{ config_dir }}' rev-parse --abbrev-ref HEAD 2>/dev/null || echo none)" != "{{ helix_config_branch }}" ]; then
+      # Remove stray .git to avoid "already a repo" errors
       [ -d "{{ config_dir }}/.git" ] && rm -rf "{{ config_dir }}/.git"
-      git -C "{{ helix_repo_dir }}" worktree add -B "{{ helix_config_branch }}" "{{ config_dir }}" "origin/{{ helix_config_branch }}"
+      git -C "{{ helix_repo_dir }}" worktree add "{{ config_dir }}" "{{ helix_config_branch }}"
     fi
   args: { executable: /bin/bash }
   register: wt_add
   changed_when: "'worktree is already at' not in (wt_add.stderr | default(''))"
 
-- name: Helpful repo config for worktrees
-  shell: git -C "{{ helix_repo_dir }}" config worktree.guessRemote true
+# Make future updates: pull fast-forward inside the worktree (safe)
+- name: Fast-forward ~/.config to origin/config
+  shell: |
+    set -e
+    git -C "{{ config_dir }}" fetch origin config
+    git -C "{{ config_dir }}" merge --ff-only origin/config
+  args: { executable: /bin/bash }
   changed_when: false
 
-# Friendly default ignores inside the config worktree
+# Friendly ignore
 - name: Ignore .DS_Store in ~/.config
   lineinfile:
     path: "{{ config_dir }}/.gitignore"
