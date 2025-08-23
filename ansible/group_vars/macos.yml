@@ -90,8 +90,8 @@ apple_sf_fonts:
   - { name: "New York",   url: "https://devimages-cdn.apple.com/design/resources/download/NY.dmg" }
 
 
-matrix_root: "{{ lookup('env','MATRIX') | default(ansible_env.HOME + '/Library/CloudStorage/Dropbox/matrix', true) }}"
-matrix_packages_dir: "{{ matrix_root }}/packages"
+# matrix_root: "{{ lookup('env','MATRIX') | default(ansible_env.HOME + '/Library/CloudStorage/Dropbox/matrix', true) }}"
+# matrix_packages_dir: "{{ matrix_root }}/packages"
 
 # Prefer this exact patch when a project allows 3.11.* (Houdini parity)
 houdini_python_patch: "3.11.7"
