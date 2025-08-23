@@ -85,8 +85,9 @@ window-height = 52
 
 # --- themes ---
 # active theme (dark/light pair)
-theme = dark:catppuccin-mocha-strong,light:catppuccin-mocha-latte
+theme = dark:catppuccino-frape-mocha,light:catppuccino-frape-mocha
 
 # quick switches (uncomment one line below to swap)
 # theme = dark:catppuccin-mocha,light:catppuccin-mocha
 # theme = dark:rose-pine,light:xcodelighthc
+#theme = dark:catppuccin-mocha-strong,light:catppuccin-mocha-latte
