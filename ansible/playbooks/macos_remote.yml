@@ -4,9 +4,12 @@
 
   roles:
     - macos_bootstrap
+    - helix_config_worktree
     - orbit
+    - zsh_orbit
+    - starship
+    - ghostty
     - eza
-    - zsh_p10k
     - iterm
     - python_toolchain
     - nvim

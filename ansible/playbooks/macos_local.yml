@@ -4,12 +4,16 @@
   gather_facts: yes
 
   roles:
-    - { role: macos_bootstrap, tags: ['bootstrap'] }
-    - { role: orbit,           tags: ['orbit'] }
-    - { role: zsh_p10k,        tags: ['zsh_p10k','zsh','p10k'] }
-    - { role: iterm,           tags: ['iterm'] }
-    - { role: python_toolchain,tags: ['python_toolchain','python'] }
-    - { role: nvim,            tags: ['nvim'] }
-    - { role: tmux_setup,      tags: ['tmux_setup','tmux'] }
-    - { role: eza,             tags: ['eza'] }
-    - { role: apple_sf_fonts,  when: (enable_sf_fonts | default(false)) | bool, tags: ['fonts'] }
+    - { role: macos_bootstrap,        tags: ['bootstrap'] }
+    - { role: helix_config_worktree,  tags: ['config','worktree'] }
+    - { role: orbit,                  tags: ['orbit'] }
+    - { role: zsh_orbit,              tags: ['zsh','orbit'] }
+    - { role: starship,               tags: ['starship','prompt'] }
+    - { role: ghostty,                tags: ['ghostty'] }
+    - { role: zsh_p10k,               tags: ['p10k'], when: false }
+    - { role: iterm,                  tags: ['iterm'] }
+    - { role: python_toolchain,       tags: ['python'] }
+    - { role: nvim,                   tags: ['nvim'] }
+    - { role: tmux_setup,             tags: ['tmux'] }
+    - { role: eza,                    tags: ['eza'] }
+    - { role: apple_sf_fonts,         when: (enable_sf_fonts | default(false)) | bool, tags: ['fonts'] }

@@ -5,9 +5,9 @@
     state: directory
     mode: "0755"
 
-- name: Install eza theme.yml from template
+- name: Install eza theme from template (only if missing)
   template:
     src: theme.yml.j2
     dest: "{{ ansible_env.HOME }}/.config/eza/theme.yml"
     mode: "0644"
-    backup: yes
+    force: no        # <-- do not overwrite if the worktree already put a file here

@@ -1,87 +1,29 @@
-- name: Remove existing nvim config (if any)
-  file:
-    path: "{{ ansible_env.HOME }}/.config/nvim"
-    state: absent
-
-- name: Ensure config dir exists
+---
+- name: Ensure ~/.config exists (safety)
   file:
     path: "{{ ansible_env.HOME }}/.config"
     state: directory
 
-- name: Clone helix repo to cache
-  git:
-    repo: "{{ helix_repo_url }}"
-    dest: "{{ helix_cache_path }}"
-    version: "{{ helix_repo_branch }}"
-    depth: 1
-    update: yes
-    # If you want dry-runs to actually fetch so later tasks can diff, uncomment:
-    # check_mode: no
+# DO NOT remove/copy config anymore; ~/.config is a worktree managed by git.
 
-# (new) compute path once
-- name: Compute nvim source path in cache
-  set_fact:
-    nvim_src_path: "{{ helix_cache_path }}/{{ helix_dotfiles_dir }}/{{ nvim_src_rel | default('nvim') }}"
-
-- name: Check for nvim source in cache
-  stat:
-    path: "{{ nvim_src_path }}"
-  register: nvim_src
-  changed_when: false
-
-- name: Copy helix nvim to ~/.config/nvim
-  copy:
-    src: "{{ nvim_src_path }}/"
-    dest: "{{ ansible_env.HOME }}/.config/nvim/"
-    remote_src: yes
-    mode: preserve
-  when: nvim_src.stat.exists
-
-
-- name: Skip copy in check mode until cache exists
-  debug:
-    msg: "Skipping copy in --check: {{ helix_cache_path }}/{{ helix_dotfiles_dir }}/nvim not present yet. Run once without --check (or set check_mode: no on the git task) to prime the cache."
-  when: ansible_check_mode and not nvim_src.stat.exists
-
-# --- NEW: remove leftovers from Packer / Harpoon v1 (prevents weird errors)
-- name: Remove old packer 'start' dir if present
-  file:
-    path: "{{ ansible_env.HOME }}/.local/share/nvim/site/pack/packer"
-    state: absent
-
-- name: Remove old packer_compiled.lua if present
-  file:
-    path: "{{ ansible_env.HOME }}/.config/nvim/plugin/packer_compiled.lua"
-    state: absent
-
-- name: Remove old harpoon v1 state (if present)
-  file:
-    path: "{{ ansible_env.HOME }}/.local/share/nvim/harpoon.json"
-    state: absent
-
-# --- NEW: ensure undodir so your config's undofile works
-- name: Ensure Vim undodir exists
-  file:
-    path: "{{ ansible_env.HOME }}/.vim/undodir"
-    state: directory
-    mode: "0755"
-
-# --- Guard with a check if nvim is available
 - name: Check if nvim is available
   command: bash -lc 'command -v nvim >/dev/null && echo present || echo missing'
   register: nvim_check
   changed_when: false
   failed_when: false
 
-# --- NEW: Preinstall plugins with lazy (headless)
+- name: Ensure Vim undodir exists
+  file:
+    path: "{{ ansible_env.HOME }}/.vim/undodir"
+    state: directory
+    mode: "0755"
+
 - name: Preinstall Neovim plugins via lazy.nvim (headless)
   when: nvim_check.stdout == 'present' and not ansible_check_mode
   shell: |
     nvim --headless "+Lazy! sync" "+qa"
-  args:
-    executable: /bin/bash
+  args: { executable: /bin/bash }
   environment:
-    # Make sure brew & node are visible to this non-login shell step
     PATH: "{{ ansible_env.PATH }}:/opt/homebrew/bin:/usr/local/bin"
   changed_when: false
 
@@ -93,16 +35,13 @@
   args: { executable: /bin/bash }
   changed_when: false
 
-# --- NEW: Preinstall LSP servers via Mason (headless)
-# Note: ts_ls requires npm; installing 'node' above provides it.
 - name: Install Mason LSP servers (lua, python, typescript)
   when: nvim_check.stdout == 'present' and not ansible_check_mode
   shell: |
     nvim --headless \
       "+MasonInstall lua-language-server python-lsp-server typescript-language-server" \
       "+qa" || true
-  args:
-    executable: /bin/bash
+  args: { executable: /bin/bash }
   environment:
     PATH: "{{ ansible_env.PATH }}:/opt/homebrew/bin:/usr/local/bin"
   changed_when: false

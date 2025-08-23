@@ -54,10 +54,18 @@ brew_casks:
 helix_cache_path: "{{ lookup('env','HOME') }}/.cache/helix_checkout"
 helix_repo_url: "https://github.com/suhailphotos/helix.git"
 helix_repo_branch: "main"
+helix_remote: "https://github.com/suhailphotos/helix.git"
+helix_main_branch: "main"
+helix_config_branch: "config"
 
 helix_repo_raw_base: "https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main"
 helix_dotfiles_raw_base: "{{ helix_repo_raw_base }}/dotfiles"
 helix_dotfiles_dir: "dotfiles"
+
+
+# Prefer dev repo under Dropbox if present; else fallback to runtime clone
+helix_home: "{{ ansible_env.HOME }}/.helix"
+helix_dev_home: "{{ matrix_root }}/helix"
 
 # --- iTerm assets (pulled from helix/dotfiles/iterm) ---
 iterm_download_dir: "{{ lookup('env','HOME') }}/Downloads"

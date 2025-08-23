@@ -1,0 +1,27 @@
+---
+- name: Install Starship on macOS
+  when: ansible_system == "Darwin"
+  community.general.homebrew:
+    name: starship
+    state: present
+    path: "{{ brew_bin | default('/opt/homebrew/bin/brew') }}"
+
+- name: Install Starship on Debian/Ubuntu via apt (best-effort)
+  when: ansible_facts.os_family == "Debian"
+  become: yes
+  apt:
+    name: starship
+    state: present
+    update_cache: yes
+  register: starship_apt
+  failed_when: false
+
+# Fallback: official installer to ~/.local/bin (only if apt not available / failed)
+- name: Install Starship via official script (fallback)
+  when: ansible_facts.os_family != "Darwin" and (starship_apt is failed or starship_apt is skipped)
+  shell: |
+    set -e
+    curl -fsSL https://starship.rs/install.sh -o /tmp/install_starship.sh
+    sh /tmp/install_starship.sh -y -b "{{ ansible_env.HOME }}/.local/bin"
+  args: { executable: /bin/bash }
+  changed_when: false

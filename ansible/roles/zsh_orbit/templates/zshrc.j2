@@ -1,0 +1,16 @@
+# ~/.zshrc — managed by Helix Ansible (role: zsh_orbit)
+# Minimal: ensure expected PATH (via .zprofile) and source Orbit.
+
+# On non-login interactive shells, pull in .zprofile (brew/pyenv/pipx paths, etc.)
+if [[ ! -o login && -r "$HOME/.zprofile" ]]; then
+  source "$HOME/.zprofile"
+fi
+
+# Orbit location (can be overridden via host_vars or env)
+: ${ORBIT_HOME:="{{ ORBIT_HOME | default(ansible_env.HOME + '/.orbit') }}"}
+
+if [[ -r "$ORBIT_HOME/core/bootstrap.zsh" ]]; then
+  source "$ORBIT_HOME/core/bootstrap.zsh"
+else
+  echo "Orbit not found at $ORBIT_HOME. Open a new shell after Ansible or run the Orbit installer." >&2
+fi

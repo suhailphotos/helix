@@ -14,45 +14,56 @@
     - { name: "MesloLGS NF Italic.ttf", url: "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Italic.ttf" }
     - { name: "MesloLGS NF Bold Italic.ttf", url: "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold%20Italic.ttf" }
 
-# --- Download iTerm assets to ~/Downloads for manual import ---
+# ---- Prefer local assets from the helix config worktree ----
+- name: Set paths
+  set_fact:
+    iterm_assets_dir: "{{ ansible_env.HOME }}/.config/iterm"
+    iterm_download_dir: "{{ iterm_download_dir | default(lookup('env','HOME') + '/Downloads') }}"
+    iterm_assets_files:
+      - "suhail-iterm-profile.json"
+      - "suhail-nvim-tmux.itermkeymap"
+      - "catppuccin-latte-mocha.itermcolors"
+      - "catppuccin-mocha_dark.itermcolors"
+
 - name: Ensure iTerm downloads dir exists
   file:
-    path: "{{ iterm_download_dir | default(lookup('env','HOME') + '/Downloads') }}"
+    path: "{{ iterm_download_dir }}"
     state: directory
     mode: "0755"
 
-- name: Download iTerm2 profile (JSON)
-  get_url:
-    url: "{{ iterm_profile_json_url }}"
-    dest: "{{ iterm_download_dir }}/suhail-iterm-profile.json"
-    mode: "0644"
+- name: Check which iTerm assets are present in worktree
+  stat:
+    path: "{{ iterm_assets_dir }}/{{ item }}"
+  loop: "{{ iterm_assets_files }}"
+  register: iterm_local_stats
+  changed_when: false
 
-- name: Download iTerm2 keymap (preset)
-  get_url:
-    url: "{{ iterm_keymap_url }}"
-    dest: "{{ iterm_download_dir }}/suhail-nvim-tmux.itermkeymap"
+- name: Copy available assets from worktree to ~/Downloads (for easy import)
+  copy:
+    src:  "{{ iterm_assets_dir }}/{{ item.item }}"
+    dest: "{{ iterm_download_dir }}/{{ item.item }}"
+    remote_src: yes
     mode: "0644"
+  loop: "{{ iterm_local_stats.results | selectattr('stat.exists') | list }}"
 
-- name: Download iTerm2 color presets (light & dark)
+# ---- Fallback: download any missing ones from helix/main raw URLs ----
+- name: Download missing iTerm assets from helix/main
   get_url:
-    url: "{{ item }}"
-    dest: "{{ iterm_download_dir }}/{{ item | basename }}"
+    url: "{{ helix_dotfiles_raw_base }}/iterm/{{ item.item }}"
+    dest: "{{ iterm_download_dir }}/{{ item.item }}"
     mode: "0644"
-  loop: "{{ iterm_color_preset_urls }}"
+  loop: "{{ iterm_local_stats.results | rejectattr('stat.exists') | list }}"
 
-- name: Show post-steps for iTerm2 import (4 items)
+- name: Show post-steps for iTerm2 import
   debug:
     msg: |
       iTerm setup (manual import):
         1) Profile: Preferences → Profiles → Other Actions (gear) → Import JSON…
-           Import: ~/Downloads/suhail-iterm-profile.json
+           Import: {{ iterm_download_dir }}/suhail-iterm-profile.json
            Then set it as Default.
         2) Colors: Preferences → Profiles → Colors → Color Presets… → Import…
            Import both:
-             - catppuccin-latte-mocha.itermcolors  (light)
-             - catppuccin-mocha_dark.itermcolors  (dark)
-           Pick the one you want active for the profile.
-        3) Key Bindings: Preferences → Keys → Key Bindings → Presets… → Import…
-           Import: ~/Downloads/suhail-nvim-tmux.itermkeymap
-           Then select that preset.
-        4) Fonts are installed already (MesloLGS NF Regular/Bold/Italic/Bold Italic).
+             - {{ iterm_download_dir }}/catppuccin-latte-mocha.itermcolors
+             - {{ iterm_download_dir }}/catppuccin-mocha_dark.itermcolors
+        3) Keys: Preferences → Keys → Key Bindings → Presets… → Import…
+           Import: {{ iterm_download_dir }}/suhail-nvim-tmux.itermkeymap

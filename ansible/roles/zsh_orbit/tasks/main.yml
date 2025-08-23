@@ -1,0 +1,7 @@
+---
+- name: Install minimal ~/.zshrc that sources Orbit
+  template:
+    src: zshrc.j2
+    dest: "{{ ansible_env.HOME }}/.zshrc"
+    mode: "0644"
+    backup: yes
