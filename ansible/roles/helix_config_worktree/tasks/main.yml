@@ -31,10 +31,10 @@
     helix_repo_dir: "{{ helix_dev_repo if helix_dev.stat.exists else helix_runtime_repo }}"
 
 # Make sure 'config' exists locally
-- name: Fetch config branch
+- name: Fetch remote-tracking config (safe with worktrees)
   shell: |
     set -e
-    git -C "{{ helix_repo_dir }}" fetch origin "+{{ helix_config_branch }}:{{ helix_config_branch }}"
+    git -C "{{ helix_repo_dir }}" fetch origin "{{ helix_config_branch }}:refs/remotes/origin/{{ helix_config_branch }}"
   args: { executable: /bin/bash }
   changed_when: false
 
@@ -66,9 +66,8 @@
   shell: |
     set -e
     if [ "$(git -C '{{ config_dir }}' rev-parse --abbrev-ref HEAD 2>/dev/null || echo none)" != "{{ helix_config_branch }}" ]; then
-      # Remove any leftover git dir to avoid "already a git repo" errors
       [ -d "{{ config_dir }}/.git" ] && rm -rf "{{ config_dir }}/.git"
-      git -C "{{ helix_repo_dir }}" worktree add "{{ config_dir }}" "{{ helix_config_branch }}"
+      git -C "{{ helix_repo_dir }}" worktree add -B "{{ helix_config_branch }}" "{{ config_dir }}" "origin/{{ helix_config_branch }}"
     fi
   args: { executable: /bin/bash }
   register: wt_add
