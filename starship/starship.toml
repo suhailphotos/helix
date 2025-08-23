@@ -54,6 +54,7 @@ FreeBSD     = " "
 # Hostname (built-in, fast)
 # --------------------------
 [hostname]
+disabled = true
 ssh_only = false
 format = "[$hostname]($style) "
 style = "fg:host"
