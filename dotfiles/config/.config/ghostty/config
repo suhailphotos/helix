@@ -33,12 +33,10 @@ background-blur = 35
 
 # --- titlebar ---
 # translucent titlebar that matches the window background
-macos-titlebar-style = transparent
-# hide the folder/path proxy icon
-macos-titlebar-proxy-icon = hidden
-# a single space effectively hides the title text
-title = " "
+macos-titlebar-style = hidden
+window-decoration = auto
 
+# a single space effectively hides the title text
 # optional: keep translucency in fullscreen by using non-native fullscreen
 # macos-non-native-fullscreen = true
 #
@@ -46,7 +44,7 @@ title = " "
 # ----------------------------------------
 # Keybinding
 # ----------------------------------------
-macos-option-as-alt = true
+#macos-option-as-alt = true
 
 # Navigation (always consume so no CSI-u prints when there's only one pane)
 keybind = cmd+ctrl+h=goto_split:left
