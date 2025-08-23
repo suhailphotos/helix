@@ -18,7 +18,8 @@
 
 # Fallback: official installer to ~/.local/bin (only if apt not available / failed)
 - name: Install Starship via official script (fallback)
-  when: ansible_facts.os_family != "Darwin" and (starship_apt is failed or starship_apt is skipped)
+  when: ansible_facts.os_family != "Darwin"
+        and (starship_apt is not defined or starship_apt is failed or starship_apt is skipped)
   shell: |
     set -e
     curl -fsSL https://starship.rs/install.sh -o /tmp/install_starship.sh
