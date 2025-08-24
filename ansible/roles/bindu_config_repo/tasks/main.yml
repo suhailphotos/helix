@@ -1,4 +1,5 @@
 ---
+# roles/bindu_config_repo/tasks/main.yml
 # Ensure ~/.config is a git clone of your Bindu repo on the branch you choose.
 # Defaults can be overridden in group_vars/host_vars:
 #   bindu_remote: git@github.com:suhailphotos/bindu.git (or https://...)
@@ -16,14 +17,28 @@
     path: "{{ bindu_config_dir }}"
   register: cfg
 
-- name: Stat ~/.config/.git
+- name: Stat ~/.config/.git (only if ~/.config exists)
   stat:
     path: "{{ bindu_config_dir }}/.git"
   register: cfg_git
   when: cfg.stat.exists
 
+# Normalize: derive "is repo" flag safely
+- name: Assume not a repo when cfg_git undefined
+  set_fact:
+    cfg_is_repo: false
+  when: cfg_git is not defined
+
+- name: Flag as repo if .git exists
+  set_fact:
+    cfg_is_repo: "{{ cfg_git.stat.exists | default(false) }}"
+  when: cfg_git is defined
+
+# If ~/.config exists but is NOT a repo, move it aside
 - name: Move aside pre-existing non-repo ~/.config
-  when: cfg.stat.exists and not cfg_git.stat.exists
+  when:
+    - cfg.stat.exists
+    - not cfg_is_repo
   shell: |
     set -e
     ts="{{ ansible_date_time.iso8601_basic }}"
@@ -31,27 +46,33 @@
     mkdir -p "{{ bindu_config_dir | dirname }}"
   args: { executable: /bin/bash }
 
+# For existing repo, check its origin; otherwise this will be skipped
 - name: Read origin for existing repo
   command: git -C "{{ bindu_config_dir }}" remote get-url origin
   register: existing_origin
   changed_when: false
   failed_when: false
-  when: cfg_git.stat.exists
+  when: cfg_is_repo
 
+# If it’s some other repo, move it aside
 - name: If repo is not Bindu, move it aside
-  when: cfg_git.stat.exists and (existing_origin.stdout | default('')) != bindu_remote
+  when:
+    - cfg_is_repo
+    - (existing_origin.stdout | default('')) != bindu_remote
   shell: |
     set -e
     ts="{{ ansible_date_time.iso8601_basic }}"
     mv "{{ bindu_config_dir }}" "{{ bindu_config_dir }}.pre-bindu.{{ ts }}"
   args: { executable: /bin/bash }
 
+# Ensure parent exists before (re)cloning
 - name: Ensure parent exists
   file:
     path: "{{ bindu_config_dir | dirname }}"
     state: directory
     mode: "0755"
 
+# Clone/update Bindu into ~/.config (force fast-forward to desired branch)
 - name: Clone/update Bindu into ~/.config
   git:
     repo: "{{ bindu_remote }}"

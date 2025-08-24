@@ -1,3 +1,4 @@
+# roles/home_shims/tasks/main.yml
 ---
 # Clean, no-fail backups: only back up files that actually exist
 - name: Define list of candidate dotfiles for backup
@@ -10,16 +11,16 @@
   when: home_shims_backup | default(true) | bool
 
 - name: Stat existing home dotfiles (per-item, skip .bashrc on macOS)
-  when: home_shims_backup | default(true) | bool
   stat:
     path: "{{ ansible_env.HOME }}/{{ item }}"
   loop: "{{ home_shims_backup_list }}"
-  when: item != '.bashrc' or ansible_facts.os_family != 'Darwin'
   register: home_shims_stats
   changed_when: false
+  when:
+    - home_shims_backup | default(true) | bool
+    - item != '.bashrc' or ansible_facts.os_family != 'Darwin'
 
 - name: Back up only the files that exist (no errors on fresh machines)
-  when: home_shims_backup | default(true) | bool
   copy:
     src:  "{{ item.stat.path }}"
     dest: "{{ item.stat.path }}.pre-ansible.bak"
@@ -28,6 +29,7 @@
   loop: "{{ home_shims_stats.results | selectattr('stat.exists') | list }}"
   loop_control:
     label: "{{ item.stat.path | basename }}"
+  when: home_shims_backup | default(true) | bool
 
 # Tmux shim (all OSes) → directs to XDG config
 - name: Install ~/.tmux.conf shim
@@ -36,14 +38,14 @@
     dest: "{{ ansible_env.HOME }}/.tmux.conf"
     mode: "0644"
 
-# Awk shim → points to ~/.config/awk/.awkrc (gawk can @include, but we keep it simple)
+# Awk shim → points to ~/.config/awk/.awkrc
 - name: Install ~/.awkrc shim
   template:
     src: awkrc.j2
     dest: "{{ ansible_env.HOME }}/.awkrc"
     mode: "0644"
 
-# Curl shim → uses curl's 'include' directive to point at ~/.config/curl/.curlrc
+# Curl shim → points to ~/.config/curl/.curlrc
 - name: Install ~/.curlrc shim
   template:
     src: curlrc.j2
@@ -52,8 +54,8 @@
 
 # Linux-only: install full ~/.bashrc from your template (skip macOS)
 - name: Install ~/.bashrc (Linux only)
-  when: ansible_facts.os_family != "Darwin"
   template:
     src: bashrc.j2
     dest: "{{ ansible_env.HOME }}/.bashrc"
     mode: "0644"
+  when: ansible_facts.os_family != "Darwin"
