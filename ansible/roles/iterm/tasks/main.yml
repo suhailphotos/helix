@@ -3,79 +3,31 @@
   meta: end_host
   when: ansible_system != "Darwin"
 
-# Optional: MesloLGS Nerd Font (useful for prompts/icons)
 - name: Ensure MesloLGS NF fonts directory exists
-  when: iterm_install_meslo | default(true) | bool
   file:
     path: "{{ lookup('env','HOME') }}/Library/Fonts"
     state: directory
 
 - name: Install MesloLGS Nerd Fonts (4 styles)
-  when: iterm_install_meslo | default(true) | bool
   get_url:
     url: "{{ item.url }}"
     dest: "{{ lookup('env','HOME') }}/Library/Fonts/{{ item.name }}"
     mode: "0644"
   loop:
-    - { name: "MesloLGS NF Regular.ttf",      url: "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Regular.ttf" }
-    - { name: "MesloLGS NF Bold.ttf",         url: "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold.ttf" }
-    - { name: "MesloLGS NF Italic.ttf",       url: "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Italic.ttf" }
-    - { name: "MesloLGS NF Bold Italic.ttf",  url: "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold%20Italic.ttf" }
+    - { name: "MesloLGS NF Regular.ttf", url: "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Regular.ttf" }
+    - { name: "MesloLGS NF Bold.ttf",    url: "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold.ttf" }
+    - { name: "MesloLGS NF Italic.ttf",  url: "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Italic.ttf" }
+    - { name: "MesloLGS NF Bold Italic.ttf", url: "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold%20Italic.ttf" }
 
-# --- Local-only assets in your bindu repo ------------------------------------
-- name: Define iTerm asset paths (bindu under ~/.config/iterm)
-  set_fact:
-    iterm_assets_dir: "{{ ansible_env.HOME }}/.config/iterm"
-    iterm_assets_files:
-      - "suhail-iterm-profile.json"
-      - "suhail-nvim-tmux.itermkeymap"
-      - "catppuccin-latte-mocha.itermcolors"
-      - "catppuccin-mocha_dark.itermcolors"
-
-- name: Check which iTerm assets exist locally
-  stat:
-    path: "{{ iterm_assets_dir }}/{{ item }}"
-  loop: "{{ iterm_assets_files }}"
-  register: iterm_local_stats
-  changed_when: false
-
-- name: Warn for any missing assets (local-only workflow)
-  when: iterm_warn_missing_assets | default(true) | bool
-  debug:
-    msg: "Missing iTerm asset → {{ item.item }} (expected at {{ iterm_assets_dir }}/{{ item.item }})"
-  loop: "{{ iterm_local_stats.results | rejectattr('stat.exists') | list }}"
-
-# Optional convenience: copy present assets to ~/Downloads for manual import
-- block:
-    - name: Ensure iTerm downloads dir exists
-      file:
-        path: "{{ iterm_download_dir | default(lookup('env','HOME') + '/Downloads') }}"
-        state: directory
-        mode: "0755"
-
-    - name: Copy available assets from ~/.config/iterm → ~/Downloads
-      copy:
-        src:  "{{ iterm_assets_dir }}/{{ item.item }}"
-        dest: "{{ iterm_download_dir | default(lookup('env','HOME') + '/Downloads') }}/{{ item.item }}"
-        remote_src: yes
-        mode: "0644"
-      loop: "{{ iterm_local_stats.results | selectattr('stat.exists') | list }}"
-  when: iterm_copy_assets_to_downloads | default(false) | bool
-
-# Final human steps (no network, just import from ~/.config/iterm or ~/Downloads)
-- name: Show iTerm import instructions
+- name: Show post-steps for iTerm2 import (use assets from ~/.config/iterm)
   debug:
     msg: |
-      iTerm setup (manual import, files live in {{ iterm_assets_dir }}):
-        1) Profile → Preferences → Profiles → Other Actions (gear) → Import JSON…
-           Import: {{ iterm_assets_dir }}/suhail-iterm-profile.json
-           Then set it as Default.
-        2) Colors → Preferences → Profiles → Colors → Color Presets… → Import…
+      iTerm setup (manual import from ~/.config/iterm):
+        1) Profile JSON: Preferences → Profiles → Other Actions (gear) → Import JSON…
+           Import: ~/.config/iterm/suhail-iterm-profile.json  (set as Default)
+        2) Colors: Preferences → Profiles → Colors → Color Presets… → Import…
            Import:
-             - {{ iterm_assets_dir }}/catppuccin-latte-mocha.itermcolors
-             - {{ iterm_assets_dir }}/catppuccin-mocha_dark.itermcolors
-        3) Keys → Preferences → Keys → Key Bindings → Presets… → Import…
-           Import: {{ iterm_assets_dir }}/suhail-nvim-tmux.itermkeymap
-
-      Tip: If you set iterm_copy_assets_to_downloads=true, the role will also copy
-           those files to {{ iterm_download_dir | default(lookup('env','HOME') + '/Downloads') }} for convenience.
+             - ~/.config/iterm/catppuccin-latte-mocha.itermcolors
+             - ~/.config/iterm/catppuccin-mocha_dark.itermcolors
+        3) Keys: Preferences → Keys → Key Bindings → Presets… → Import…
+           Import: ~/.config/iterm/suhail-nvim-tmux.itermkeymap

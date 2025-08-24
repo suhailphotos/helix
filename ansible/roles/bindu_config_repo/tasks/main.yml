@@ -1,0 +1,79 @@
+---
+# Ensure ~/.config is a git clone of your Bindu repo on the branch you choose.
+# Defaults can be overridden in group_vars/host_vars:
+#   bindu_remote: git@github.com:suhailphotos/bindu.git (or https://...)
+#   bindu_branch: main
+#   bindu_config_dir: ~/.config
+
+- name: Defaults
+  set_fact:
+    bindu_remote: "{{ bindu_remote | default('https://github.com/suhailphotos/bindu.git') }}"
+    bindu_branch: "{{ bindu_branch | default('main') }}"
+    bindu_config_dir: "{{ bindu_config_dir | default(ansible_env.HOME + '/.config') }}"
+
+- name: Stat ~/.config
+  stat:
+    path: "{{ bindu_config_dir }}"
+  register: cfg
+
+- name: Stat ~/.config/.git
+  stat:
+    path: "{{ bindu_config_dir }}/.git"
+  register: cfg_git
+  when: cfg.stat.exists
+
+- name: Move aside pre-existing non-repo ~/.config
+  when: cfg.stat.exists and not cfg_git.stat.exists
+  shell: |
+    set -e
+    ts="{{ ansible_date_time.iso8601_basic }}"
+    mv "{{ bindu_config_dir }}" "{{ bindu_config_dir }}.pre-bindu.{{ ts }}"
+    mkdir -p "{{ bindu_config_dir | dirname }}"
+  args: { executable: /bin/bash }
+
+- name: Read origin for existing repo
+  command: git -C "{{ bindu_config_dir }}" remote get-url origin
+  register: existing_origin
+  changed_when: false
+  failed_when: false
+  when: cfg_git.stat.exists
+
+- name: If repo is not Bindu, move it aside
+  when: cfg_git.stat.exists and (existing_origin.stdout | default('')) != bindu_remote
+  shell: |
+    set -e
+    ts="{{ ansible_date_time.iso8601_basic }}"
+    mv "{{ bindu_config_dir }}" "{{ bindu_config_dir }}.pre-bindu.{{ ts }}"
+  args: { executable: /bin/bash }
+
+- name: Ensure parent exists
+  file:
+    path: "{{ bindu_config_dir | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: Clone/update Bindu into ~/.config
+  git:
+    repo: "{{ bindu_remote }}"
+    dest: "{{ bindu_config_dir }}"
+    version: "{{ bindu_branch }}"
+    depth: 1
+    single_branch: yes
+    update: yes
+    accept_hostkey: yes
+    force: yes
+
+- name: Ensure we track origin/{{ bindu_branch }}
+  shell: |
+    set -e
+    git -C "{{ bindu_config_dir }}" checkout -q "{{ bindu_branch }}"
+    git -C "{{ bindu_config_dir }}" branch --set-upstream-to "origin/{{ bindu_branch }}" "{{ bindu_branch }}" || true
+  args: { executable: /bin/bash }
+  changed_when: false
+
+- name: Ignore macOS metadata
+  lineinfile:
+    path: "{{ bindu_config_dir }}/.gitignore"
+    create: yes
+    line: "**/.DS_Store"
+    state: present

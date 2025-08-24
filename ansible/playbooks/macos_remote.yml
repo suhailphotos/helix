@@ -4,7 +4,7 @@
 
   roles:
     - macos_bootstrap
-    - helix_config_worktree
+    - bindu_config_repo
     - orbit
     - zsh_orbit
     - starship
@@ -13,4 +13,5 @@
     - iterm
     - python_toolchain
     - nvim
+    - home_shims
     - tmux_setup

@@ -5,6 +5,7 @@
 
   roles:
     - linux_bootstrap
+    - bindu_config_repo
     - orbit
     - zsh_orbit
     - starship
