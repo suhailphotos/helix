@@ -1,0 +1,44 @@
+---
+# Optional one-time backups for existing files
+- name: Backup existing home dotfiles if present
+  copy:
+    src: "{{ ansible_env.HOME }}/{{ item }}"
+    dest: "{{ ansible_env.HOME }}/{{ item }}.pre-ansible.bak"
+    remote_src: yes
+    force: no
+  loop:
+    - ".tmux.conf"
+    - ".awkrc"
+    - ".curlrc"
+    - ".bashrc"
+  ignore_errors: true
+  when: home_shims_backup | default(true) | bool
+
+# Tmux shim (all OSes)
+- name: Install ~/.tmux.conf shim
+  template:
+    src: tmux.conf.j2
+    dest: "{{ ansible_env.HOME }}/.tmux.conf"
+    mode: "0644"
+
+# Awk shim (uses gawk @include)
+- name: Install ~/.awkrc shim
+  template:
+    src: awkrc.j2
+    dest: "{{ ansible_env.HOME }}/.awkrc"
+    mode: "0644"
+
+# Curl shim (uses curl include directive)
+- name: Install ~/.curlrc shim
+  template:
+    src: curlrc.j2
+    dest: "{{ ansible_env.HOME }}/.curlrc"
+    mode: "0644"
+
+# Linux-only: full ~/.bashrc (skip macOS where default shell is zsh)
+- name: Install ~/.bashrc (Linux only)
+  when: ansible_facts.os_family != "Darwin"
+  template:
+    src: bashrc.j2
+    dest: "{{ ansible_env.HOME }}/.bashrc"
+    mode: "0644"

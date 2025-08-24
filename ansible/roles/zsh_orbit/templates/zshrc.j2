@@ -5,15 +5,15 @@ if ! command -v starship >/dev/null 2>&1; then
   fi
 fi
 
-# Bring in zprofile for non-login interactive shells (so tool installers that edit ~/.zprofile still work)
+# Bring in zprofile for non-login interactive shells
 if [[ -o interactive && ! -o login && -r "$HOME/.zprofile" ]]; then
   source "$HOME/.zprofile"
 fi
 
 # --- Orbit bootstrap
-export ORBIT_HOME="${HOME}/.orbit"
-export ORBIT_REMOTE="https://github.com/suhailphotos/orbit.git"
-export ORBIT_BRANCH="main"
+export ORBIT_HOME="{{ ORBIT_HOME | default(ansible_env.HOME + '/.orbit') }}"
+export ORBIT_REMOTE="{{ ORBIT_REMOTE | default('https://github.com/suhailphotos/orbit.git') }}"
+export ORBIT_BRANCH="{{ ORBIT_BRANCH | default('main') }}"
 
 # First-time install
 if [[ ! -d "$ORBIT_HOME/.git" ]]; then

@@ -5,9 +5,9 @@
 
   roles:
     - linux_bootstrap
-    - helix_config_worktree
     - orbit
     - zsh_orbit
     - starship
     - eza
+    - home_shims
     - tmux_setup

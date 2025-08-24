@@ -51,6 +51,10 @@ brew_casks:
   - iterm2
   - 1password
 
+
+# --------------------------------------------------
+# Helix repo
+# --------------------------------------------------
 helix_cache_path: "{{ lookup('env','HOME') }}/.cache/helix_checkout"
 helix_repo_url: "https://github.com/suhailphotos/helix.git"
 helix_repo_branch: "main"
@@ -67,20 +71,28 @@ helix_dotfiles_dir: "dotfiles"
 helix_home: "{{ ansible_env.HOME }}/.helix"
 helix_dev_home: "{{ matrix_root }}/helix"
 
-# --- iTerm assets (pulled from helix/dotfiles/iterm) ---
-iterm_download_dir: "{{ lookup('env','HOME') }}/Downloads"
+# --------------------------------------------------
+# Bindu
+# --------------------------------------------------
+bindu_raw_base: "https://raw.githubusercontent.com/suhailphotos/bindu/refs/heads/main"
 
+# --------------------------------------------------
+# iTerm assets
+# --------------------------------------------------
+iterm_download_dir: "{{ lookup('env','HOME') }}/Downloads"
 iterm_profile_json_url: "{{ helix_dotfiles_raw_base }}/iterm/suhail-iterm-profile.json"
 iterm_keymap_url: "{{ helix_dotfiles_raw_base }}/iterm/suhail-nvim-tmux.itermkeymap"
-
-# --- nvim config file location
-nvim_src_rel: "config/.config/nvim"
-
+iterm_install_meslo: true
+iterm_copy_assets_to_downloads: false
+iterm_warn_missing_assets: true
 
 # Two color presets (light + dark)
 iterm_color_preset_urls:
   - "{{ helix_dotfiles_raw_base }}/iterm/catppuccin-latte-mocha.itermcolors"
   - "{{ helix_dotfiles_raw_base }}/iterm/catppuccin-mocha_dark.itermcolors"
+
+# --- nvim config file location
+nvim_src_rel: "config/.config/nvim"
 
 # Apple SF fonts to fetch/install
 apple_sf_fonts:

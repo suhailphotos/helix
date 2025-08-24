@@ -1,0 +1,200 @@
+# ~/.bashrc: executed by bash(1) for non-login shells.
+# see /usr/share/doc/bash/examples/startup-files (in the package bash-doc)
+# for examples
+
+# If not running interactively, don't do anything
+case $- in
+    *i*) ;;
+      *) return;;
+esac
+
+# don't put duplicate lines or lines starting with space in the history.
+# See bash(1) for more options
+HISTCONTROL=ignoreboth
+
+# append to the history file, don't overwrite it
+shopt -s histappend
+
+# for setting history length see HISTSIZE and HISTFILESIZE in bash(1)
+HISTSIZE=1000
+HISTFILESIZE=2000
+# >>>>> Setup Environment <<<<<
+if [[ -z "$BASE_DIR" ]]; then
+  if [[ -f "$HOME/Dropbox/matrix/shellscripts/envars/setup_env.sh" ]]; then
+    source "$HOME/Dropbox/matrix/shellscripts/envars/setup_env.sh" || {
+      echo "Warning: setup_env.sh encountered issues during execution." >&2
+    }
+  else
+    echo "Warning: setup_env.sh not found at expected location: $HOME/Dropbox/matrix/shellscripts/envars/setup_env.sh" >&2
+  fi
+fi
+
+# >>>>> Source Scripts <<<<<
+if [[ -n "$BASE_DIR" ]]; then
+  for script in generalScripts/aliases.sh \
+                gitUtils/gitUtils.sh \
+                apiScripts/tailscale_api.sh; do
+    script_path="$BASE_DIR/$script"
+    if [[ -f "$script_path" ]]; then
+      source "$script_path" || echo "Warning: Could not source $script_path" >&2
+    else
+      echo "Warning: Script not found at $script_path" >&2
+    fi
+  done
+else
+  echo "Warning: BASE_DIR is not set. Cannot source scripts." >&2
+fi
+# <<<<< Source Scripts <<<<<
+# check the window size after each command and, if necessary,
+# update the values of LINES and COLUMNS.
+shopt -s checkwinsize
+
+# If set, the pattern "**" used in a pathname expansion context will
+# match all files and zero or more directories and subdirectories.
+#shopt -s globstar
+
+# make less more friendly for non-text input files, see lesspipe(1)
+[ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
+
+# set variable identifying the chroot you work in (used in the prompt below)
+if [ -z "${debian_chroot:-}" ] && [ -r /etc/debian_chroot ]; then
+    debian_chroot=$(cat /etc/debian_chroot)
+fi
+
+# Color definitions for Rose Pine
+RP_BLACK="\[\033[38;2;40;42;54m\]"
+RP_RED="\[\033[38;2;191;97;106m\]"
+RP_TEAL="\[\033[38;2;156;207;216m\]"
+RP_GREEN="\[\033[38;2;163;190;140m\]"
+RP_ORANGE="\[\033[38;2;252;252;199m\]"
+RP_GOLD="\[\033[38;2;246;193;119m\]"
+RP_ROSE="\[\033[38;2;235;188;186m\]"
+RP_YELLOW="\[\033[38;2;235;203;139m\]"
+RP_BLUE="\[\033[38;2;148;195;227m\]"
+RP_MAGENTA="\[\033[38;2;180;142;173m\]"
+RP_PURPLE="\[\033[38;2;110;106;134m\]"
+RP_CYAN="\[\033[38;2;136;192;208m\]"
+RP_WHITE="\[\033[38;2;229;233;240m\]"
+RP_RESET="\[\033[00m\]"
+
+case "$TERM" in
+    xterm-color|*-256color) color_prompt=yes;;
+esac
+
+#force_color_prompt=yes
+
+if [ -n "$force_color_prompt" ]; then
+    if [ -x /usr/bin/tput ] && tput setaf 1 >&/dev/null; then
+	color_prompt=yes
+    else
+	color_prompt=
+    fi
+fi
+
+SMART_PATH_VARS=( ML4VFX BASE_DIR )
+
+short_pwd () {
+  local dir="$PWD"
+  for var in "${SMART_PATH_VARS[@]}"; do
+    local val="${!var}"
+    if [[ -n $val && "$dir" == "$val"* ]]; then
+      printf '%s\n' "\$$var${dir#$val}"
+      return
+    fi
+  done
+  if [[ "$dir" == "$HOME" ]]; then
+    printf '~\n'; return
+  fi
+  if [[ "$dir" == "$HOME/"* ]]; then
+    printf '~/%s\n' "${dir#"$HOME/"}"; return
+  fi
+  printf '%s\n' "$dir"
+}
+
+if [ "$color_prompt" = yes ]; then
+  PS1="${debian_chroot:+($debian_chroot)}${RP_TEAL}\u@\h${RP_RESET}:${RP_ROSE}\$(short_pwd)${RP_RESET}\$ "
+else
+  PS1="${debian_chroot:+($debian_chroot)}\u@\h:\$(short_pwd)\$ "
+fi
+unset color_prompt force_color_prompt
+
+case "$TERM" in
+xterm*|rxvt*)
+    PS1="\[\e]0;${debian_chroot:+($debian_chroot)}\u@\h: \w\a\]$PS1"
+    ;;
+*) ;;
+esac
+
+if [ -x /usr/bin/dircolors ]; then
+    test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
+    alias ls='ls --color=auto'
+    alias grep='grep --color=auto'
+    alias fgrep='fgrep --color=auto'
+    alias egrep='egrep --color=auto'
+fi
+
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+
+alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
+
+if [ -f ~/.bash_aliases ]; then . ~/.bash_aliases; fi
+if [ -f ~/.dircolors ]; then eval "$(dircolors -b ~/.dircolors)"; fi
+
+if ! shopt -oq posix; then
+  if [ -f /usr/share/bash-completion/bash_completion ]; then
+    . /usr/share/bash-completion/bash_completion
+  elif [ -f /etc/bash_completion ]; then
+    . /etc/bash_completion
+  fi
+fi
+
+export PATH=/usr/local/cuda/bin:$PATH
+export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+
+# >>> conda initialize >>>
+__conda_setup="$('/home/suhail/anaconda3/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
+if [ $? -eq 0 ]; then
+    eval "$__conda_setup"
+else
+    if [ -f "/home/suhail/anaconda3/etc/profile.d/conda.sh" ]; then
+        . "/home/suhail/anaconda3/etc/profile.d/conda.sh"
+    else
+        export PATH="/home/suhail/anaconda3/bin:$PATH"
+    fi
+fi
+unset __conda_setup
+# <<< conda initialize <<<
+
+# >>>>> Setup Environment <<<<<
+if [[ -z "$BASE_DIR" ]]; then
+  if [[ -f "$HOME/Dropbox/matrix/shellscripts/envars/setup_env.sh" ]]; then
+    source "$HOME/Dropbox/matrix/shellscripts/envars/setup_env.sh" || {
+      echo "Warning: setup_env.sh encountered issues during execution." >&2
+    }
+  else
+    echo "Warning: setup_env.sh not found at expected location: $HOME/Dropbox/matrix/shellscripts/envars/setup_env.sh" >&2
+  fi
+fi
+
+# >>>>> Source Scripts <<<<<
+if [[ -n "$BASE_DIR" ]]; then
+  for script in generalScripts/aliases.sh \
+                gitUtils/gitUtils.sh \
+                apiScripts/tailscale_api.sh; do
+    script_path="$BASE_DIR/$script"
+    if [[ -f "$script_path" ]]; then
+      source "$script_path" || echo "Warning: Could not source $script_path" >&2
+    else
+      echo "Warning: Script not found at $script_path" >&2
+    fi
+  done
+else
+  echo "Warning: BASE_DIR is not set. Cannot source scripts." >&2
+fi
+# <<<<< Source Scripts <<<<<
+. "$HOME/.cargo/env"
+
+# Created by `pipx` on 2025-05-10 22:56:54
+export PATH="$PATH:/home/suhail/.local/bin"
