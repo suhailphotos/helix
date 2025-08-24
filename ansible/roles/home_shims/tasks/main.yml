@@ -20,15 +20,26 @@
     - home_shims_backup | default(true) | bool
     - item != '.bashrc' or ansible_facts.os_family != 'Darwin'
 
+# Build a clean list of paths that actually exist (ignore skipped items)
+- name: Build list of existing files for backup
+  set_fact:
+    home_shims_existing: >-
+      {{ (home_shims_stats.results | default([]))
+         | selectattr('stat','defined')
+         | selectattr('stat.exists')
+         | map(attribute='stat.path')
+         | list }}
+  when: home_shims_backup | default(true) | bool
+
 - name: Back up only the files that exist (no errors on fresh machines)
   copy:
-    src:  "{{ item.stat.path }}"
-    dest: "{{ item.stat.path }}.pre-ansible.bak"
+    src:  "{{ item }}"
+    dest: "{{ item }}.pre-ansible.bak"
     remote_src: yes
     force: no
-  loop: "{{ home_shims_stats.results | selectattr('stat.exists') | list }}"
+  loop: "{{ home_shims_existing | default([]) }}"
   loop_control:
-    label: "{{ item.stat.path | basename }}"
+    label: "{{ item | basename }}"
   when: home_shims_backup | default(true) | bool
 
 # Tmux shim (all OSes) → directs to XDG config
