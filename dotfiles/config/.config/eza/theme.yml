@@ -30,62 +30,62 @@ filenames:
   ".backups":
     filename:
       foreground: White
-      is_dimmed: false
+      is_dimmed: true
       is_italic: true
   ".git":
     filename:
       foreground: White
-      is_dimmed: false
+      is_dimmed: true
       is_italic: true
   ".github":
     filename:
       foreground: White
-      is_dimmed: false
+      is_dimmed: true
       is_italic: true
   ".config":
     filename:
       foreground: White
-      is_dimmed: false
+      is_dimmed: true
       is_italic: true
   ".cache":
     filename:
       foreground: White
-      is_dimmed: false
+      is_dimmed: true
       is_italic: true
   ".vscode":
     filename:
       foreground: White
-      is_dimmed: false
+      is_dimmed: true
       is_italic: true
   ".idea":
     filename:
       foreground: White
-      is_dimmed: false
+      is_dimmed: true
       is_italic: true
   ".venv":
     filename:
       foreground: White
-      is_dimmed: false
+      is_dimmed: true
       is_italic: true
   ".mypy_cache":
     filename:
       foreground: White
-      is_dimmed: false
+      is_dimmed: true
       is_italic: true
   ".pytest_cache":
     filename:
       foreground: White
-      is_dimmed: false
+      is_dimmed: true
       is_italic: true
   "__pycache__":
     filename:
       foreground: White
-      is_dimmed: false
+      is_dimmed: true
       is_italic: true
 
   "__init__.py":
     filename:
-      foreground: BrightWhite
+      foreground: White
       is_italic: true
       is_underline: false
 
