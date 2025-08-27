@@ -2,6 +2,7 @@ brew_packages:
   - git
   - neovim
   - tmux
+  - gh
   - ripgrep
   - fd
   - fzf
