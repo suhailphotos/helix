@@ -166,6 +166,27 @@ else
 fi
 
 # -----------------------------
+# macOS-only: always send NVIM_BG to servers
+# -----------------------------
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  SENDENV_SNIPPET="$SSH_DIR/config.d/90-nvim-bg.conf"
+  SENDENV_CONTENT="$(cat <<'SNIP'
+# Managed by helix ssh_config_local.sh
+# Send the Neovim light/dark hint to servers (NVIM_BG=light|dark)
+Host *
+  SendEnv NVIM_BG
+SNIP
+)"
+  if [[ $DRY_RUN -eq 1 ]]; then
+    echo "---- would write $SENDENV_SNIPPET ----"
+    printf "%s\n" "$SENDENV_CONTENT"
+  else
+    printf "%s\n" "$SENDENV_CONTENT" > "$SENDENV_SNIPPET"
+    chmod 600 "$SENDENV_SNIPPET"
+  fi
+fi
+
+# -----------------------------
 # Parse inventory -> rows of: group \t host \t ansible_host \t ansible_user \t identity_file
 # -----------------------------
 YQ_QUERY='.all.children | to_entries[] | . as $grp
