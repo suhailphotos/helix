@@ -7,6 +7,8 @@ nvim_src_rel: "nvim/.config/nvim"
 
 poetry_projects_linux: []
 
+zoxide_allow_install_script: false
+
 apt_packages:
   - locales
   - tree

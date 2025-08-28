@@ -1,0 +1,59 @@
+---
+# Install zoxide cross-platform, with optional fallback to official script.
+
+# Toggle: allow the curl|sh installer (defaults to true)
+# Set zoxide_allow_install_script: false in group_vars if you want to forbid it.
+- set_fact:
+    zoxide_allow_install_script: "{{ zoxide_allow_install_script | default(true) | bool }}"
+
+# Already installed? Skip.
+- name: Check if zoxide exists
+  command: bash -lc 'command -v zoxide'
+  register: zoxide_cmd
+  changed_when: false
+  failed_when: false
+
+# ---- macOS: Homebrew
+- name: macOS | install via Homebrew
+  when: ansible_system == "Darwin" and zoxide_cmd.rc != 0
+  community.general.homebrew:
+    name: zoxide
+    state: present
+    path: "{{ brew_bin | default('/opt/homebrew/bin/brew') }}"
+
+# ---- Debian/Ubuntu: apt
+- name: Debian/Ubuntu | install via apt
+  when: ansible_facts.os_family == "Debian" and zoxide_cmd.rc != 0
+  become: yes
+  apt:
+    name: zoxide
+    state: present
+    update_cache: yes
+  register: zoxide_apt
+  failed_when: false
+
+# Recheck after package manager
+- name: Recheck zoxide after package install
+  command: bash -lc 'command -v zoxide'
+  register: zoxide_cmd_after_pm
+  changed_when: false
+  failed_when: false
+
+# ---- Fallback: official installer (per docs)
+- name: Linux | install via official script to ~/.local/bin (fallback)
+  when: >
+    ansible_system != "Darwin"
+    and zoxide_cmd_after_pm.rc != 0
+    and zoxide_allow_install_script
+  shell: |
+    set -e
+    curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh
+  args: { executable: /bin/bash }
+  changed_when: false
+
+# Final check (no hard fail; orbit guards init)
+- name: Final zoxide presence check
+  command: bash -lc 'command -v zoxide'
+  register: zoxide_cmd_final
+  changed_when: false
+  failed_when: false

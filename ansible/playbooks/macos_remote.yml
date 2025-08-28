@@ -4,6 +4,7 @@
 
   roles:
     - macos_bootstrap
+    - zoxide
     - bindu_config_repo
     - orbit
     - zsh_orbit

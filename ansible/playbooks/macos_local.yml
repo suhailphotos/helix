@@ -5,7 +5,8 @@
 
   roles:
     - { role: macos_bootstrap,        tags: ['bootstrap'] }
-    - { role: bindu_config_repo,     tags: ['config','bindu'] }
+    - { role: zoxide,                 tags: ['zoxide'] }
+    - { role: bindu_config_repo,      tags: ['config','bindu'] }
     - { role: orbit,                  tags: ['orbit'] }
     - { role: zsh_orbit,              tags: ['zsh','orbit'] }
     - { role: starship,               tags: ['starship','prompt'] }
