@@ -3,6 +3,8 @@ brew_packages:
   - neovim
   - tmux
   - gh
+  - bat
+  - zoxide
   - ripgrep
   - fd
   - fzf

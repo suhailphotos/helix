@@ -26,3 +26,23 @@
     - name: Set system default UTF-8 locale
       command: "update-locale LANG={{ default_locale }} LC_CTYPE={{ default_locale }}"
   when: ansible_facts.os_family == "Debian"
+
+# roles/linux_bootstrap/tasks/main.yml (after apt install)
+# Remember to initiate zoxide `eval "$(zoxide init zsh --cmd cd)"`
+- name: Stat /usr/bin/bat
+  stat: { path: /usr/bin/bat }
+  register: bat_bin
+  changed_when: false
+
+- name: Stat /usr/bin/batcat
+  stat: { path: /usr/bin/batcat }
+  register: batcat_bin
+  changed_when: false
+
+- name: Provide 'bat' symlink to batcat
+  become: yes
+  file:
+    src: /usr/bin/batcat
+    dest: /usr/local/bin/bat
+    state: link
+  when: not bat_bin.stat.exists and batcat_bin.stat.exists

@@ -12,6 +12,8 @@ apt_packages:
   - tree
   - eza
   - gawk
+  - bat
+  - zoxide
 
 # choose the system-wide default (C.UTF-8 is present on Ubuntu/Debian by default)
 default_locale: "C.UTF-8"
