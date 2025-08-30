@@ -18,4 +18,5 @@
     - { role: home_shims,             tags: ['home','dotfiles'] }
     - { role: tmux_setup,             tags: ['tmux'] }
     - { role: eza,                    tags: ['eza'] }
+    - { role: yazi,                   tags: ['yazi'] }
     - { role: apple_sf_fonts,         when: (enable_sf_fonts | default(false)) | bool, tags: ['fonts'] }

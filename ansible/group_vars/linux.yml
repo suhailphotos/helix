@@ -17,8 +17,19 @@ apt_packages:
   - bat
   - zoxide
   - wl-clipboard
-  - xclip
   - xsel
+  - file
+  - fd-find
+  - ripgrep
+  - fzf
+  - jq
+  - ffmpeg
+  - poppler-utils
+  - p7zip-full
+  - imagemagick
+  - xclip
+  - wl-clipboard
+  - resvg
 
 # choose the system-wide default (C.UTF-8 is present on Ubuntu/Debian by default)
 default_locale: "C.UTF-8"

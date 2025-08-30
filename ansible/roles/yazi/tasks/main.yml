@@ -1,0 +1,81 @@
+---
+# roles/yazi/tasks/main.yml
+
+# Try to find yazi first
+- name: Check for yazi
+  command: bash -lc 'command -v yazi'
+  register: yazi_cmd
+  changed_when: false
+  failed_when: false
+
+# -----------------------
+# macOS: Homebrew install
+# -----------------------
+- name: macOS | install yazi with brew
+  when: ansible_system == "Darwin" and yazi_cmd.rc != 0
+  community.general.homebrew:
+    name: yazi
+    state: present
+    path: "{{ brew_bin | default('/opt/homebrew/bin/brew') }}"
+
+# -----------------------
+# Debian/Ubuntu: apt first
+# -----------------------
+- name: Debian/Ubuntu | try apt install
+  when: ansible_facts.os_family == "Debian" and yazi_cmd.rc != 0
+  become: yes
+  apt:
+    name: yazi
+    state: present
+    update_cache: yes
+  register: yazi_apt
+  failed_when: false
+
+- name: Recheck yazi after apt
+  command: bash -lc 'command -v yazi'
+  register: yazi_cmd_after_apt
+  changed_when: false
+  failed_when: false
+  when: ansible_facts.os_family == "Debian" and yazi_cmd.rc != 0
+
+# -----------------------
+# Fallback: official script (~/.local/bin/yazi)
+# -----------------------
+- name: Install yazi via official script (fallback)
+  when: yazi_cmd.rc != 0
+        and (yazi_cmd_after_apt is not defined or yazi_cmd_after_apt.rc != 0)
+  shell: |
+    set -e
+    curl -fsSL https://yazi-rs.github.io/install.sh -o /tmp/yazi_install.sh
+    sh /tmp/yazi_install.sh -y -b "{{ ansible_env.HOME }}/.local/bin"
+  args: { executable: /bin/bash }
+  changed_when: false
+
+- name: Final check
+  command: bash -lc 'command -v yazi'
+  register: yazi_cmd_final
+  changed_when: false
+  failed_when: false
+
+# -----------------------
+# Nice-to-have symlinks for Ubuntu (fd & bat naming quirks)
+# -----------------------
+- name: Provide 'fd' symlink to 'fdfind' (Ubuntu)
+  become: yes
+  file:
+    src: /usr/bin/fdfind
+    dest: /usr/local/bin/fd
+    state: link
+  when: ansible_facts.os_family == "Debian" and
+        (ansible_facts.distribution | lower) in ['ubuntu','debian'] and
+        ansible_facts.pkg_mgr == 'apt' and
+        (lookup('pipe', 'command -v fdfind || true') | length) > 0
+
+- name: Provide 'bat' symlink to 'batcat' (Ubuntu)
+  become: yes
+  file:
+    src: /usr/bin/batcat
+    dest: /usr/local/bin/bat
+    state: link
+  when: ansible_facts.os_family == "Debian" and
+        (lookup('pipe', 'command -v batcat || true') | length) > 0

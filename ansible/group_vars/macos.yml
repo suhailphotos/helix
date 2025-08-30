@@ -16,6 +16,12 @@ brew_packages:
   - python
   - pipx
   - stow
+  - yazi
+  - ffmpeg
+  - poppler
+  - imagemagick
+  - resvg
+  - 7zip
   - 1password-cli
   - node
   - pyenv
@@ -35,7 +41,6 @@ brew_packages:
 #  - openssl@3
 #  - readline
 #  - xz
-#  - zlib
 #  - bzip2
 #  - sqlite
 #  - libffi
