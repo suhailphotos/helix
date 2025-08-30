@@ -28,14 +28,18 @@
   register: yazi_home_cmd
   changed_when: false
 
-- name: Set per-user paths
+- name: Set per-user paths (phase 1)
   set_fact:
     yazi_user_home:  "{{ yazi_home_cmd.stdout | trim }}"
-    yazi_user_bin:   "{{ yazi_home_cmd.stdout | trim }}/.local/bin"
-    yazi_user_cargo: "{{ yazi_home_cmd.stdout | trim }}/.cargo/bin"
-    yazi_src_dir:    "{{ yazi_home_cmd.stdout | trim }}/.local/src/yazi"
-    yazi_user_path:  "{{ yazi_user_bin }}:{{ yazi_user_cargo }}:{{ ansible_env.PATH }}"
+    yazi_user_bin:   "{{ (yazi_home_cmd.stdout | trim) ~ '/.local/bin' }}"
+    yazi_user_cargo: "{{ (yazi_home_cmd.stdout | trim) ~ '/.cargo/bin' }}"
+    yazi_src_dir:    "{{ (yazi_home_cmd.stdout | trim) ~ '/.local/src/yazi' }}"
     yazi_system_bin: "/usr/local/bin"
+
+
+- name: Set per-user paths (phase2)
+  set_fact:
+    yazi_user_path: "{{ yazi_user_bin }}:{{ yazi_user_cargo }}:{{ ansible_env.PATH }}"
 
 # Quick presence check (both user + system prefixes on PATH)
 - name: Check for yazi
