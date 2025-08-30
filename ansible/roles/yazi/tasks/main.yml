@@ -3,22 +3,19 @@
 
 - set_fact:
     yazi_manage_prereqs: "{{ yazi_manage_prereqs | default(false) | bool }}"
-    yazi_use_script_fallback: "{{ yazi_use_script_fallback | default(false) | bool }}"
-    # Sane system PATH + user's local bin at the end (for checks only)
-    yazi_check_path: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:{{ ansible_env.HOME }}/.local/bin"
-    # Let this be overridden if needed
-    yazi_fallback_url: "{{ yazi_fallback_url | default('https://raw.githubusercontent.com/sxyazi/yazi/main/install.sh') }}"
+    yazi_install_snap: "{{ yazi_install_snap | default(false) | bool }}"
+    # PATH for detection: include system bins, ~/.local/bin, and /snap/bin
+    yazi_check_path: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:{{ ansible_env.HOME }}/.local/bin:/snap/bin"
 
-# Try to find yazi first (as root on Debian hosts since play uses become)
+# 1) Check for yazi first
 - name: Check for yazi
   command: bash -lc 'command -v yazi'
   register: yazi_cmd
   changed_when: false
   failed_when: false
-  environment:
-    PATH: "{{ yazi_check_path }}"
+  environment: { PATH: "{{ yazi_check_path }}" }
 
-# macOS prerequisites (only if enabled)
+# 2) macOS prereqs via brew (opt-in)
 - name: macOS | install Yazi prerequisites
   when: ansible_system == "Darwin" and yazi_manage_prereqs
   community.general.homebrew:
@@ -37,8 +34,8 @@
     state: present
     path: "{{ brew_bin | default('/opt/homebrew/bin/brew') }}"
 
-# Debian/Ubuntu prerequisites (only if enabled)
-- name: Debian/Ubuntu | install Yazi prerequisites
+# 3) Debian/Ubuntu prereqs via apt (opt-in) — NO 'resvg' here
+- name: Debian/Ubuntu | install Yazi prerequisites (no resvg)
   when: ansible_facts.os_family == "Debian" and yazi_manage_prereqs
   become: yes
   apt:
@@ -54,14 +51,22 @@
       - imagemagick
       - xclip
       - wl-clipboard
-      - resvg
     state: present
     update_cache: yes
-  register: yazi_prereqs
 
-# -----------------------
-# macOS: Homebrew install
-# -----------------------
+# Optional, best-effort resvg (not available on many Ubuntu/Debian)
+- name: Debian/Ubuntu | try resvg (best-effort)
+  when: ansible_facts.os_family == "Debian" and yazi_manage_prereqs
+  become: yes
+  apt:
+    name: resvg
+    state: present
+    update_cache: yes
+  register: resvg_apt
+  failed_when: false
+
+# 4) Install yazi itself
+## macOS via brew
 - name: macOS | install yazi with brew
   when: ansible_system == "Darwin" and yazi_cmd.rc != 0
   community.general.homebrew:
@@ -69,10 +74,8 @@
     state: present
     path: "{{ brew_bin | default('/opt/homebrew/bin/brew') }}"
 
-# -----------------------
-# Debian/Ubuntu: apt first
-# -----------------------
-- name: Debian/Ubuntu | try apt install
+## Debian/Ubuntu via apt (many releases don't have it — we won't fail)
+- name: Debian/Ubuntu | try apt install yazi
   when: ansible_facts.os_family == "Debian" and yazi_cmd.rc != 0
   become: yes
   apt:
@@ -80,53 +83,42 @@
     state: present
     update_cache: yes
   register: yazi_apt
-  failed_when: false   # don't abort on older distros where yazi isn't packaged
+  failed_when: false
 
-# Recheck after package-manager work (don’t hide /usr/bin)
+# Recheck after any package-manager work
 - name: Recheck yazi after package manager
   command: bash -lc 'command -v yazi'
   register: yazi_cmd_after_pm
   changed_when: false
   failed_when: false
-  environment:
-    PATH: "{{ yazi_check_path }}"
+  environment: { PATH: "{{ yazi_check_path }}" }
 
-# -----------------------
-# Optional fallback (opt-in): upstream installer into user’s ~/.local/bin
-# -----------------------
-- name: Ensure ~/.local/bin exists (user)
-  become: false
-  file:
-    path: "{{ ansible_env.HOME }}/.local/bin"
-    state: directory
-    mode: "0755"
-  when: yazi_cmd_after_pm.rc != 0 and yazi_use_script_fallback
+# 5) Optional fallback on Debian/Ubuntu: Snap
+- name: Ensure snapd (for snap fallback)
+  when: ansible_facts.os_family == "Debian" and yazi_cmd_after_pm.rc != 0 and yazi_install_snap
+  become: yes
+  apt:
+    name: snapd
+    state: present
+    update_cache: yes
 
-- name: Download Yazi installer script
-  become: false
-  get_url:
-    url: "{{ yazi_fallback_url }}"
-    dest: "/tmp/yazi_install.sh"
-    mode: "0755"
-  when: yazi_cmd_after_pm.rc != 0 and yazi_use_script_fallback
+- name: Install yazi via snap (classic)
+  when: ansible_facts.os_family == "Debian" and yazi_cmd_after_pm.rc != 0 and yazi_install_snap
+  become: yes
+  command: snap install yazi --classic
+  register: yazi_snap
+  changed_when: "'installed' in (yazi_snap.stdout | default('')) or yazi_snap.rc == 0"
+  failed_when: false
 
-- name: Run Yazi installer script (to ~/.local/bin)
-  become: false
-  shell: /tmp/yazi_install.sh -y -b "{{ ansible_env.HOME }}/.local/bin"
-  args: { executable: /bin/bash }
-  changed_when: false
-  when: yazi_cmd_after_pm.rc != 0 and yazi_use_script_fallback
-
-# Final check (consider user-local bin too)
+# Final check
 - name: Final check
   command: bash -lc 'command -v yazi'
   register: yazi_cmd_final
   changed_when: false
   failed_when: false
-  environment:
-    PATH: "{{ yazi_check_path }}"
+  environment: { PATH: "{{ yazi_check_path }}" }
 
-# Nice-to-have symlinks for Ubuntu (fd & bat naming quirks)
+# 6) Ubuntu niceties: fd/bat naming quirks
 - name: Provide 'fd' symlink to 'fdfind' (Ubuntu)
   become: yes
   file:
