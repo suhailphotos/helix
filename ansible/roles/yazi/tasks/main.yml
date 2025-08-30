@@ -1,18 +1,31 @@
 ---
 # roles/yazi/tasks/main.yml
 
-- set_fact:
+# -------------------------------------------------------------------
+# Figure out the *actual* remote user's home (not /root when become: yes)
+# -------------------------------------------------------------------
+- name: Determine remote user HOME
+  become: false
+  command: bash -lc 'printf %s "$HOME"'
+  register: yz_user_home_cmd
+  changed_when: false
+
+- name: Set yazi per-user facts
+  set_fact:
+    yz_user_home: "{{ yz_user_home_cmd.stdout }}"
     yazi_manage_prereqs: "{{ yazi_manage_prereqs | default(false) | bool }}"
     yazi_install_snap: "{{ yazi_install_snap | default(false) | bool }}"
 
-# Detect existing yazi (search user ~/.local/bin and /snap/bin too)
-- name: Check for yazi
-  command: bash -lc 'type -P yazi || { [ -x /snap/bin/yazi ] && echo /snap/bin/yazi || echo ""; }'
+# Helper: check for yazi as the *user* (search ~/.local/bin and /snap/bin)
+- name: Check for yazi (user PATH)
+  become: false
+  shell: |
+    set -e
+    PATH="{{ yz_user_home }}/.local/bin:/snap/bin:{{ ansible_env.PATH }}"
+    type -P yazi || { [ -x /snap/bin/yazi ] && echo /snap/bin/yazi || true; }
   register: yazi_cmd
   changed_when: false
   failed_when: false
-  environment:
-    PATH: "{{ ansible_env.PATH }}:{{ ansible_env.HOME }}/.local/bin:/snap/bin"
 
 # -----------------------
 # Prerequisites
@@ -55,11 +68,11 @@
       - wl-clipboard
       - zoxide
       - bat
-      - unzip    # needed for GitHub zip releases
+      - unzip    # needed for GitHub .zip releases
     state: present
     update_cache: yes
 
-# resvg is not in many Ubuntu repos → try but don't fail play
+# resvg: best-effort, don't fail if missing in repo
 - name: Debian/Ubuntu | try resvg (best-effort)
   when: ansible_facts.os_family == "Debian" and yazi_manage_prereqs
   become: yes
@@ -75,14 +88,14 @@
 # -----------------------
 
 - name: macOS | install yazi with brew
-  when: ansible_system == "Darwin" and (yazi_cmd.stdout | length) == 0
+  when: ansible_system == "Darwin" and (yazi_cmd.stdout | trim | length) == 0
   community.general.homebrew:
     name: yazi
     state: present
     path: "{{ brew_bin | default('/opt/homebrew/bin/brew') }}"
 
 - name: Debian/Ubuntu | try apt install yazi
-  when: ansible_facts.os_family == "Debian" and (yazi_cmd.stdout | length) == 0
+  when: ansible_facts.os_family == "Debian" and (yazi_cmd.stdout | trim | length) == 0
   become: yes
   apt:
     name: yazi
@@ -91,16 +104,17 @@
   register: yazi_apt
   failed_when: false
 
-- name: Recheck yazi after package manager
-  command: bash -lc 'type -P yazi || { [ -x /snap/bin/yazi ] && echo /snap/bin/yazi || echo ""; }'
+- name: Recheck yazi after package manager (user PATH)
+  become: false
+  shell: |
+    PATH="{{ yz_user_home }}/.local/bin:/snap/bin:{{ ansible_env.PATH }}"
+    type -P yazi || { [ -x /snap/bin/yazi ] && echo /snap/bin/yazi || true; }
   register: yazi_cmd_after_pm
   changed_when: false
   failed_when: false
-  environment:
-    PATH: "{{ ansible_env.PATH }}:{{ ansible_env.HOME }}/.local/bin:/snap/bin"
 
 # -----------------------
-# Snap fallback (Ubuntu/Debian) — tolerant, won’t abort the play
+# Snap fallback (Ubuntu/Debian) — tolerant
 # -----------------------
 - block:
     - name: Ensure snapd is installed
@@ -126,7 +140,6 @@
       delay: 3
       until: snap_seed.rc == 0
 
-    # Plain command; do not fail the play if classic is blocked
     - name: Install yazi via snap (classic)
       command: snap install yazi --classic
       become: yes
@@ -135,31 +148,31 @@
       changed_when: >
         ('installed' in (snap_yazi.stdout | default(''))) or
         ('installed' in (snap_yazi.stderr | default(''))) or
-        ('tracking' in (snap_yazi.stdout | default(''))) or
-        ('tracking' in (snap_yazi.stderr | default('')))
+        ('tracking'  in (snap_yazi.stdout | default(''))) or
+        ('tracking'  in (snap_yazi.stderr | default('')))
 
   when:
     - ansible_facts.os_family == "Debian"
-    - yazi_install_snap | default(false) | bool
-    - (yazi_cmd_after_pm.stdout | length) == 0
+    - yazi_install_snap | bool
+    - (yazi_cmd_after_pm.stdout | trim | length) == 0
 
-- name: Recheck after snap attempt
-  command: bash -lc 'type -P yazi || { [ -x /snap/bin/yazi ] && echo /snap/bin/yazi || echo ""; }'
+- name: Recheck after snap attempt (user PATH)
+  become: false
+  shell: |
+    PATH="{{ yz_user_home }}/.local/bin:/snap/bin:{{ ansible_env.PATH }}"
+    type -P yazi || { [ -x /snap/bin/yazi ] && echo /snap/bin/yazi || true; }
   register: yazi_cmd_after_snap
   changed_when: false
   failed_when: false
-  environment:
-    PATH: "{{ ansible_env.PATH }}:{{ ansible_env.HOME }}/.local/bin:/snap/bin"
 
 # -----------------------
-# Final fallback: official GitHub release to USER ~/.local/bin
-# (run as the remote user, not root)
+# Final fallback: GitHub release → ~/.local/bin (user)
 # -----------------------
 - block:
     - name: Ensure ~/.local/bin exists (user)
       become: false
       file:
-        path: "{{ ansible_env.HOME }}/.local/bin"
+        path: "{{ yz_user_home }}/.local/bin"
         state: directory
         mode: "0755"
 
@@ -167,7 +180,7 @@
       become: false
       shell: |
         set -euo pipefail
-        PREFIX="{{ ansible_env.HOME }}/.local/bin"
+        PREFIX="{{ yz_user_home }}/.local/bin"
 
         arch="{{ 'x86_64' if ansible_architecture in ['x86_64','amd64'] else 'aarch64' }}"
         case "$arch" in
@@ -211,20 +224,20 @@
       changed_when: true
 
   when:
-    - (yazi_cmd_after_pm.stdout | length) == 0
-    - (yazi_cmd_after_snap.stdout | default('') | length) == 0
+    - (yazi_cmd_after_pm.stdout   | trim | length) == 0
+    - (yazi_cmd_after_snap.stdout | trim | length) == 0
 
 # -----------------------
-# Final check + echo where it is
+# Final check + print actual path
 # -----------------------
 - name: Final check (print actual path if present)
   become: false
-  command: bash -lc 'type -P yazi || { [ -x /snap/bin/yazi ] && echo /snap/bin/yazi || echo ""; }'
+  shell: |
+    PATH="{{ yz_user_home }}/.local/bin:/snap/bin:{{ ansible_env.PATH }}"
+    type -P yazi || { [ -x /snap/bin/yazi ] && echo /snap/bin/yazi || true; }
   register: yazi_final_path
   changed_when: false
   failed_when: false
-  environment:
-    PATH: "{{ ansible_env.PATH }}:{{ ansible_env.HOME }}/.local/bin:/snap/bin"
 
 - name: Debug final yazi presence
   debug:
@@ -253,13 +266,11 @@
     (lookup('pipe', 'command -v batcat || true') | length) > 0 and
     (lookup('pipe', 'test -x /usr/local/bin/bat || echo no') | trim) == 'no'
 
-# -----------------------
-# (Optional) ensure ~/.local/bin is on PATH for login shells (Linux)
-# -----------------------
+# Make sure ~/.local/bin is on PATH for login shells (Linux, user)
 - name: Ensure ~/.local/bin on PATH for zsh (Linux)
   become: false
   lineinfile:
-    path: "{{ ansible_env.HOME }}/.zprofile"
+    path: "{{ yz_user_home }}/.zprofile"
     create: yes
     line: 'export PATH="$HOME/.local/bin:$PATH"'
     state: present
@@ -268,7 +279,7 @@
 - name: Ensure ~/.local/bin on PATH for POSIX shells (Linux)
   become: false
   lineinfile:
-    path: "{{ ansible_env.HOME }}/.profile"
+    path: "{{ yz_user_home }}/.profile"
     create: yes
     line: 'export PATH="$HOME/.local/bin:$PATH"'
     state: present
