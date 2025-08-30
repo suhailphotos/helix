@@ -5,9 +5,9 @@
     yazi_manage_prereqs: "{{ yazi_manage_prereqs | default(false) | bool }}"
     yazi_install_snap: "{{ yazi_install_snap | default(false) | bool }}"
 
-# Detect existing yazi (include ~/.local/bin and /snap/bin in PATH for checks)
+# Detect existing yazi (search user ~/.local/bin and /snap/bin too)
 - name: Check for yazi
-  command: bash -lc 'command -v yazi'
+  command: bash -lc 'type -P yazi || { [ -x /snap/bin/yazi ] && echo /snap/bin/yazi || echo ""; }'
   register: yazi_cmd
   changed_when: false
   failed_when: false
@@ -55,6 +55,7 @@
       - wl-clipboard
       - zoxide
       - bat
+      - unzip    # needed for GitHub zip releases
     state: present
     update_cache: yes
 
@@ -74,14 +75,14 @@
 # -----------------------
 
 - name: macOS | install yazi with brew
-  when: ansible_system == "Darwin" and yazi_cmd.rc != 0
+  when: ansible_system == "Darwin" and (yazi_cmd.stdout | length) == 0
   community.general.homebrew:
     name: yazi
     state: present
     path: "{{ brew_bin | default('/opt/homebrew/bin/brew') }}"
 
 - name: Debian/Ubuntu | try apt install yazi
-  when: ansible_facts.os_family == "Debian" and yazi_cmd.rc != 0
+  when: ansible_facts.os_family == "Debian" and (yazi_cmd.stdout | length) == 0
   become: yes
   apt:
     name: yazi
@@ -91,7 +92,7 @@
   failed_when: false
 
 - name: Recheck yazi after package manager
-  command: bash -lc 'command -v yazi'
+  command: bash -lc 'type -P yazi || { [ -x /snap/bin/yazi ] && echo /snap/bin/yazi || echo ""; }'
   register: yazi_cmd_after_pm
   changed_when: false
   failed_when: false
@@ -125,25 +126,100 @@
       delay: 3
       until: snap_seed.rc == 0
 
-    # Use plain command, and DO NOT fail the play if it errors (e.g. classic blocked)
+    # Plain command; do not fail the play if classic is blocked
     - name: Install yazi via snap (classic)
       command: snap install yazi --classic
       become: yes
       register: snap_yazi
       failed_when: false
-      changed_when: "'yazi' in (snap_yazi.stdout | default('')) or 'yazi' in (snap_yazi.stderr | default(''))"
+      changed_when: >
+        ('installed' in (snap_yazi.stdout | default(''))) or
+        ('installed' in (snap_yazi.stderr | default(''))) or
+        ('tracking' in (snap_yazi.stdout | default(''))) or
+        ('tracking' in (snap_yazi.stderr | default('')))
 
   when:
     - ansible_facts.os_family == "Debian"
     - yazi_install_snap | default(false) | bool
-    - yazi_cmd_after_pm.rc != 0
+    - (yazi_cmd_after_pm.stdout | length) == 0
+
+- name: Recheck after snap attempt
+  command: bash -lc 'type -P yazi || { [ -x /snap/bin/yazi ] && echo /snap/bin/yazi || echo ""; }'
+  register: yazi_cmd_after_snap
+  changed_when: false
+  failed_when: false
+  environment:
+    PATH: "{{ ansible_env.PATH }}:{{ ansible_env.HOME }}/.local/bin:/snap/bin"
 
 # -----------------------
-# Final checks + Ubuntu niceties
+# Final fallback: official GitHub release to USER ~/.local/bin
+# (run as the remote user, not root)
 # -----------------------
+- block:
+    - name: Ensure ~/.local/bin exists (user)
+      become: false
+      file:
+        path: "{{ ansible_env.HOME }}/.local/bin"
+        state: directory
+        mode: "0755"
 
-- name: Final check
-  command: bash -lc 'command -v yazi || test -x /snap/bin/yazi'
+    - name: Install Yazi from GitHub release (latest) to ~/.local/bin (user)
+      become: false
+      shell: |
+        set -euo pipefail
+        PREFIX="{{ ansible_env.HOME }}/.local/bin"
+
+        arch="{{ 'x86_64' if ansible_architecture in ['x86_64','amd64'] else 'aarch64' }}"
+        case "$arch" in
+          x86_64) trip1="x86_64-unknown-linux-gnu"; trip2="x86_64-unknown-linux-musl" ;;
+          aarch64|arm64) trip1="aarch64-unknown-linux-gnu"; trip2="aarch64-unknown-linux-musl" ;;
+          *) trip1=""; trip2="" ;;
+        esac
+
+        api="https://api.github.com/repos/sxyazi/yazi/releases/latest"
+        url="$(curl -fsSL "$api" \
+              | jq -r --arg t1 "$trip1" --arg t2 "$trip2" \
+                '.assets[] | select(((.name|test($t1)) or (.name|test($t2))) and (.name|test("linux"))) | .browser_download_url' \
+              | head -n1)"
+
+        [ -n "$url" ] || { echo "No suitable Linux asset found"; exit 2; }
+
+        tmp="$(mktemp -d)"
+        cd "$tmp"
+        fname="$(basename "$url")"
+        curl -fL -o "$fname" "$url"
+
+        if echo "$fname" | grep -qE '\.zip$'; then
+          unzip -o "$fname"
+        elif echo "$fname" | grep -qE '\.(tar\.xz|txz|tar\.gz|tgz)$'; then
+          tar -xf "$fname"
+        else
+          tar -xf "$fname" || true
+        fi
+
+        bin="$(find . -type f -name yazi -perm -u+x | head -n1 || true)"
+        ya="$(find . -type f -name ya   -perm -u+x | head -n1 || true)"
+        [ -n "$bin" ] || { echo "Could not find 'yazi' in archive"; exit 3; }
+
+        install -Dm755 "$bin" "$PREFIX/yazi"
+        if [ -n "$ya" ]; then
+          install -Dm755 "$ya" "$PREFIX/ya"
+        else
+          ln -sf yazi "$PREFIX/ya"
+        fi
+      args: { executable: /bin/bash }
+      changed_when: true
+
+  when:
+    - (yazi_cmd_after_pm.stdout | length) == 0
+    - (yazi_cmd_after_snap.stdout | default('') | length) == 0
+
+# -----------------------
+# Final check + echo where it is
+# -----------------------
+- name: Final check (print actual path if present)
+  become: false
+  command: bash -lc 'type -P yazi || { [ -x /snap/bin/yazi ] && echo /snap/bin/yazi || echo ""; }'
   register: yazi_final_path
   changed_when: false
   failed_when: false
@@ -152,9 +228,9 @@
 
 - name: Debug final yazi presence
   debug:
-    msg: "yazi resolved to: {{ yazi_final_path.stdout | default('NOT FOUND') }}"
+    msg: "yazi resolved to: {{ (yazi_final_path.stdout | trim) | default('NOT FOUND') }}"
 
-# Provide fd/bat compat symlinks on Ubuntu if needed
+# Ubuntu niceties: fd/bat names
 - name: Provide 'fd' symlink to 'fdfind' (Ubuntu)
   become: yes
   file:
@@ -177,80 +253,23 @@
     (lookup('pipe', 'command -v batcat || true') | length) > 0 and
     (lookup('pipe', 'test -x /usr/local/bin/bat || echo no') | trim) == 'no'
 
-- name: Recheck after snap attempt
-  command: bash -lc 'command -v yazi || test -x /snap/bin/yazi'
-  register: yazi_cmd_after_snap
-  changed_when: false
-  failed_when: false
-  environment:
-    PATH: "{{ ansible_env.PATH }}:{{ ansible_env.HOME }}/.local/bin:/snap/bin"
-
 # -----------------------
-# Final fallback: official GitHub release to ~/.local/bin
+# (Optional) ensure ~/.local/bin is on PATH for login shells (Linux)
 # -----------------------
-- block:
-    - name: Ensure ~/.local/bin exists
-      file:
-        path: "{{ ansible_env.HOME }}/.local/bin"
-        state: directory
-        mode: "0755"
+- name: Ensure ~/.local/bin on PATH for zsh (Linux)
+  become: false
+  lineinfile:
+    path: "{{ ansible_env.HOME }}/.zprofile"
+    create: yes
+    line: 'export PATH="$HOME/.local/bin:$PATH"'
+    state: present
+  when: ansible_facts.os_family == "Debian"
 
-    - name: Install Yazi from GitHub release (latest) to ~/.local/bin
-      shell: |
-        set -euo pipefail
-        arch="{{ 'x86_64' if ansible_architecture in ['x86_64','amd64'] else 'aarch64' }}"
-        case "$arch" in
-          x86_64) trip1="x86_64-unknown-linux-gnu"; trip2="x86_64-unknown-linux-musl" ;;
-          aarch64|arm64) trip1="aarch64-unknown-linux-gnu"; trip2="aarch64-unknown-linux-musl" ;;
-          *) trip1=""; trip2="" ;;
-        esac
-
-        api="https://api.github.com/repos/sxyazi/yazi/releases/latest"
-        url="$(curl -fsSL "$api" \
-              | jq -r --arg t1 "$trip1" --arg t2 "$trip2" \
-                '.assets[] | select(((.name|test($t1)) or (.name|test($t2))) and (.name|test("linux"))) | .browser_download_url' \
-              | head -n1)"
-
-        if [ -z "$url" ]; then
-          echo "No suitable Linux asset found for $arch" >&2
-          exit 2
-        fi
-
-        tmp="$(mktemp -d)"
-        cd "$tmp"
-        fname="$(basename "$url")"
-        curl -fL -o "$fname" "$url"
-
-        # Try common formats
-        if echo "$fname" | grep -qE '\.zip$'; then
-          unzip -o "$fname"
-        elif echo "$fname" | grep -qE '\.(tar\.xz|txz|tar\.gz|tgz)$'; then
-          tar -xf "$fname"
-        else
-          # last resort: attempt tar auto
-          tar -xf "$fname" || true
-        fi
-
-        # Find binaries (some archives nest inside a dir)
-        bin="$(find . -type f -name yazi -perm -u+x | head -n1 || true)"
-        ya="$(find . -type f -name ya   -perm -u+x | head -n1 || true)"
-
-        if [ -z "$bin" ]; then
-          echo "Could not find 'yazi' binary in archive" >&2
-          exit 3
-        fi
-
-        install -Dm755 "$bin" "$HOME/.local/bin/yazi"
-        if [ -n "$ya" ]; then
-          install -Dm755 "$ya" "$HOME/.local/bin/ya"
-        else
-          ln -sf yazi "$HOME/.local/bin/ya"
-        fi
-      args: { executable: /bin/bash }
-      changed_when: true
-
-  when:
-    - yazi_cmd_after_pm.rc != 0
-    - (yazi_cmd_after_snap is not defined) or (yazi_cmd_after_snap.rc != 0)
-
-
+- name: Ensure ~/.local/bin on PATH for POSIX shells (Linux)
+  become: false
+  lineinfile:
+    path: "{{ ansible_env.HOME }}/.profile"
+    create: yes
+    line: 'export PATH="$HOME/.local/bin:$PATH"'
+    state: present
+  when: ansible_facts.os_family == "Debian"
