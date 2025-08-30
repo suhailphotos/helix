@@ -3,17 +3,17 @@
   gather_facts: yes
 
   roles:
-    - macos_bootstrap
-    - zoxide
-    - bindu_config_repo
-    - orbit
-    - zsh_orbit
-    - starship
-    - ghostty
-    - eza
-    - yazi
-    - iterm
-    - python_toolchain
-    - nvim
-    - home_shims
-    - tmux_setup
+    - { role: macos_bootstrap,   tags: ['bootstrap'] }
+    - { role: zoxide,            tags: ['zoxide'] }
+    - { role: bindu_config_repo, tags: ['config','bindu'] }
+    - { role: orbit,             tags: ['orbit'] }
+    - { role: zsh_orbit,         tags: ['zsh','orbit'] }
+    - { role: starship,          tags: ['starship','prompt'] }
+    - { role: ghostty,           tags: ['ghostty'] }
+    - { role: eza,               tags: ['eza'] }
+    - { role: yazi,              tags: ['yazi'] }
+    - { role: iterm,             tags: ['iterm'] }
+    - { role: python_toolchain,  tags: ['python'] }
+    - { role: nvim,              tags: ['nvim'] }
+    - { role: home_shims,        tags: ['home','dotfiles'] }
+    - { role: tmux_setup,        tags: ['tmux'] }

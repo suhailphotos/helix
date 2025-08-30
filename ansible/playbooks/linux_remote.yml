@@ -4,13 +4,13 @@
   become: yes
 
   roles:
-    - linux_bootstrap
-    - bindu_config_repo
-    - orbit
-    - zoxide
-    - zsh_orbit
-    - starship
-    - eza
-    - yazi
-    - home_shims
-    - tmux_setup
+    - { role: linux_bootstrap,   tags: ['linux_bootstrap','bootstrap'] }
+    - { role: bindu_config_repo, tags: ['bindu','config'] }
+    - { role: orbit,             tags: ['orbit'] }
+    - { role: zoxide,            tags: ['zoxide'] }
+    - { role: zsh_orbit,         tags: ['zsh','orbit'] }
+    - { role: starship,          tags: ['starship','prompt'] }
+    - { role: eza,               tags: ['eza'] }
+    - { role: yazi,              tags: ['yazi'] }
+    - { role: home_shims,        tags: ['home','dotfiles'] }
+    - { role: tmux_setup,        tags: ['tmux'] }

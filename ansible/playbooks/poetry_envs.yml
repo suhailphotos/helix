@@ -3,4 +3,4 @@
   gather_facts: yes
 
   roles:
-    - poetry_envs
+    - { role: poetry_envs, tags: ['poetry','poetry_envs'] }
