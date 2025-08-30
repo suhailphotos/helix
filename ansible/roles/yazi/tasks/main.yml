@@ -3,15 +3,20 @@
 
 - set_fact:
     yazi_manage_prereqs: "{{ yazi_manage_prereqs | default(false) | bool }}"
+    yazi_use_script_fallback: "{{ yazi_use_script_fallback | default(false) | bool }}"
+    # Sane system PATH + user's local bin at the end (for checks only)
+    yazi_check_path: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:{{ ansible_env.HOME }}/.local/bin"
+    # Let this be overridden if needed
+    yazi_fallback_url: "{{ yazi_fallback_url | default('https://raw.githubusercontent.com/sxyazi/yazi/main/install.sh') }}"
 
-# Try to find yazi first
+# Try to find yazi first (as root on Debian hosts since play uses become)
 - name: Check for yazi
   command: bash -lc 'command -v yazi'
   register: yazi_cmd
   changed_when: false
   failed_when: false
   environment:
-    PATH: "{{ ansible_env.PATH }}:{{ ansible_env.HOME }}/.local/bin"
+    PATH: "{{ yazi_check_path }}"
 
 # macOS prerequisites (only if enabled)
 - name: macOS | install Yazi prerequisites
@@ -49,18 +54,10 @@
       - imagemagick
       - xclip
       - wl-clipboard
+      - resvg
     state: present
     update_cache: yes
-
-- name: Debian/Ubuntu | install resvg (best-effort)
-  when: ansible_facts.os_family == "Debian" and yazi_manage_prereqs
-  become: yes
-  apt:
-    name: resvg
-    state: present
-    update_cache: yes
-  register: resvg_apt
-  failed_when: false
+  register: yazi_prereqs
 
 # -----------------------
 # macOS: Homebrew install
@@ -83,43 +80,65 @@
     state: present
     update_cache: yes
   register: yazi_apt
-  failed_when: false
+  failed_when: false   # don't abort on older distros where yazi isn't packaged
 
-# Recheck after any package-manager install (brew or apt)
+# Recheck after package-manager work (don’t hide /usr/bin)
 - name: Recheck yazi after package manager
   command: bash -lc 'command -v yazi'
   register: yazi_cmd_after_pm
   changed_when: false
   failed_when: false
   environment:
-    PATH: "{{ ansible_env.PATH }}:{{ ansible_env.HOME }}/.local/bin"
+    PATH: "{{ yazi_check_path }}"
 
 # -----------------------
-# Fallback installers (split by OS so we don't touch apt vars on macOS)
+# Optional fallback (opt-in): upstream installer into user’s ~/.local/bin
 # -----------------------
-- name: Install yazi via official script (fallback) [non-Debian]
-  when: ansible_facts.os_family != "Debian" and yazi_cmd_after_pm.rc != 0
-  shell: |
-    set -e
-    curl -fsSL https://yazi-rs.github.io/install.sh -o /tmp/yazi_install.sh
-    sh /tmp/yazi_install.sh -y -b "{{ ansible_env.HOME }}/.local/bin"
+- name: Ensure ~/.local/bin exists (user)
+  become: false
+  file:
+    path: "{{ ansible_env.HOME }}/.local/bin"
+    state: directory
+    mode: "0755"
+  when: yazi_cmd_after_pm.rc != 0 and yazi_use_script_fallback
+
+- name: Download Yazi installer script
+  become: false
+  get_url:
+    url: "{{ yazi_fallback_url }}"
+    dest: "/tmp/yazi_install.sh"
+    mode: "0755"
+  when: yazi_cmd_after_pm.rc != 0 and yazi_use_script_fallback
+
+- name: Run Yazi installer script (to ~/.local/bin)
+  become: false
+  shell: /tmp/yazi_install.sh -y -b "{{ ansible_env.HOME }}/.local/bin"
   args: { executable: /bin/bash }
   changed_when: false
+  when: yazi_cmd_after_pm.rc != 0 and yazi_use_script_fallback
 
-- name: Install yazi via official script (fallback) [Debian]
-  when: ansible_facts.os_family == "Debian" and yazi_cmd_after_pm.rc != 0
-  shell: |
-    set -e
-    curl -fsSL https://yazi-rs.github.io/install.sh -o /tmp/yazi_install.sh
-    sh /tmp/yazi_install.sh -y -b "{{ ansible_env.HOME }}/.local/bin"
-  args: { executable: /bin/bash }
-  changed_when: false
-
-# Final check (make sure ~/.local/bin is on PATH)
+# Final check (consider user-local bin too)
 - name: Final check
   command: bash -lc 'command -v yazi'
   register: yazi_cmd_final
   changed_when: false
   failed_when: false
   environment:
-    PATH: "{{ ansible_env.PATH }}:{{ ansible_env.HOME }}/.local/bin"
+    PATH: "{{ yazi_check_path }}"
+
+# Nice-to-have symlinks for Ubuntu (fd & bat naming quirks)
+- name: Provide 'fd' symlink to 'fdfind' (Ubuntu)
+  become: yes
+  file:
+    src: /usr/bin/fdfind
+    dest: /usr/local/bin/fd
+    state: link
+  when: ansible_facts.os_family == "Debian" and (lookup('pipe', 'command -v fdfind || true') | length) > 0
+
+- name: Provide 'bat' symlink to 'batcat' (Ubuntu)
+  become: yes
+  file:
+    src: /usr/bin/batcat
+    dest: /usr/local/bin/bat
+    state: link
+  when: ansible_facts.os_family == "Debian" and (lookup('pipe', 'command -v batcat || true') | length) > 0
