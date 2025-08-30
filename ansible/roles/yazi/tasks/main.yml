@@ -184,3 +184,73 @@
   failed_when: false
   environment:
     PATH: "{{ ansible_env.PATH }}:{{ ansible_env.HOME }}/.local/bin:/snap/bin"
+
+# -----------------------
+# Final fallback: official GitHub release to ~/.local/bin
+# -----------------------
+- block:
+    - name: Ensure ~/.local/bin exists
+      file:
+        path: "{{ ansible_env.HOME }}/.local/bin"
+        state: directory
+        mode: "0755"
+
+    - name: Install Yazi from GitHub release (latest) to ~/.local/bin
+      shell: |
+        set -euo pipefail
+        arch="{{ 'x86_64' if ansible_architecture in ['x86_64','amd64'] else 'aarch64' }}"
+        case "$arch" in
+          x86_64) trip1="x86_64-unknown-linux-gnu"; trip2="x86_64-unknown-linux-musl" ;;
+          aarch64|arm64) trip1="aarch64-unknown-linux-gnu"; trip2="aarch64-unknown-linux-musl" ;;
+          *) trip1=""; trip2="" ;;
+        esac
+
+        api="https://api.github.com/repos/sxyazi/yazi/releases/latest"
+        url="$(curl -fsSL "$api" \
+              | jq -r --arg t1 "$trip1" --arg t2 "$trip2" \
+                '.assets[] | select(((.name|test($t1)) or (.name|test($t2))) and (.name|test("linux"))) | .browser_download_url' \
+              | head -n1)"
+
+        if [ -z "$url" ]; then
+          echo "No suitable Linux asset found for $arch" >&2
+          exit 2
+        fi
+
+        tmp="$(mktemp -d)"
+        cd "$tmp"
+        fname="$(basename "$url")"
+        curl -fL -o "$fname" "$url"
+
+        # Try common formats
+        if echo "$fname" | grep -qE '\.zip$'; then
+          unzip -o "$fname"
+        elif echo "$fname" | grep -qE '\.(tar\.xz|txz|tar\.gz|tgz)$'; then
+          tar -xf "$fname"
+        else
+          # last resort: attempt tar auto
+          tar -xf "$fname" || true
+        fi
+
+        # Find binaries (some archives nest inside a dir)
+        bin="$(find . -type f -name yazi -perm -u+x | head -n1 || true)"
+        ya="$(find . -type f -name ya   -perm -u+x | head -n1 || true)"
+
+        if [ -z "$bin" ]; then
+          echo "Could not find 'yazi' binary in archive" >&2
+          exit 3
+        fi
+
+        install -Dm755 "$bin" "$HOME/.local/bin/yazi"
+        if [ -n "$ya" ]; then
+          install -Dm755 "$ya" "$HOME/.local/bin/ya"
+        else
+          ln -sf yazi "$HOME/.local/bin/ya"
+        fi
+      args: { executable: /bin/bash }
+      changed_when: true
+
+  when:
+    - yazi_cmd_after_pm.rc != 0
+    - (yazi_cmd_after_snap is not defined) or (yazi_cmd_after_snap.rc != 0)
+
+
