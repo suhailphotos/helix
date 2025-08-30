@@ -9,11 +9,8 @@
 # Figure out the *login* user's HOME even when the play uses become
 - name: Determine login user
   set_fact:
-    yazi_login_user: >-
-      {{ ansible_user
-         | default(ansible_env.SUDO_USER)
-         | default(ansible_env.LOGNAME)
-         | default(ansible_user_id) }}
+    # prefer SUDO_USER if present; fall back to the connected user
+    yazi_login_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id | default(ansible_user)) }}"
 
 - name: Determine login user's HOME (portable)
   become: false
@@ -36,8 +33,13 @@
     yazi_src_dir:    "{{ (yazi_home_cmd.stdout | trim) ~ '/.local/src/yazi' }}"
     yazi_system_bin: "/usr/local/bin"
 
+# --- safety check ---
+- name: Sanity check resolved HOME
+  fail:
+    msg: "Could not resolve home for {{ yazi_login_user }} (got '{{ yazi_user_home }}')"
+  when: (yazi_user_home | trim) == ''
 
-- name: Set per-user paths (phase2)
+- name: Set per-user paths (phase 2)
   set_fact:
     yazi_user_path: "{{ yazi_user_bin }}:{{ yazi_user_cargo }}:{{ ansible_env.PATH }}"
 
@@ -83,11 +85,14 @@
 # Debian/Ubuntu (build from source)
 # -----------------------
 - block:
-    - name: Debian/Ubuntu | runtime prerequisites
+    - name: Debian/Ubuntu | runtime + build prerequisites
       when: yazi_manage_prereqs
       become: yes
       apt:
         name:
+          - git            # needed for the clone when running only -t yazi
+          - curl           # needed for rustup
+          - ca-certificates
           - file
           - fd-find
           - ripgrep
@@ -100,6 +105,8 @@
           - xclip
           - wl-clipboard
           - zoxide
+          - build-essential
+          - pkg-config
         state: present
         update_cache: yes
 
@@ -113,22 +120,20 @@
       register: resvg_apt
       failed_when: false
 
-    - name: Debian/Ubuntu | build toolchain
-      become: yes
-      apt:
-        name: [build-essential, pkg-config]
-        state: present
-        update_cache: yes
-
     # Optional nicety: fd → fdfind symlink (system-wide)
+    - name: Check for /usr/bin/fdfind
+      become: yes
+      stat:
+        path: /usr/bin/fdfind
+      register: fdfind_stat
+
     - name: Debian/Ubuntu | ensure fd symlink (fdfind → fd)
       become: yes
       file:
         src: /usr/bin/fdfind
         dest: /usr/local/bin/fd
         state: link
-      when: ansible_facts.os_family == "Debian"
-            and (ansible_facts.packages is not defined or 'fd' not in ansible_facts.packages)
+      when: fdfind_stat.stat.exists
 
     - name: Install rustup for the user if missing
       become: false
@@ -238,14 +243,20 @@
             state: link
           when: not ya_user_built.stat.exists
 
-    - name: Ensure ~/.local/bin is on PATH for login shells (Linux)
+    - name: Ensure PATH for login shells (Linux, user scope)
       when: yazi_install_scope == 'user'
       become: false
-      lineinfile:
-        path: "{{ yazi_user_home }}/.profile"
-        create: yes
-        line: 'export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"'
-        state: present
+      block:
+        - lineinfile:
+            path: "{{ yazi_user_home }}/.profile"
+            create: yes
+            line: 'export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"'
+            state: present
+        - lineinfile:
+            path: "{{ yazi_user_home }}/.zprofile"
+            create: yes
+            line: 'export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"'
+            state: present
 
   when: ansible_facts.os_family == "Debian" and yazi_cmd.rc != 0
 
