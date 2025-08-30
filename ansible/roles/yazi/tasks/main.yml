@@ -1,44 +1,48 @@
 ---
 # roles/yazi/tasks/main.yml
 
-# ------------------------------------------------------------
-# Base facts (knobs)
-# ------------------------------------------------------------
-- set_fact:
+- name: Defaults
+  set_fact:
     yazi_manage_prereqs: "{{ yazi_manage_prereqs | default(false) | bool }}"
-    yazi_repo_url: "https://github.com/sxyazi/yazi.git"
-    yazi_src_dir: "{{ yz_user_home | default(ansible_env.HOME) }}/.local/src/yazi"
-    yazi_bin_dir: "{{ yz_user_home | default(ansible_env.HOME) }}/.local/bin"
 
-# Figure out the *real* remote user's HOME even when play uses become: yes
-- name: Determine remote user HOME
+# Figure out the *login* user's HOME even when the play is become: yes
+- name: Determine remote login user HOME (no sudo)
   become: false
-  shell: 'printf %s "$HOME"'
-  args: { executable: /bin/bash }
-  register: yz_home_cmd
+  vars:
+    login_user: >-
+      {{ ansible_user
+         | default(ansible_env.SUDO_USER)
+         | default(ansible_env.LOGNAME)
+         | default(ansible_user_id) }}
+  command: bash -lc 'printf %s "~{{ login_user }}"'
+  register: yazi_home_echo
   changed_when: false
 
-- name: Set yazi per-user facts
+- name: Set per-user facts
   set_fact:
-    yz_user_home: "{{ yz_home_cmd.stdout | trim }}"
-    yz_user_path: "{{ (yz_home_cmd.stdout | trim) + '/.local/bin:' + (yz_home_cmd.stdout | trim) + '/.cargo/bin:/snap/bin:' + ansible_env.PATH }}"
+    yazi_login_user: >-
+      {{ ansible_user
+         | default(ansible_env.SUDO_USER)
+         | default(ansible_env.LOGNAME)
+         | default(ansible_user_id) }}
+    yazi_user_home: "{{ yazi_home_echo.stdout }}"
+    yazi_user_bin:  "{{ yazi_home_echo.stdout }}/.local/bin"
+    yazi_user_cargo: "{{ yazi_home_echo.stdout }}/.cargo/bin"
+    yazi_user_path: "{{ yazi_user_bin }}:{{ yazi_user_cargo }}:{{ ansible_env.PATH }}"
 
-# ------------------------------------------------------------
-# Quick probe (portable)
-# ------------------------------------------------------------
+# Quick presence check (user PATH)
 - name: Check for yazi (user PATH)
   become: false
-  shell: |
-    PATH="{{ yz_user_path }}"
-    command -v yazi 2>/dev/null || true
-  args: { executable: /bin/bash }
+  command: bash -lc 'command -v yazi'
   register: yazi_cmd
   changed_when: false
   failed_when: false
+  environment:
+    PATH: "{{ yazi_user_path }}"
 
-# ------------------------------------------------------------
+# -----------------------
 # macOS path (unchanged)
-# ------------------------------------------------------------
+# -----------------------
 - name: macOS | install Yazi prerequisites
   when: ansible_system == "Darwin" and yazi_manage_prereqs
   community.general.homebrew:
@@ -58,15 +62,15 @@
     path: "{{ brew_bin | default('/opt/homebrew/bin/brew') }}"
 
 - name: macOS | install yazi with brew
-  when: ansible_system == "Darwin" and (yazi_cmd.stdout | length) == 0
+  when: ansible_system == "Darwin" and yazi_cmd.rc != 0
   community.general.homebrew:
     name: yazi
     state: present
     path: "{{ brew_bin | default('/opt/homebrew/bin/brew') }}"
 
-# ------------------------------------------------------------
-# Debian/Ubuntu: install prereqs (runtime tools) + build deps
-# ------------------------------------------------------------
+# -----------------------
+# Debian/Ubuntu: prereqs + build from source
+# -----------------------
 - name: Debian/Ubuntu | install Yazi prerequisites (runtime)
   when: ansible_facts.os_family == "Debian" and yazi_manage_prereqs
   become: yes
@@ -79,7 +83,7 @@
       - jq
       - ffmpeg
       - poppler-utils
-      - p7zip-full           # “7zip” on macOS, “p7zip-full” on Debian/Ubuntu
+      - p7zip-full
       - imagemagick
       - xclip
       - wl-clipboard
@@ -87,7 +91,7 @@
     state: present
     update_cache: yes
 
-# Best-effort: resvg (often missing in Ubuntu repos)
+# Optional SVG support (best effort)
 - name: Debian/Ubuntu | try resvg (best-effort)
   when: ansible_facts.os_family == "Debian" and yazi_manage_prereqs
   become: yes
@@ -95,150 +99,121 @@
     name: resvg
     state: present
     update_cache: yes
+  register: resvg_apt
   failed_when: false
 
-# Build prerequisites
+# Build toolchain (tiny, per upstream note: needs gcc/make)
 - name: Debian/Ubuntu | install build toolchain
-  when: ansible_facts.os_family == "Debian" and (yazi_cmd.stdout | length) == 0
+  when: ansible_facts.os_family == "Debian" and yazi_cmd.rc != 0
   become: yes
   apt:
     name:
       - build-essential
       - pkg-config
-      - curl
-      - git
-      - ca-certificates
     state: present
     update_cache: yes
 
-# ------------------------------------------------------------
-# Debian/Ubuntu: build from source as the *user*
-# ------------------------------------------------------------
+# Rustup/Cargo for the *user* (no sudo)
 - name: Debian/Ubuntu | install rustup if missing (user)
-  when: ansible_facts.os_family == "Debian" and (yazi_cmd.stdout | length) == 0
+  when: ansible_facts.os_family == "Debian" and yazi_cmd.rc != 0
   become: false
   shell: |
-    test -x "{{ yz_user_home }}/.cargo/bin/cargo" || \
+    set -e
+    export PATH="{{ yazi_user_cargo }}:{{ ansible_env.PATH }}"
+    if ! command -v cargo >/dev/null 2>&1; then
       curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+    fi
   args: { executable: /bin/bash }
-  environment:
-    HOME: "{{ yz_user_home }}"
   changed_when: false
 
 - name: Debian/Ubuntu | ensure toolchain is up to date (user)
-  when: ansible_facts.os_family == "Debian" and (yazi_cmd.stdout | length) == 0
+  when: ansible_facts.os_family == "Debian" and yazi_cmd.rc != 0
   become: false
-  shell: "{{ yz_user_home }}/.cargo/bin/rustup update"
+  shell: |
+    set -e
+    export PATH="{{ yazi_user_cargo }}:{{ ansible_env.PATH }}"
+    rustup update stable
   args: { executable: /bin/bash }
-  environment:
-    HOME: "{{ yz_user_home }}"
-    PATH: "{{ yz_user_home }}/.cargo/bin:{{ ansible_env.PATH }}"
   changed_when: false
   failed_when: false
 
+# Source location under the user home
 - name: Debian/Ubuntu | ensure source dir exists (user)
-  when: ansible_facts.os_family == "Debian" and (yazi_cmd.stdout | length) == 0
+  when: ansible_facts.os_family == "Debian" and yazi_cmd.rc != 0
   become: false
   file:
-    path: "{{ yazi_src_dir }}"
+    path: "{{ yazi_user_home }}/.local/src/yazi"
     state: directory
     mode: "0755"
 
-- name: Debian/Ubuntu | clone/update Yazi repo (user)
-  when: ansible_facts.os_family == "Debian" and (yazi_cmd.stdout | length) == 0
+- name: Debian/Ubuntu | clone/update Yazi (user)
+  when: ansible_facts.os_family == "Debian" and yazi_cmd.rc != 0
   become: false
   git:
-    repo: "{{ yazi_repo_url }}"
-    dest: "{{ yazi_src_dir }}"
-    # You can pin a release tag if you prefer. 'main' keeps you current:
-    version: "main"
+    repo: https://github.com/sxyazi/yazi.git
+    dest: "{{ yazi_user_home }}/.local/src/yazi"
+    version: main
     depth: 1
     single_branch: yes
     update: yes
     accept_hostkey: yes
 
-- name: Debian/Ubuntu | cargo build --release --locked (user)
-  when: ansible_facts.os_family == "Debian" and (yazi_cmd.stdout | length) == 0
+- name: Debian/Ubuntu | cargo build --release (user)
+  when: ansible_facts.os_family == "Debian" and yazi_cmd.rc != 0
   become: false
-  shell: "{{ yz_user_home }}/.cargo/bin/cargo build --release --locked"
+  shell: |
+    set -e
+    export PATH="{{ yazi_user_cargo }}:{{ yazi_user_bin }}:{{ ansible_env.PATH }}"
+    cargo build --release --locked
   args:
     executable: /bin/bash
-    chdir: "{{ yazi_src_dir }}"
-  environment:
-    HOME: "{{ yz_user_home }}"
-    PATH: "{{ yz_user_home }}/.cargo/bin:{{ ansible_env.PATH }}"
+    chdir: "{{ yazi_user_home }}/.local/src/yazi"
+  changed_when: true
 
-- name: Debian/Ubuntu | install built binaries to ~/.local/bin (user)
-  when: ansible_facts.os_family == "Debian" and (yazi_cmd.stdout | length) == 0
+- name: Debian/Ubuntu | install yazi/ya to ~/.local/bin (user)
+  when: ansible_facts.os_family == "Debian" and yazi_cmd.rc != 0
   become: false
   shell: |
-    install -Dm755 "{{ yazi_src_dir }}/target/release/yazi" "{{ yazi_bin_dir }}/yazi"
-    if [ -f "{{ yazi_src_dir }}/target/release/ya" ]; then
-      install -Dm755 "{{ yazi_src_dir }}/target/release/ya" "{{ yazi_bin_dir }}/ya"
+    set -e
+    mkdir -p "{{ yazi_user_bin }}"
+    install -Dm755 "target/release/yazi" "{{ yazi_user_bin }}/yazi"
+    if [ -x "target/release/ya" ]; then
+      install -Dm755 "target/release/ya" "{{ yazi_user_bin }}/ya"
     else
-      ln -sf yazi "{{ yazi_bin_dir }}/ya"
+      ln -sf yazi "{{ yazi_user_bin }}/ya"
     fi
-  args: { executable: /bin/bash }
+  args: { executable: /bin/bash, chdir: "{{ yazi_user_home }}/.local/src/yazi" }
+  changed_when: true
 
-# ------------------------------------------------------------
-# Ubuntu niceties (fd/bat compatibility names)
-# ------------------------------------------------------------
-- name: Provide 'fd' symlink to 'fdfind' (Ubuntu)
-  become: yes
-  file:
-    src: /usr/bin/fdfind
-    dest: /usr/local/bin/fd
-    state: link
-  when: >
-    ansible_facts.os_family == "Debian" and
-    (lookup('pipe', 'command -v fdfind || true') | length) > 0 and
-    (lookup('pipe', 'test -x /usr/local/bin/fd || echo no') | trim) == 'no'
-
-- name: Provide 'bat' symlink to 'batcat' (Ubuntu)
-  become: yes
-  file:
-    src: /usr/bin/batcat
-    dest: /usr/local/bin/bat
-    state: link
-  when: >
-    ansible_facts.os_family == "Debian" and
-    (lookup('pipe', 'command -v batcat || true') | length) > 0 and
-    (lookup('pipe', 'test -x /usr/local/bin/bat || echo no') | trim) == 'no'
-
-# ------------------------------------------------------------
-# Ensure PATH for interactive shells
-# ------------------------------------------------------------
-- name: Ensure ~/.local/bin and ~/.cargo/bin on PATH for zsh (Linux)
+# Ensure PATH for login shells (user)
+- name: Ensure ~/.local/bin on PATH for zsh (Linux)
   when: ansible_facts.os_family == "Debian"
   become: false
   lineinfile:
-    path: "{{ yz_user_home }}/.zprofile"
+    path: "{{ yazi_user_home }}/.zprofile"
     create: yes
     line: 'export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"'
     state: present
 
-- name: Ensure ~/.local/bin and ~/.cargo/bin on PATH for POSIX shells (Linux)
+- name: Ensure ~/.local/bin on PATH for POSIX shells (Linux)
   when: ansible_facts.os_family == "Debian"
   become: false
   lineinfile:
-    path: "{{ yz_user_home }}/.profile"
+    path: "{{ yazi_user_home }}/.profile"
     create: yes
     line: 'export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"'
     state: present
 
-# ------------------------------------------------------------
-# Final verification
-# ------------------------------------------------------------
+# Final verification in the user context
 - name: Final check (print actual path if present)
   become: false
-  shell: |
-    PATH="{{ yz_user_path }}"
-    command -v yazi 2>/dev/null || true
-  args: { executable: /bin/bash }
-  register: yazi_final_path
+  command: bash -lc 'command -v yazi && yazi -V'
+  register: yazi_final
   changed_when: false
   failed_when: false
+  environment:
+    PATH: "{{ yazi_user_path }}"
 
 - name: Debug final yazi presence
   debug:
-    msg: "yazi resolved to: {{ yazi_final_path.stdout | trim | default('NOT FOUND') }}"
+    msg: "{{ yazi_final.stdout | default('yazi not found') }}"
