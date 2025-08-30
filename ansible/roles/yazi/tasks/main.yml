@@ -1,11 +1,63 @@
 ---
 # roles/yazi/tasks/main.yml
 
+- set_fact:
+    yazi_manage_prereqs: "{{ yazi_manage_prereqs | default(false) | bool }}"
+
 # Try to find yazi first
 - name: Check for yazi
   command: bash -lc 'command -v yazi'
   register: yazi_cmd
   changed_when: false
+  failed_when: false
+
+# macOS prerequisites (only if enabled)
+- name: macOS | install Yazi prerequisites
+  when: ansible_system == "Darwin" and yazi_manage_prereqs
+  community.general.homebrew:
+    name:
+      - ffmpeg
+      - jq
+      - poppler
+      - imagemagick
+      - resvg
+      - 7zip
+      - fd
+      - ripgrep
+      - fzf
+      - zoxide
+      - bat
+    state: present
+    path: "{{ brew_bin | default('/opt/homebrew/bin/brew') }}"
+
+# Debian/Ubuntu prerequisites (only if enabled)
+- name: Debian/Ubuntu | install Yazi prerequisites
+  when: ansible_facts.os_family == "Debian" and yazi_manage_prereqs
+  become: yes
+  apt:
+    name:
+      - file
+      - fd-find
+      - ripgrep
+      - fzf
+      - jq
+      - ffmpeg
+      - poppler-utils
+      - p7zip-full
+      - imagemagick
+      - xclip
+      - wl-clipboard
+    state: present
+    update_cache: yes
+
+- name: Debian/Ubuntu | install resvg (best-effort)
+  when: ansible_facts.os_family == "Debian" and yazi_manage_prereqs
+  become: yes
+  apt:
+    name: resvg
+    state: present
+    update_cache: yes
+  register: resvg_apt
   failed_when: false
 
 # -----------------------
@@ -60,16 +112,26 @@
 # -----------------------
 # Nice-to-have symlinks for Ubuntu (fd & bat naming quirks)
 # -----------------------
+
+- name: Check if fdfind exists
+  command: bash -lc 'command -v fdfind'
+  register: fdfind_cmd
+  changed_when: false
+  failed_when: false
+
+- name: Check if batcat exists
+  command: bash -lc 'command -v batcat'
+  register: batcat_cmd
+  changed_when: false
+  failed_when: false
+
 - name: Provide 'fd' symlink to 'fdfind' (Ubuntu)
   become: yes
   file:
     src: /usr/bin/fdfind
     dest: /usr/local/bin/fd
     state: link
-  when: ansible_facts.os_family == "Debian" and
-        (ansible_facts.distribution | lower) in ['ubuntu','debian'] and
-        ansible_facts.pkg_mgr == 'apt' and
-        (lookup('pipe', 'command -v fdfind || true') | length) > 0
+  when: ansible_facts.os_family == "Debian" and fdfind_cmd.rc == 0
 
 - name: Provide 'bat' symlink to 'batcat' (Ubuntu)
   become: yes
@@ -77,5 +139,4 @@
     src: /usr/bin/batcat
     dest: /usr/local/bin/bat
     state: link
-  when: ansible_facts.os_family == "Debian" and
-        (lookup('pipe', 'command -v batcat || true') | length) > 0
+  when: ansible_facts.os_family == "Debian" and batcat_cmd.rc == 0

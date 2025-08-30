@@ -10,6 +10,8 @@ poetry_projects_linux: []
 zoxide_allow_install_script: false
 
 apt_packages:
+  - git
+  - curl
   - locales
   - tree
   - eza
@@ -28,8 +30,6 @@ apt_packages:
   - p7zip-full
   - imagemagick
   - xclip
-  - wl-clipboard
-  - resvg
 
 # choose the system-wide default (C.UTF-8 is present on Ubuntu/Debian by default)
 default_locale: "C.UTF-8"

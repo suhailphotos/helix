@@ -2,6 +2,7 @@
   hosts: macos
   connection: local
   gather_facts: yes
+  serial: 1
 
   roles:
     - { role: macos_bootstrap,        tags: ['bootstrap'] }

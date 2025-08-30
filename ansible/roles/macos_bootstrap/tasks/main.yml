@@ -35,20 +35,6 @@
     line: "eval \"$( {{ brew_bin }} shellenv )\""
     state: present
 
-- name: Install Homebrew packages
-  shell: |
-    {{ brew_bin }} list {{ item }} >/dev/null 2>&1 || {{ brew_bin }} install {{ item }}
-  args:
-    executable: /bin/bash
-  loop: "{{ brew_packages }}"
-
-- name: Install Homebrew casks
-  shell: |
-    {{ brew_bin }} list --cask {{ item }} >/dev/null 2>&1 || {{ brew_bin }} install --cask {{ item }}
-  args:
-    executable: /bin/bash
-  loop: "{{ brew_casks }}"
-
 - name: Tap Homebrew repos
   community.general.homebrew_tap:
     name: "{{ item }}"
@@ -56,14 +42,20 @@
     path: "{{ brew_bin }}"
   loop: "{{ (brew_taps | default([])) + (brew_taps_extra | default([])) }}"
 
-- name: Install Homebrew packages
+- name: Update Homebrew once (quiet)
+  command: "{{ brew_bin }} update --quiet"
+  changed_when: false
+
+- name: Install Homebrew packages (idempotent)
   community.general.homebrew:
     name: "{{ (brew_packages | default([])) + (brew_packages_extra | default([])) }}"
     state: present
     path: "{{ brew_bin }}"
+    update_homebrew: false
 
-- name: Install Homebrew casks
+- name: Install Homebrew casks (idempotent)
   community.general.homebrew_cask:
     name: "{{ (brew_casks | default([])) + (brew_casks_extra | default([])) }}"
     state: present
     path: "{{ brew_bin }}"
+    accept_external_apps: true
