@@ -31,6 +31,8 @@ apt_packages:
   - imagemagick
   - xclip
 
+yazi_install_scope: system
+
 # choose the system-wide default (C.UTF-8 is present on Ubuntu/Debian by default)
 default_locale: "C.UTF-8"
 
