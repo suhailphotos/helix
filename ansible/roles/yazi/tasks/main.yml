@@ -10,6 +10,8 @@
   register: yazi_cmd
   changed_when: false
   failed_when: false
+  environment:
+    PATH: "{{ ansible_env.PATH }}:{{ ansible_env.HOME }}/.local/bin"
 
 # macOS prerequisites (only if enabled)
 - name: macOS | install Yazi prerequisites
@@ -83,19 +85,20 @@
   register: yazi_apt
   failed_when: false
 
-- name: Recheck yazi after apt
+# Recheck after any package-manager install (brew or apt)
+- name: Recheck yazi after package manager
   command: bash -lc 'command -v yazi'
-  register: yazi_cmd_after_apt
+  register: yazi_cmd_after_pm
   changed_when: false
   failed_when: false
-  when: ansible_facts.os_family == "Debian" and yazi_cmd.rc != 0
+  environment:
+    PATH: "{{ ansible_env.PATH }}:{{ ansible_env.HOME }}/.local/bin"
 
 # -----------------------
-# Fallback: official script (~/.local/bin/yazi)
+# Fallback installers (split by OS so we don't touch apt vars on macOS)
 # -----------------------
-- name: Install yazi via official script (fallback)
-  when: yazi_cmd.rc != 0
-        and (yazi_cmd_after_apt is not defined or yazi_cmd_after_apt.rc != 0)
+- name: Install yazi via official script (fallback) [non-Debian]
+  when: ansible_facts.os_family != "Debian" and yazi_cmd_after_pm.rc != 0
   shell: |
     set -e
     curl -fsSL https://yazi-rs.github.io/install.sh -o /tmp/yazi_install.sh
@@ -103,40 +106,20 @@
   args: { executable: /bin/bash }
   changed_when: false
 
+- name: Install yazi via official script (fallback) [Debian]
+  when: ansible_facts.os_family == "Debian" and yazi_cmd_after_pm.rc != 0
+  shell: |
+    set -e
+    curl -fsSL https://yazi-rs.github.io/install.sh -o /tmp/yazi_install.sh
+    sh /tmp/yazi_install.sh -y -b "{{ ansible_env.HOME }}/.local/bin"
+  args: { executable: /bin/bash }
+  changed_when: false
+
+# Final check (make sure ~/.local/bin is on PATH)
 - name: Final check
   command: bash -lc 'command -v yazi'
   register: yazi_cmd_final
   changed_when: false
   failed_when: false
-
-# -----------------------
-# Nice-to-have symlinks for Ubuntu (fd & bat naming quirks)
-# -----------------------
-
-- name: Check if fdfind exists
-  command: bash -lc 'command -v fdfind'
-  register: fdfind_cmd
-  changed_when: false
-  failed_when: false
-
-- name: Check if batcat exists
-  command: bash -lc 'command -v batcat'
-  register: batcat_cmd
-  changed_when: false
-  failed_when: false
-
-- name: Provide 'fd' symlink to 'fdfind' (Ubuntu)
-  become: yes
-  file:
-    src: /usr/bin/fdfind
-    dest: /usr/local/bin/fd
-    state: link
-  when: ansible_facts.os_family == "Debian" and fdfind_cmd.rc == 0
-
-- name: Provide 'bat' symlink to 'batcat' (Ubuntu)
-  become: yes
-  file:
-    src: /usr/bin/batcat
-    dest: /usr/local/bin/bat
-    state: link
-  when: ansible_facts.os_family == "Debian" and batcat_cmd.rc == 0
+  environment:
+    PATH: "{{ ansible_env.PATH }}:{{ ansible_env.HOME }}/.local/bin"
