@@ -33,6 +33,7 @@
       - fzf
       - zoxide
       - bat
+      - unzip
     state: present
     path: "{{ brew_bin | default('/opt/homebrew/bin/brew') }}"
 
@@ -98,9 +99,8 @@
     PATH: "{{ ansible_env.PATH }}:{{ ansible_env.HOME }}/.local/bin:/snap/bin"
 
 # -----------------------
-# Snap fallback (Ubuntu/Debian) — ensure snapd is ready, then install
+# Snap fallback (Ubuntu/Debian) — tolerant, won’t abort the play
 # -----------------------
-
 - block:
     - name: Ensure snapd is installed
       apt:
@@ -116,7 +116,6 @@
         enabled: yes
       become: yes
 
-    # On first-time installs, snapd needs to seed core snaps. Wait for it.
     - name: Wait for snap seed to complete
       command: snap wait system seed.loaded
       become: yes
@@ -126,16 +125,17 @@
       delay: 3
       until: snap_seed.rc == 0
 
+    # Use plain command, and DO NOT fail the play if it errors (e.g. classic blocked)
     - name: Install yazi via snap (classic)
-      community.general.snap:
-        name: yazi
-        classic: true
-        state: present
+      command: snap install yazi --classic
       become: yes
+      register: snap_yazi
+      failed_when: false
+      changed_when: "'yazi' in (snap_yazi.stdout | default('')) or 'yazi' in (snap_yazi.stderr | default(''))"
 
   when:
     - ansible_facts.os_family == "Debian"
-    - yazi_install_snap
+    - yazi_install_snap | default(false) | bool
     - yazi_cmd_after_pm.rc != 0
 
 # -----------------------
@@ -176,3 +176,11 @@
     ansible_facts.os_family == "Debian" and
     (lookup('pipe', 'command -v batcat || true') | length) > 0 and
     (lookup('pipe', 'test -x /usr/local/bin/bat || echo no') | trim) == 'no'
+
+- name: Recheck after snap attempt
+  command: bash -lc 'command -v yazi || test -x /snap/bin/yazi'
+  register: yazi_cmd_after_snap
+  changed_when: false
+  failed_when: false
+  environment:
+    PATH: "{{ ansible_env.PATH }}:{{ ansible_env.HOME }}/.local/bin:/snap/bin"
