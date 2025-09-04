@@ -19,7 +19,6 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
-# Helpers
 ensure_brew_shellenv() {
   local brew_bin="$1"
   local zprof="$HOME/.zprofile"
@@ -28,6 +27,11 @@ ensure_brew_shellenv() {
     { echo; echo "$line"; } >> "$zprof"
   fi
   eval "$("$brew_bin" shellenv)"
+}
+detect_brew() {
+  if [[ -x /opt/homebrew/bin/brew ]]; then echo /opt/homebrew/bin/brew; return 0; fi
+  if [[ -x /usr/local/bin/brew ]]; then echo /usr/local/bin/brew; return 0; fi
+  return 1
 }
 auto_limit_host() {
   local inv="$1"
@@ -51,8 +55,8 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
     echo "Xcode Command Line Tools missing. Run: xcode-select --install"
     exit 1
   fi
-  if ! command -v brew >/dev/null 2>&1; then
-    # request sudo only if we need to install brew
+  BREW_BIN="$(detect_brew || true)"
+  if [[ -z "$BREW_BIN" ]]; then
     if command -v sudo >/dev/null 2>&1; then
       if ! sudo -n true 2>/dev/null; then
         echo "Requesting admin privileges…"
@@ -61,15 +65,8 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
       ( while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done ) 2>/dev/null &
     fi
     NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-  fi
-  BREW_BIN=""
-  if [[ -x /opt/homebrew/bin/brew ]]; then
-    BREW_BIN=/opt/homebrew/bin/brew
-  elif [[ -x /usr/local/bin/brew ]]; then
-    BREW_BIN=/usr/local/bin/brew
-  else
-    echo "Homebrew install finished but brew not found on standard paths." >&2
-    exit 1
+    BREW_BIN="$(detect_brew || true)"
+    [[ -n "$BREW_BIN" ]] || { echo "Homebrew installed but not found on standard paths." >&2; exit 1; }
   fi
   ensure_brew_shellenv "$BREW_BIN"
   if ! command -v ansible-playbook >/dev/null 2>&1; then
@@ -104,9 +101,14 @@ if [[ "$(uname -s)" == "Darwin" && -z "$PASSTHRU_LIMIT" ]]; then
 fi
 
 echo "==> Building Poetry envs ${PASSTHRU_LIMIT:+(limit=$PASSTHRU_LIMIT)} ${AUTO_LIMIT:+(limit=$AUTO_LIMIT)}"
-ansible-playbook -i "$INV_FILE" playbooks/poetry_envs.yml -K \
-  ${PASSTHRU_LIMIT:+--limit "$PASSTHRU_LIMIT"} \
-  ${AUTO_LIMIT:+--limit "$AUTO_LIMIT"} \
-  "${OTHER_ARGS[@]}"
+
+# Build argv safely (no unbound var on empty arrays)
+play_cmd=( ansible-playbook -i "$INV_FILE" playbooks/poetry_envs.yml -K )
+[[ -n "$PASSTHRU_LIMIT" ]] && play_cmd+=( --limit "$PASSTHRU_LIMIT" )
+[[ -n "$AUTO_LIMIT"     ]] && play_cmd+=( --limit "$AUTO_LIMIT" )
+if [[ ${#OTHER_ARGS[@]:-0} -gt 0 ]]; then
+  play_cmd+=( "${OTHER_ARGS[@]}" )
+fi
+"${play_cmd[@]}"
 
 echo "🎉 Poetry envs done."

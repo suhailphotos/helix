@@ -7,7 +7,6 @@ HELIX_REPO_URL="${HELIX_REPO_URL:-https://github.com/suhailphotos/helix.git}"
 HELIX_BRANCH="${HELIX_BRANCH:-main}"
 CACHE_DIR="${HELIX_LOCAL_DIR:-$HOME/.cache/helix_checkout}"
 
-# Helpers
 keep_sudo_alive() {
   if command -v sudo >/dev/null 2>&1; then
     if ! sudo -n true 2>/dev/null; then
@@ -16,6 +15,11 @@ keep_sudo_alive() {
     fi
     ( while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done ) 2>/dev/null &
   fi
+}
+detect_brew() {
+  if [[ -x /opt/homebrew/bin/brew ]]; then echo /opt/homebrew/bin/brew; return 0; fi
+  if [[ -x /usr/local/bin/brew ]]; then echo /usr/local/bin/brew; return 0; fi
+  return 1
 }
 ensure_brew_shellenv() {
   local brew_bin="$1"
@@ -48,21 +52,17 @@ if ! xcode-select -p >/dev/null 2>&1; then
   exit 1
 fi
 
-# Homebrew + Ansible
-if ! command -v brew >/dev/null 2>&1; then
+# Homebrew (path-first detection; install only if truly missing)
+BREW_BIN="$(detect_brew || true)"
+if [[ -z "$BREW_BIN" ]]; then
   keep_sudo_alive
   NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-fi
-BREW_BIN=""
-if [[ -x /opt/homebrew/bin/brew ]]; then
-  BREW_BIN=/opt/homebrew/bin/brew
-elif [[ -x /usr/local/bin/brew ]]; then
-  BREW_BIN=/usr/local/bin/brew
-else
-  echo "Homebrew install finished but brew not found on standard paths." >&2
-  exit 1
+  BREW_BIN="$(detect_brew || true)"
+  [[ -n "$BREW_BIN" ]] || { echo "Homebrew installed but not found on standard paths." >&2; exit 1; }
 fi
 ensure_brew_shellenv "$BREW_BIN"
+
+# Ansible
 if ! command -v ansible-playbook >/dev/null 2>&1; then
   "$BREW_BIN" install ansible
 fi
@@ -86,6 +86,7 @@ ansible-galaxy collection install -r "$ANS_DIR/collections/requirements.yml" || 
 AUTO_LIMIT="$(auto_limit_host "$INV_FILE")"
 
 echo "==> Installing macOS desktop apps ${AUTO_LIMIT:+(limit=$AUTO_LIMIT)}"
-ansible-playbook -i "$INV_FILE" playbooks/desktop_apps.yml -K ${AUTO_LIMIT:+--limit "$AUTO_LIMIT"}
+ansible-playbook -i "$INV_FILE" playbooks/desktop_apps.yml -K \
+  ${AUTO_LIMIT:+--limit "$AUTO_LIMIT"}
 
 echo "🎉 Desktop apps done."
