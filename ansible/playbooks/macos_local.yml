@@ -4,6 +4,13 @@
   gather_facts: yes
   serial: 1
 
+  pre_tasks:
+    - name: Skip other hosts when running locally
+      meta: end_host
+      when:
+        - ansible_connection == 'local'
+        - (ansible_hostname | lower) != (inventory_hostname | lower)
+
   roles:
     - { role: macos_bootstrap,        tags: ['bootstrap'] }
     - { role: zoxide,                 tags: ['zoxide'] }
@@ -12,7 +19,6 @@
     - { role: zsh_orbit,              tags: ['zsh','orbit'] }
     - { role: starship,               tags: ['starship','prompt'] }
     - { role: ghostty,                tags: ['ghostty'] }
-    - { role: zsh_p10k,               tags: ['p10k'], when: false }
     - { role: iterm,                  tags: ['iterm'] }
     - { role: python_toolchain,       tags: ['python'] }
     - { role: nvim,                   tags: ['nvim'] }

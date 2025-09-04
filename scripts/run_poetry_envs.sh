@@ -3,79 +3,38 @@ set -euo pipefail
 trap 'echo "❌ ERROR at line $LINENO while running: $BASH_COMMAND" >&2' ERR
 exec </dev/null
 
-# Flags
-LIMIT_HOST="eclipse"   # override with --limit quasar (etc.)
+REPO_URL="https://github.com/suhailphotos/helix.git"
+CACHE_DIR="${HOME}/.cache/helix_checkout"
+ANS_DIR="${CACHE_DIR}/ansible"
+INV_FILE="${ANS_DIR}/inventory.yml"
+PLAY="${ANS_DIR}/playbooks/poetry_envs.yml"
 
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --limit) LIMIT_HOST="${2:-}"; shift ;;
-    -h|--help)
-      cat <<'EOF'
-Usage:
-  curl -fsSL https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/scripts/run_poetry_envs.sh | bash -- --limit quasar
-Flags:
-  --limit HOST   Ansible --limit target (must exist in inventory.yml). Default: eclipse
-EOF
-      exit 0 ;;
-    --) shift; break ;;
-    *) echo "Unknown flag: $1"; exit 2 ;;
-  esac
-  shift
-done
-
-# Ensure sudo keeps alive for -K runs (no-op if no sudo)
-if command -v sudo >/dev/null 2>&1; then
-  sudo -v || true
-  ( while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done ) 2>/dev/null &
-fi
-
-HELIX_REPO_URL="${HELIX_REPO_URL:-https://github.com/suhailphotos/helix.git}"
-HELIX_BRANCH="${HELIX_BRANCH:-main}"
-HELIX_LOCAL_DIR="${HELIX_LOCAL_DIR:-$HOME/.cache/helix_bootstrap}"
-
-# Use repo next to this script if present; else clone/update to cache
-SCRIPT_PATH="${BASH_SOURCE[0]:-}"
-if [[ -n "$SCRIPT_PATH" && -f "$SCRIPT_PATH" ]]; then
-  SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
-  PARENT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-else
-  PARENT_DIR=""
-fi
-if [[ -n "$PARENT_DIR" && -d "$PARENT_DIR/ansible" ]]; then
-  REPO_ROOT="$PARENT_DIR"
-else
-  command -v git >/dev/null 2>&1 || { echo "git required"; exit 1; }
-  mkdir -p "$(dirname "$HELIX_LOCAL_DIR")"
-  if [[ -d "$HELIX_LOCAL_DIR/.git" ]]; then
-    git -C "$HELIX_LOCAL_DIR" fetch --quiet
-    git -C "$HELIX_LOCAL_DIR" checkout "$HELIX_BRANCH" --quiet
-    git -C "$HELIX_LOCAL_DIR" pull --ff-only --quiet
-  else
-    git clone --depth 1 --branch "$HELIX_BRANCH" --quiet "$HELIX_REPO_URL" "$HELIX_LOCAL_DIR"
+# On macOS, ensure brew/ansible; on Linux we assume python/ansible already installed
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  if ! xcode-select -p >/dev/null 2>&1; then
+    echo "Xcode Command Line Tools missing. Run: xcode-select --install" >&2
+    exit 1
   fi
-  REPO_ROOT="$HELIX_LOCAL_DIR"
-fi
-
-# Make sure Ansible exists (same pattern as your other installer)
-if [[ "$OSTYPE" == "darwin"* ]]; then
-  BREW_BIN=""
-  if [ -x /opt/homebrew/bin/brew ]; then BREW_BIN=/opt/homebrew/bin/brew
-  elif [ -x /usr/local/bin/brew ]; then BREW_BIN=/usr/local/bin/brew
-  else
+  if ! command -v brew >/dev/null 2>&1; then
     NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    BREW_BIN=/opt/homebrew/bin/brew
   fi
+  eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || /usr/local/bin/brew shellenv)"
   if ! command -v ansible-playbook >/dev/null 2>&1; then
-    "$BREW_BIN" install ansible
-    eval "$("$BREW_BIN" shellenv)"
+    brew install ansible >/dev/null
   fi
-else
-  command -v ansible-playbook >/dev/null 2>&1 || { echo "Install Ansible first."; exit 1; }
 fi
 
-echo "==> Installing required Ansible collections"
-ansible-galaxy collection install -r "$REPO_ROOT/ansible/collections/requirements.yml" || true
+# Repo cache
+if [[ ! -d "$CACHE_DIR/.git" ]]; then
+  mkdir -p "$(dirname "$CACHE_DIR")"
+  git clone --depth=1 --branch main "$REPO_URL" "$CACHE_DIR"
+else
+  git -C "$CACHE_DIR" fetch --prune origin
+  git -C "$CACHE_DIR" reset --hard origin/main
+fi
 
-cd "$REPO_ROOT/ansible"
-echo "==> Running Poetry envs for --limit ${LIMIT_HOST}"
-ansible-playbook -i inventory.yml playbooks/poetry_envs.yml --limit "${LIMIT_HOST}" -K
+# Ensure required collections
+ansible-galaxy collection install -r "$ANS_DIR/collections/requirements.yml" || true
+
+# Pass through extra args (e.g. --limit nimbus for remote)
+ansible-playbook -i "$INV_FILE" "$PLAY" "$@"

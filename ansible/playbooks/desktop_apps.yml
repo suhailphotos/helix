@@ -1,8 +1,14 @@
-# ansible/playbooks/desktop_apps.yml
 - name: macOS Desktop Apps
   hosts: macos
   connection: local
   gather_facts: yes
+
+  pre_tasks:
+    - name: Skip other hosts when running locally
+      meta: end_host
+      when:
+        - ansible_connection == 'local'
+        - (ansible_hostname | lower) != (inventory_hostname | lower)
 
   roles:
     - { role: desktop_apps, tags: ['desktop_apps','apps'] }
