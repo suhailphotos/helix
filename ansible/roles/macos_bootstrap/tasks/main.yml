@@ -52,6 +52,7 @@
     state: present
     path: "{{ brew_bin }}"
     update_homebrew: false
+  tags: ['brew', 'brew_packages']
 
 - name: Install Homebrew casks (idempotent)
   community.general.homebrew_cask:
@@ -59,3 +60,4 @@
     state: present
     path: "{{ brew_bin }}"
     accept_external_apps: true
+  tags: ['brew', 'brew_casks', 'casks']
