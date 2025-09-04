@@ -30,6 +30,14 @@ fi
 
 # Homebrew
 if ! command -v brew >/dev/null 2>&1; then
+  # Warm up sudo for non-interactive Homebrew install (and keep alive)
+  if command -v sudo >/dev/null 2>&1; then
+    if ! sudo -n true 2>/dev/null; then
+      echo "Requesting admin privileges to install Homebrew…"
+      sudo -v
+    fi
+    ( while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done ) 2>/dev/null &
+  fi
   NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 fi
 eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || /usr/local/bin/brew shellenv)"
