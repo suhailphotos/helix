@@ -28,6 +28,15 @@ brew_packages:
   - rust-analyzer
   - pngpaste
   - tree-sitter
+  # Build tools you asked for
+  - cmake
+  - ninja
+  - pkg-config
+  - autoconf
+  - automake
+  - libtool
+  - meson
+  - rust
 
   # --- GNU userland (for consistent flags & color across macOS) ---
   - coreutils    # installs gls/gdate/... (gnubin path available)

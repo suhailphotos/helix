@@ -30,6 +30,17 @@ apt_packages:
   - p7zip-full
   - imagemagick
   - xclip
+  # Build essentials
+  - build-essential
+  - cmake
+  - ninja-build
+  - pkg-config
+  - autoconf
+  - automake
+  - libtool
+  - meson
+  - rustc
+  - cargo
 
 yazi_install_scope: system
 
