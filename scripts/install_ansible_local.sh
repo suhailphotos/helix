@@ -12,7 +12,7 @@ RUN_ALL=0
 RUN_POETRY=0
 LIMIT_HOST="${LIMIT_HOST:-}"     # optional override
 EXPL_REF=""                      # --ref <any git ref>
-EXPL_VERSION=""                  # --version <semver>
+EXPL_VERSION=""                  # --version <semver or vX.Y.Z>
 DEV_BRANCH=""                    # --dev <branch>
 OTHER_ARGS=()
 
@@ -24,26 +24,24 @@ Default (latest stable tag):
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/scripts/install_ansible_local.sh)"
 
 Include SF fonts:
-  ... install_ansible_local.sh" -- --sf_fonts
+  ...install_ansible_local.sh" -- --sf_fonts
 
 Only SF fonts:
-  ... install_ansible_local.sh" -- --only_sf_fonts
+  ...install_ansible_local.sh" -- --only_sf_fonts
 
 All (base + fonts + poetry):
-  ... install_ansible_local.sh" -- --all
+  ...install_ansible_local.sh" -- --all
 
-Pin to a specific version tag:
-  ... install_ansible_local.sh" -- --version 0.1.11
+Pin to a specific version:
+  ...install_ansible_local.sh" -- --version 0.1.11
+  # or --ref v0.1.11
 
-Use an exact ref (tag/branch/sha):
-  ... install_ansible_local.sh" -- --ref v0.1.11
-
-DEV mode (must pass branch name):
-  ... install_ansible_local.sh" -- --dev feature/my-branch
+Dev branch:
+  ...install_ansible_local.sh" -- --dev feature/my-branch
 
 Optional:
   --poetry
-  --limit HOST   (override auto-detected host)
+  --limit HOST
 EOF
 }
 
@@ -69,12 +67,10 @@ if [[ "$ONLY_SF_FONTS" -eq 1 && "$RUN_POETRY" -eq 1 ]]; then
   exit 2
 fi
 if [[ -n "$DEV_BRANCH" && ( -n "$EXPL_REF" || -n "$EXPL_VERSION" ) ]]; then
-  echo "Use either --dev <branch> OR --ref/--version, not both." >&2
-  exit 2
+  echo "Use either --dev <branch> OR --ref/--version, not both." >&2; exit 2
 fi
 if [[ -n "$EXPL_REF" && -n "$EXPL_VERSION" ]]; then
-  echo "Use either --ref OR --version, not both." >&2
-  exit 2
+  echo "Use either --ref OR --version, not both." >&2; exit 2
 fi
 
 # -----------------------------
@@ -100,10 +96,7 @@ ensure_brew_shellenv() {
   grep -qxF "$line" "$zprof" 2>/dev/null || { echo >> "$zprof"; echo "$line" >> "$zprof"; }
   eval "$("$brew_bin" shellenv)"
 }
-normalize_tag() {
-  local t="$1"
-  [[ "$t" =~ ^v ]] && echo "$t" || echo "v$t"
-}
+normalize_tag() { [[ "$1" =~ ^v ]] && echo "$1" || echo "v$1"; }
 latest_semver_tag() {
   git ls-remote --tags --refs https://github.com/suhailphotos/helix.git \
     | awk '{print $2}' \
@@ -111,10 +104,7 @@ latest_semver_tag() {
     | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$' \
     | sort -V | tail -1
 }
-ref_exists_remote() {
-  local ref="$1"
-  git ls-remote --heads --tags https://github.com/suhailphotos/helix.git "$ref" | grep -q .
-}
+ref_exists_remote() { git ls-remote --heads --tags https://github.com/suhailphotos/helix.git "$1" | grep -q .; }
 auto_limit_host() {
   local inv="$1"
   [[ -n "$LIMIT_HOST" ]] && { echo "$LIMIT_HOST"; return 0; }
@@ -130,14 +120,18 @@ auto_limit_host() {
   echo ""
 }
 checkout_ref() {
+  # Robust shallow fetch of a tag/branch/sha, then checkout FETCH_HEAD
   local repo="$1" dir="$2" ref="$3"
   if [[ ! -d "$dir/.git" ]]; then
-    mkdir -p "$(dirname "$dir")"
-    git clone --depth 1 "$repo" "$dir"
+    mkdir -p "$dir"
+    git init -q "$dir"
+    git -C "$dir" remote add origin "$repo" 2>/dev/null || true
   fi
-  git -C "$dir" fetch --depth 1 origin "$ref" --prune
-  git -C "$dir" checkout -q "$ref" || git -C "$dir" checkout -q FETCH_HEAD
-  git -C "$dir" reset --hard -q
+  if ! git -C "$dir" fetch --depth 1 --no-tags origin "$ref" --prune 2>/dev/null; then
+    # try explicit tag refspec if the above fails
+    git -C "$dir" fetch --depth 1 --no-tags origin "refs/tags/$ref:refs/tags/$ref" --prune || true
+  fi
+  git -C "$dir" checkout -q --detach FETCH_HEAD || git -C "$dir" reset --hard -q FETCH_HEAD
 }
 
 # -----------------------------
@@ -146,21 +140,13 @@ checkout_ref() {
 HELIX_REPO_URL="${HELIX_REPO_URL:-https://github.com/suhailphotos/helix.git}"
 CACHE_DIR="${HELIX_LOCAL_DIR:-$HOME/.cache/helix_checkout}"
 
-if [[ -n "$DEV_BRANCH" ]]; then
-  HELIX_REF="$DEV_BRANCH"
-elif [[ -n "$EXPL_REF" ]]; then
-  HELIX_REF="$EXPL_REF"
-elif [[ -n "$EXPL_VERSION" ]]; then
-  HELIX_REF="$(normalize_tag "$EXPL_VERSION")"
+if   [[ -n "$DEV_BRANCH"   ]]; then HELIX_REF="$DEV_BRANCH"
+elif [[ -n "$EXPL_REF"     ]]; then HELIX_REF="$EXPL_REF"
+elif [[ -n "$EXPL_VERSION" ]]; then HELIX_REF="$(normalize_tag "$EXPL_VERSION")"
 else
-  # default to latest tag
-  HELIX_REF="$(latest_semver_tag || true)"
-  [[ -n "$HELIX_REF" ]] || HELIX_REF="v0.1.10"  # safe fallback
+  HELIX_REF="$(latest_semver_tag || true)"; [[ -n "$HELIX_REF" ]] || HELIX_REF="v0.1.10"
 fi
-# sanity: must exist remotely (unless a raw commit SHA)
-if ! ref_exists_remote "$HELIX_REF"; then
-  echo "Warning: ref '$HELIX_REF' not found on remote; trying as commit SHA…" >&2
-fi
+ref_exists_remote "$HELIX_REF" || echo "Warning: ref '$HELIX_REF' not found remotely; trying as commit SHA…" >&2
 
 # -----------------------------
 # macOS prerequisites
@@ -191,22 +177,27 @@ ansible-galaxy collection install -r "$ANS_DIR/collections/requirements.yml" || 
 
 AUTO_LIMIT="$(auto_limit_host "$INV_FILE")"
 
-# ---- extra vars so roles/readme assets come from same ref
+# Keep clones and raw file fetches consistent with the chosen ref
 EXTRA_VARS=(
   -e "helix_repo_branch=$HELIX_REF"
   -e "helix_main_branch=$HELIX_REF"
   -e "helix_repo_raw_base=https://raw.githubusercontent.com/suhailphotos/helix/$HELIX_REF"
 )
 
-# Base play
+# ---- Run base play
 play_cmd=( ansible-playbook -i "$INV_FILE" playbooks/macos_local.yml -K "${EXTRA_VARS[@]}" )
-[[ -n "$AUTO_LIMIT" ]] && play_cmd+=( --limit "$AUTO_LIMIT" )
+[[ -n "$AUTO_LIMIT"    ]] && play_cmd+=( --limit "$AUTO_LIMIT" )
 [[ "$WITH_SF_FONTS" -eq 1 ]] && play_cmd+=( -e enable_sf_fonts=true )
 [[ "$ONLY_SF_FONTS" -eq 1 ]] && play_cmd+=( --tags fonts )
-echo "==> macOS bootstrap (ref=$HELIX_REF) ${ONLY_SF_FONTS:+[fonts only]} ${AUTO_LIMIT:+[limit:$AUTO_LIMIT]}"
-"${play_cmd[@]}" "${OTHER_ARGS[@]:-}"
 
-# Optional poetry
+echo "==> macOS bootstrap (ref=$HELIX_REF) ${ONLY_SF_FONTS:+[fonts only]} ${AUTO_LIMIT:+[limit:$AUTO_LIMIT]}"
+if ((${#OTHER_ARGS[@]:-0})); then
+  "${play_cmd[@]}" "${OTHER_ARGS[@]}"
+else
+  "${play_cmd[@]}"
+fi
+
+# ---- Optional Poetry play
 if [[ "$RUN_POETRY" -eq 1 ]]; then
   poetry_cmd=( ansible-playbook -i "$INV_FILE" playbooks/poetry_envs.yml -K "${EXTRA_VARS[@]}" )
   [[ -n "$AUTO_LIMIT" ]] && poetry_cmd+=( --limit "$AUTO_LIMIT" )

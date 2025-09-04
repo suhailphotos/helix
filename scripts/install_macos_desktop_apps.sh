@@ -23,14 +23,14 @@ if [[ -n "$EXPL_REF" && -n "$EXPL_VERSION" ]]; then
   echo "Use either --ref OR --version, not both." >&2; exit 2
 fi
 
-keep_sudo_alive() { command -v sudo >/dev/null 2>&1 && { sudo -n true 2>/dev/null || { echo "Requesting admin privileges…"; sudo -v; }; ( while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done ) 2>/dev/null &; }
-detect_brew() { [[ -x /opt/homebrew/bin/brew ]] && { echo /opt/homebrew/bin/brew; return; }; [[ -x /usr/local/bin/brew ]] && { echo /usr/local/bin/brew; return; }; return 1; }
+keep_sudo_alive(){ command -v sudo >/dev/null 2>&1 && { sudo -n true 2>/dev/null || { echo "Requesting admin privileges…"; sudo -v; }; ( while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done ) 2>/dev/null &; }
+detect_brew(){ [[ -x /opt/homebrew/bin/brew ]] && { echo /opt/homebrew/bin/brew; return; }; [[ -x /usr/local/bin/brew ]] && { echo /usr/local/bin/brew; return; }; return 1; }
 ensure_brew_shellenv(){ local b="$1"; local z="$HOME/.zprofile"; local line='eval "$('"$b"' shellenv)"'; grep -qxF "$line" "$z" 2>/dev/null || { echo >> "$z"; echo "$line" >> "$z"; }; eval "$("$b" shellenv)"; }
 normalize_tag(){ [[ "$1" =~ ^v ]] && echo "$1" || echo "v$1"; }
 latest_semver_tag(){ git ls-remote --tags --refs https://github.com/suhailphotos/helix.git | awk '{print $2}' | sed 's#refs/tags/##' | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1; }
 ref_exists_remote(){ git ls-remote --heads --tags https://github.com/suhailphotos/helix.git "$1" | grep -q .; }
 auto_limit_host(){ local inv="$1"; local cands=(); cands+=("$(scutil --get ComputerName 2>/dev/null || true)"); cands+=("$(scutil --get LocalHostName 2>/dev/null || true)"); cands+=("$(hostname -s 2>/dev/null || true)"); for raw in "${cands[@]}"; do h="$(printf '%s' "$raw" | tr '[:upper:]' '[:lower:]' | tr -d ' ')"; [[ -z "$h" ]] && continue; if grep -qiE "^[[:space:]]+${h}:[[:space:]]*$" "$inv"; then echo "$h"; return 0; fi; done; echo ""; }
-checkout_ref(){ local repo="$1" dir="$2" ref="$3"; if [[ ! -d "$dir/.git" ]]; then mkdir -p "$(dirname "$dir")"; git clone --depth 1 "$repo" "$dir"; fi; git -C "$dir" fetch --depth 1 origin "$ref" --prune; git -C "$dir" checkout -q "$ref" || git -C "$dir" checkout -q FETCH_HEAD; git -C "$dir" reset --hard -q; }
+checkout_ref(){ local repo="$1" dir="$2" ref="$3"; if [[ ! -d "$dir/.git" ]]; then mkdir -p "$dir"; git init -q "$dir"; git -C "$dir" remote add origin "$repo" 2>/dev/null || true; fi; if ! git -C "$dir" fetch --depth 1 --no-tags origin "$ref" --prune 2>/dev/null; then git -C "$dir" fetch --depth 1 --no-tags origin "refs/tags/$ref:refs/tags/$ref" --prune || true; fi; git -C "$dir" checkout -q --detach FETCH_HEAD || git -C "$dir" reset --hard -q FETCH_HEAD; }
 
 [[ "$(uname -s)" == "Darwin" ]] || { echo "macOS only." >&2; exit 1; }
 xcode-select -p >/dev/null 2>&1 || { echo "Xcode CLT missing. Run: xcode-select --install" >&2; exit 1; }
@@ -38,8 +38,8 @@ xcode-select -p >/dev/null 2>&1 || { echo "Xcode CLT missing. Run: xcode-select 
 HELIX_REPO_URL="${HELIX_REPO_URL:-https://github.com/suhailphotos/helix.git}"
 CACHE_DIR="${HELIX_LOCAL_DIR:-$HOME/.cache/helix_checkout}"
 
-if   [[ -n "$DEV_BRANCH" ]]; then HELIX_REF="$DEV_BRANCH"
-elif [[ -n "$EXPL_REF"   ]]; then HELIX_REF="$EXPL_REF"
+if   [[ -n "$DEV_BRANCH"   ]]; then HELIX_REF="$DEV_BRANCH"
+elif [[ -n "$EXPL_REF"     ]]; then HELIX_REF="$EXPL_REF"
 elif [[ -n "$EXPL_VERSION" ]]; then HELIX_REF="$(normalize_tag "$EXPL_VERSION")"
 else HELIX_REF="$(latest_semver_tag || true)"; [[ -n "$HELIX_REF" ]] || HELIX_REF="v0.1.10"
 fi
@@ -63,6 +63,12 @@ AUTO_LIMIT="$(auto_limit_host "$INV_FILE")"
 EXTRA_VARS=( -e "helix_repo_branch=$HELIX_REF" -e "helix_main_branch=$HELIX_REF" -e "helix_repo_raw_base=https://raw.githubusercontent.com/suhailphotos/helix/$HELIX_REF" )
 
 echo "==> Installing desktop apps (ref=$HELIX_REF) ${AUTO_LIMIT:+[limit:$AUTO_LIMIT]}"
-ansible-playbook -i "$INV_FILE" playbooks/desktop_apps.yml -K "${EXTRA_VARS[@]}" ${AUTO_LIMIT:+--limit "$AUTO_LIMIT"} "${OTHER_ARGS[@]:-}"
+cmd=( ansible-playbook -i "$INV_FILE" playbooks/desktop_apps.yml -K "${EXTRA_VARS[@]}" )
+[[ -n "$AUTO_LIMIT" ]] && cmd+=( --limit "$AUTO_LIMIT" )
+if ((${#OTHER_ARGS[@]:-0})); then
+  "${cmd[@]}" "${OTHER_ARGS[@]}"
+else
+  "${cmd[@]}"
+fi
 
 echo "🎉 Desktop apps done."
