@@ -184,6 +184,15 @@ EXTRA_VARS=(
   -e "helix_repo_raw_base=https://raw.githubusercontent.com/suhailphotos/helix/$HELIX_REF"
 )
 
+# --------------------------------------------------
+# Update added to be able to pass BREW variable needed for the following command
+# --------------------------------------------------
+
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  BREW_BIN_LOCAL="$([ -x /opt/homebrew/bin/brew ] && echo /opt/homebrew/bin/brew || echo /usr/local/bin/brew)"
+  EXTRA_VARS+=( -e "brew_bin=$BREW_BIN_LOCAL" )
+fi
+
 # ---- Run base play
 play_cmd=( ansible-playbook -i "$INV_FILE" playbooks/macos_local.yml -K "${EXTRA_VARS[@]}" )
 [[ -n "$AUTO_LIMIT"    ]] && play_cmd+=( --limit "$AUTO_LIMIT" )
