@@ -79,10 +79,6 @@ helix_remote: "https://github.com/suhailphotos/helix.git"
 helix_main_branch: "main"
 helix_config_branch: "config"
 
-helix_repo_raw_base: "https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main"
-helix_dotfiles_raw_base: "{{ helix_repo_raw_base }}/dotfiles"
-helix_dotfiles_dir: "dotfiles"
-
 
 # Prefer dev repo under Dropbox if present; else fallback to runtime clone
 helix_home: "{{ ansible_env.HOME }}/.helix"
@@ -166,3 +162,6 @@ eza_dot_italic_names:
   - ".mypy_cache"
   - ".pytest_cache"
   - "__pycache__"
+
+# p10 url
+p10k_raw_url: "{{ bindu_raw_base }}/p10k/.p10k.zsh"

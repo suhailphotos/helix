@@ -12,9 +12,9 @@
     depth: 1
     update: no
 
-- name: Fetch .p10k.zsh from helix repo (raw)
+- name: Fetch .p10k.zsh
   get_url:
-    url: "{{ helix_repo_raw_base }}/{{ helix_dotfiles_dir }}/p10k/.p10k.zsh"
+    url: "{{ p10k_raw_url }}"
     dest: "{{ lookup('env','HOME') }}/.p10k.zsh"
     mode: "0644"
 
