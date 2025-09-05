@@ -44,6 +44,7 @@
 
 # Tmux shim (all OSes) → directs to XDG config
 - name: Install ~/.tmux.conf shim
+  when: home_shims_install_tmux_shim | default(true) | bool
   template:
     src: tmux.conf.j2
     dest: "{{ ansible_env.HOME }}/.tmux.conf"
