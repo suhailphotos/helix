@@ -62,6 +62,8 @@
     single_branch: yes
     update: yes
     accept_hostkey: yes
+  register: tpm_git
+  changed_when: tpm_git.after != tpm_git.before or tpm_git.remote_url_changed | default(false)
 
 # 6) Reload config if already inside tmux (best-effort)
 - name: Reload tmux config if running inside tmux
