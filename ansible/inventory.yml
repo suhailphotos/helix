@@ -19,3 +19,7 @@ all:
           ansible_host: nimbus.suhail.tech
         nexus:
           ansible_host: nexus.suhail.tech
+        zion:
+          ansible_host: "2603:8001:a000:100::cafe"
+          ansible_user: root
+          identity_file: "~/.ssh/lab_zion"
