@@ -4,17 +4,25 @@
     matrix_root: "{{ matrix_root | default(lookup('env','MATRIX') | default(ansible_env.HOME + '/Library/CloudStorage/Dropbox/matrix', true)) }}"
     matrix_packages_dir: "{{ matrix_packages_dir | default(matrix_root + '/packages') }}"
     uv_projects: >-
-      {{ uv_projects
-         | default((uv_projects_macos | default([])) if ansible_system == 'Darwin'
-                   else (uv_projects_linux | default([]))) }}
-    # renamed to avoid self-reference issues
+      {{ uv_projects | default((uv_projects_macos | default([])) if ansible_system == 'Darwin'
+                               else (uv_projects_linux | default([]))) }}
+    # Map minors → pinned micros (default 3.11 → 3.11.7)
     uv_pin_map: "{{ uv_python_pin_map | default({'3.11': (houdini_python_patch | default('3.11.7'))}) }}"
+    uv_default_minor: "{{ uv_default_minor | default('3.11') }}"
 
-- name: Build PATH for uv (no pyenv)
+- name: Build PATH for uv
   set_fact:
     uv_path_env: "/opt/homebrew/bin:/usr/local/bin:{{ ansible_env.HOME }}/.local/bin:{{ ansible_env.PATH }}"
 
-# (install uv… unchanged — keep your current tasks)
+# Ensure uv is present (you already install via Homebrew in macOS bootstrap; keep your existing tasks)
+
+- name: Ensure default interpreter exists in UV store
+  shell: |
+    set -e
+    ver="{{ uv_pin_map[uv_default_minor] | default(uv_default_minor) }}"
+    uv python find "$ver" >/dev/null 2>&1 || uv python install "$ver"
+  args: { executable: /bin/bash }
+  environment: { PATH: "{{ uv_path_env }}" }
 
 - name: Ensure ~/.venvs exists
   file:
@@ -22,17 +30,6 @@
     state: directory
     mode: "0755"
 
-# Preinstall pinned interpreters (e.g., 3.11 -> 3.11.7)
-- name: Preinstall pinned UV Pythons
-  loop: "{{ uv_pin_map | dict2items }}"
-  loop_control: { label: "{{ item.key }} -> {{ item.value }}" }
-  shell: |
-    set -e
-    uv python find "{{ item.value }}" >/dev/null 2>&1 || uv python install "{{ item.value }}"
-  args: { executable: /bin/bash }
-  environment: { PATH: "{{ uv_path_env }}" }
-
-# Per-project
 - name: Iterate projects
   include_tasks: per_project.yml
   loop: "{{ uv_projects }}"
@@ -41,5 +38,3 @@
     label: "{{ project }}"
   vars:
     pkg_dir: "{{ matrix_packages_dir }}/{{ project }}"
-    uv_path_env: "{{ uv_path_env }}"
-    # uv_pin_map is already set with set_fact earlier; it’s inherited automatically

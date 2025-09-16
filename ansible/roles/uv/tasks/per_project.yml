@@ -11,37 +11,10 @@
   when: not pyproj.stat.exists
 
 - block:
-    - name: Derive required minor (X.Y) from pyproject
-      shell: |
-        python3 - <<'PY'
-        import pathlib, re
-        p = pathlib.Path(r'{{ pkg_dir }}/pyproject.toml')
-        try:
-            import tomllib
-        except ModuleNotFoundError:
-            import tomli as tomllib
-        d = tomllib.load(p.open('rb'))
-        req = (d.get('project') or {}).get('requires-python')
-        if not req:
-            req = (((d.get('tool') or {}).get('poetry') or {}).get('dependencies') or {}).get('python')
-        ver = ""
-        if req:
-            m = re.search(r'(\d+\.\d+)', req)  # minor
-            if m: ver = m.group(1)
-        print(ver)
-        PY
-      args: { executable: /bin/bash }
-      register: minor_guess
-      changed_when: false
-
-    - name: Normalize minor string
+    - name: Choose interpreter (force pinned default)
       set_fact:
-        uv_python_minor: "{{ (minor_guess.stdout | trim) | default('') }}"
-
-    - name: Choose interpreter (prefer pinned micro for that minor)
-      set_fact:
-        uv_python_minor: "{{ uv_python_minor if uv_python_minor|length > 0 else '3.11' }}"
-        uv_python_version: "{{ uv_pin_map[uv_python_minor] | default(uv_python_minor) }}"
+        uv_python_minor: "{{ uv_default_minor }}"
+        uv_python_version: "{{ uv_pin_map[uv_default_minor] | default(uv_default_minor) }}"
 
     - name: Ensure chosen interpreter is installed in UV store
       shell: |
@@ -49,6 +22,16 @@
         uv python find "{{ uv_python_version }}" >/dev/null 2>&1 || uv python install "{{ uv_python_version }}"
       args: { executable: /bin/bash }
       environment: { PATH: "{{ uv_path_env }}" }
+
+    # Optional: create/refresh lock file (safe to skip if you prefer)
+    - name: uv lock (best-effort)
+      shell: uv lock
+      args:
+        executable: /bin/bash
+        chdir: "{{ pkg_dir }}"
+      environment: { PATH: "{{ uv_path_env }}" }
+      changed_when: false
+      failed_when: false
 
     - name: uv sync (to ~/.venvs/<project>) — no activation
       shell: |
