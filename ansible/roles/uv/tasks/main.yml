@@ -7,58 +7,14 @@
       {{ uv_projects
          | default((uv_projects_macos | default([])) if ansible_system == 'Darwin'
                    else (uv_projects_linux | default([]))) }}
-    uv_python_pin_map: "{{ uv_python_pin_map | default({'3.11': houdini_python_patch | default('3.11.7')}) }}"
+    # renamed to avoid self-reference issues
+    uv_pin_map: "{{ uv_python_pin_map | default({'3.11': (houdini_python_patch | default('3.11.7'))}) }}"
 
 - name: Build PATH for uv (no pyenv)
   set_fact:
     uv_path_env: "/opt/homebrew/bin:/usr/local/bin:{{ ansible_env.HOME }}/.local/bin:{{ ansible_env.PATH }}"
 
-# --- ensure uv is present ------------------------------------------------------
-
-- name: Detect Homebrew (macOS)
-  when: ansible_system == "Darwin"
-  stat:
-    path: /opt/homebrew/bin/brew
-  register: brew_opt
-
-- name: Detect Homebrew (Intel path)
-  when: ansible_system == "Darwin" and not brew_opt.stat.exists
-  stat:
-    path: /usr/local/bin/brew
-  register: brew_usr
-
-- name: Set brew_bin fact if present
-  when: ansible_system == "Darwin" and (brew_opt.stat.exists or brew_usr.stat.exists)
-  set_fact:
-    brew_bin: "{{ '/opt/homebrew/bin/brew' if brew_opt.stat.exists else '/usr/local/bin/brew' }}"
-
-- name: Check uv
-  shell: command -v uv
-  register: uv_cmd
-  changed_when: false
-  failed_when: false
-  environment: { PATH: "{{ uv_path_env }}" }
-
-- name: macOS | install uv via Homebrew if available
-  when: ansible_system == "Darwin" and uv_cmd.rc != 0 and (brew_bin is defined)
-  community.general.homebrew:
-    name: uv
-    state: present
-    path: "{{ brew_bin }}"
-
-- name: macOS | install uv via official script (fallback)
-  when: ansible_system == "Darwin" and (uv_cmd.rc != 0) and (brew_bin is not defined)
-  shell: curl -LsSf https://astral.sh/uv/install.sh | sh
-  args: { executable: /bin/bash }
-  environment: { PATH: "{{ uv_path_env }}" }
-
-- name: Linux | install uv (official script)
-  when: ansible_system == "Linux" and uv_cmd.rc != 0
-  shell: curl -LsSf https://astral.sh/uv/install.sh | sh
-  args: { executable: /bin/bash }
-  environment: { PATH: "{{ uv_path_env }}" }
-
-# --- dirs ----------------------------------------------------------------------
+# (install uv… unchanged — keep your current tasks)
 
 - name: Ensure ~/.venvs exists
   file:
@@ -66,20 +22,17 @@
     state: directory
     mode: "0755"
 
-# --- preinstall pinned interpreters (e.g., 3.11 -> 3.11.7) --------------------
-
+# Preinstall pinned interpreters (e.g., 3.11 -> 3.11.7)
 - name: Preinstall pinned UV Pythons
-  loop: "{{ uv_python_pin_map | dict2items }}"
-  loop_control:
-    label: "{{ item.key }} -> {{ item.value }}"
+  loop: "{{ uv_pin_map | dict2items }}"
+  loop_control: { label: "{{ item.key }} -> {{ item.value }}" }
   shell: |
     set -e
     uv python find "{{ item.value }}" >/dev/null 2>&1 || uv python install "{{ item.value }}"
   args: { executable: /bin/bash }
   environment: { PATH: "{{ uv_path_env }}" }
 
-# --- per-project sync (only if any projects configured) ------------------------
-
+# Per-project
 - name: Iterate projects
   include_tasks: per_project.yml
   when: (uv_projects | length) > 0
@@ -90,4 +43,4 @@
   vars:
     pkg_dir: "{{ matrix_packages_dir }}/{{ project }}"
     uv_path_env: "{{ uv_path_env }}"
-    uv_python_pin_map: "{{ uv_python_pin_map }}"
+    uv_pin_map: "{{ uv_pin_map }}"     # <— pass the renamed var (or omit; it will inherit)

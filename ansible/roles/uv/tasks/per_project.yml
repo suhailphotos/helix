@@ -11,11 +11,10 @@
   when: not pyproj.stat.exists
 
 - block:
-    # Extract first version mention (3.11 / 3.11.7 / >=3.11 etc.) → minor
     - name: Derive required minor (X.Y) from pyproject
       shell: |
         python3 - <<'PY'
-        import sys, pathlib, re
+        import pathlib, re
         p = pathlib.Path(r'{{ pkg_dir }}/pyproject.toml')
         try:
             import tomllib
@@ -37,12 +36,8 @@
 
     - name: Choose interpreter (prefer pinned micro for that minor)
       set_fact:
-        uv_python_minor: "{{ (minor_guess.stdout | trim) if (minor_guess.stdout | trim) else '3.11' }}"
-        uv_python_version: >-
-          {{ (uv_python_pin_map[ (minor_guess.stdout | trim) ]
-              if (minor_guess.stdout | trim) in uv_python_pin_map
-              else (minor_guess.stdout | trim) if (minor_guess.stdout | trim)
-              else uv_python_pin_map['3.11']) }}
+        uv_python_minor: "{{ (minor_guess.stdout | trim) or '3.11' }}"
+        uv_python_version: "{{ uv_pin_map.get((minor_guess.stdout | trim) or '3.11', (minor_guess.stdout | trim) or '3.11') }}"
 
     - name: Ensure chosen interpreter is installed in UV store
       shell: |
@@ -60,5 +55,4 @@
         executable: /bin/bash
         chdir: "{{ pkg_dir }}"
       environment: { PATH: "{{ uv_path_env }}" }
-
   when: pyproj.stat.exists
