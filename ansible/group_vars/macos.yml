@@ -135,8 +135,6 @@ apple_sf_fonts:
 matrix_root: "{{ lookup('env','MATRIX') | default(ansible_env.HOME + '/Library/CloudStorage/Dropbox/matrix', true) }}"
 matrix_packages_dir: "{{ matrix_root }}/packages"
 
-# Prefer this exact patch when a project allows 3.11.* (Houdini parity)
-houdini_python_patch: "3.11.7"
 
 # Only process what you list here (skip houdiniLab, etc.)
 poetry_projects_macos:
