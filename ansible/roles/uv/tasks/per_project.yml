@@ -1,0 +1,68 @@
+# roles/uv/tasks/per_project.yml
+---
+- name: Check pyproject.toml
+  become: false
+  stat:
+    path: "{{ pkg_dir }}/pyproject.toml"
+  register: pyproj
+  changed_when: false
+
+- name: Skip if not a Python project
+  debug:
+    msg: "Skipping {{ project }} (no pyproject.toml)"
+  when: not pyproj.stat.exists
+
+- block:
+    - name: Derive python requirement (PEP 621 or Poetry) or fallback
+      become: false
+      shell: |
+        python3 - <<'PY'
+        import sys, json, pathlib, re
+        p = pathlib.Path(r'{{ pkg_dir }}/pyproject.toml')
+        try:
+            import tomllib  # 3.11+
+        except ModuleNotFoundError:
+            import tomli as tomllib
+        data = tomllib.load(p.open('rb'))
+        # Try PEP 621:
+        req = (data.get('project', {}) or {}).get('requires-python')
+        # Fall back to Poetry:
+        if not req:
+            req = (((data.get('tool', {}) or {}).get('poetry', {}) or {})
+                    .get('dependencies', {}) or {}).get('python')
+        # Emit a simple best-effort hint: first X.Y[.Z] in the range, else empty
+        ver = ""
+        if req:
+            m = re.search(r'(\d+\.\d+(?:\.\d+)?)', req)
+            if m: ver = m.group(1)
+        print(ver)
+        PY
+      args: { executable: /bin/bash }
+      register: uv_req
+      changed_when: false
+
+    - name: Decide python to use
+      set_fact:
+        uv_python_for_project: >-
+          {{ (uv_req.stdout | trim) if (uv_req.stdout | trim) else uv_default_python }}
+
+    - name: uv sync (to ~/.venvs/<project>) — no activation
+      become: false
+      shell: |
+        set -e
+        # Let uv pick exact micro if we only have X.Y
+        if uv --version >/dev/null 2>&1; then
+          if [ -z "{{ uv_python_for_project }}" ]; then
+            UV_PROJECT_ENVIRONMENT="{{ ansible_env.HOME }}/.venvs/{{ project }}" uv sync
+          else
+            UV_PROJECT_ENVIRONMENT="{{ ansible_env.HOME }}/.venvs/{{ project }}" uv sync --python "{{ uv_python_for_project }}"
+          fi
+        else
+          echo "uv not found on PATH"; exit 1
+        fi
+      args:
+        executable: /bin/bash
+        chdir: "{{ pkg_dir }}"
+      environment:
+        PATH: "{{ ansible_env.PATH }}:/opt/homebrew/bin:/usr/local/bin:{{ ansible_env.HOME }}/.local/bin"
+  when: pyproj.stat.exists

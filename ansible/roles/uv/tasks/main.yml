@@ -1,0 +1,71 @@
+# roles/uv/tasks/main.yml
+---
+- name: Compute paths and project list
+  set_fact:
+    matrix_root: "{{ matrix_root | default(lookup('env','MATRIX') | default(ansible_env.HOME + '/Library/CloudStorage/Dropbox/matrix', true)) }}"
+    matrix_packages_dir: "{{ matrix_packages_dir | default(matrix_root + '/packages') }}"
+    uv_projects: >-
+      {{ uv_projects
+         | default((uv_projects_macos | default([])) if ansible_system == 'Darwin'
+                   else (uv_projects_linux | default([]))) }}
+    uv_default_python: "{{ uv_default_python | default(houdini_python_patch | default('3.11.7')) }}"
+
+# --- Install uv if missing ----------------------------------------------------
+
+- name: Check uv
+  become: false
+  shell: command -v uv
+  register: uv_cmd
+  changed_when: false
+  failed_when: false
+  environment:
+    PATH: "{{ ansible_env.PATH }}:/opt/homebrew/bin:/usr/local/bin:{{ ansible_env.HOME }}/.local/bin"
+
+- name: macOS | install uv (Homebrew)
+  when: ansible_system == "Darwin" and uv_cmd.rc != 0
+  community.general.homebrew:
+    name: uv
+    state: present
+    path: "{{ brew_bin | default('/opt/homebrew/bin/brew') }}"
+
+- name: Recheck uv (macOS)
+  when: ansible_system == "Darwin"
+  become: false
+  shell: command -v uv
+  register: uv_cmd_after
+  changed_when: false
+  failed_when: false
+  environment:
+    PATH: "{{ ansible_env.PATH }}:/opt/homebrew/bin:/usr/local/bin"
+
+- name: Linux | install uv (official script to ~/.local/bin)
+  when: ansible_system == "Linux" and uv_cmd.rc != 0
+  become: false
+  shell: |
+    set -e
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+  args: { executable: /bin/bash }
+
+- name: Ensure ~/.venvs exists for project envs
+  become: false
+  file:
+    path: "{{ ansible_env.HOME }}/.venvs"
+    state: directory
+    mode: "0755"
+
+# --- Bail if nothing to sync --------------------------------------------------
+
+- name: No uv projects configured -> skip host
+  meta: end_host
+  when: (uv_projects | length) == 0
+
+# --- Per project --------------------------------------------------------------
+
+- name: Iterate projects
+  include_tasks: per_project.yml
+  loop: "{{ uv_projects }}"
+  loop_control:
+    loop_var: project
+    label: "{{ project }}"
+  vars:
+    pkg_dir: "{{ matrix_packages_dir }}/{{ project }}"

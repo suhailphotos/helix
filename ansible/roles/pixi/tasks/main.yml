@@ -1,0 +1,57 @@
+# roles/pixi/tasks/main.yml
+---
+- name: Only macOS/Linux
+  meta: end_host
+  when: ansible_system not in ["Darwin", "Linux"]
+
+- name: Defaults
+  set_fact:
+    pixi_hosts_dir: "{{ pixi_hosts_dir | default(ansible_env.HOME + '/.config/pixi/hosts') }}"
+    pixi_bin_dir: "{{ ansible_env.HOME }}/.pixi/bin"
+
+# We purposely do NOT touch shell rc files; Orbit owns PATH.
+- name: Check for pixi
+  become: false
+  shell: command -v pixi
+  register: pixi_cmd
+  changed_when: false
+  failed_when: false
+  environment:
+    PATH: "{{ pixi_bin_dir }}:/opt/homebrew/bin:/usr/local/bin:{{ ansible_env.PATH }}"
+
+- name: Install pixi (no PATH updates; your exact command)
+  become: false
+  when: pixi_cmd.rc != 0
+  shell: |
+    set -e
+    curl -fsSL https://pixi.sh/install.sh | env PIXI_NO_PATH_UPDATE=1 zsh
+  args: { executable: /bin/bash }
+
+- name: Ensure ~/.pixi/manifests exists (for Stow target)
+  become: false
+  file:
+    path: "{{ ansible_env.HOME }}/.pixi/manifests"
+    state: directory
+    mode: "0755"
+
+- name: Ensure pixi hosts dir exists (so Stow doesn't fail)
+  become: false
+  file:
+    path: "{{ pixi_hosts_dir }}"
+    state: directory
+    mode: "0755"
+
+# This will symlink whatever is under ~/.config/pixi/hosts/<host>/ into $HOME.
+# Example: manifests, config snippets, etc.
+- name: Stow host-specific pixi files
+  become: false
+  shell: |
+    set -e
+    stow -d "{{ pixi_hosts_dir }}" -t "{{ ansible_env.HOME }}" -R "{{ inventory_hostname_short | default(inventory_hostname) }}"
+  args: { executable: /bin/bash }
+  changed_when: false
+  failed_when: false
+
+- name: Reminder (intentional)
+  debug:
+    msg: "pixi setup complete. Run 'pixi global sync' AFTER the play finishes."
