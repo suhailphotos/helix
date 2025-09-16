@@ -10,23 +10,37 @@ if [[ -o interactive && ! -o login && -r "$HOME/.zprofile" ]]; then
   source "$HOME/.zprofile"
 fi
 
-# --- Orbit bootstrap
-export ORBIT_HOME="{{ ORBIT_HOME | default(ansible_env.HOME + '/.orbit') }}"
-export ORBIT_REMOTE="{{ ORBIT_REMOTE | default('https://github.com/suhailphotos/orbit.git') }}"
-export ORBIT_BRANCH="{{ ORBIT_BRANCH | default('main') }}"
+# --- Orbit bootstrap (branch-pinned, repo-local)
+export ORBIT_HOME="${ORBIT_HOME:-$HOME/.orbit}"
+export ORBIT_REMOTE="${ORBIT_REMOTE:-https://github.com/suhailphotos/orbit.git}"
+export ORBIT_BRANCH="${ORBIT_BRANCH:-main}"     # <-- pick per-machine
+export ORBIT_UPDATE_STRATEGY="${ORBIT_UPDATE_STRATEGY:-hard-reset}"  # hard-reset | ff-only
 
 # First-time install
 if [[ ! -d "$ORBIT_HOME/.git" ]]; then
-  git clone --depth 1 --branch "$ORBIT_BRANCH" --quiet "$ORBIT_REMOTE" "$ORBIT_HOME" >/dev/null 2>&1
-fi
-
-# Silent background fast-forward update
-if command -v git >/dev/null && [[ -d "$ORBIT_HOME/.git" ]]; then
+  git clone --quiet --depth 1 --branch "$ORBIT_BRANCH" "$ORBIT_REMOTE" "$ORBIT_HOME"
+else
+  # Ensure local checkout tracks the branch named above and update it
   (
-    git -C "$ORBIT_HOME" fetch --quiet
-    git -C "$ORBIT_HOME" merge --ff-only "origin/$ORBIT_BRANCH" --quiet
+    cd "$ORBIT_HOME" || exit 0
+    git fetch --quiet origin
+
+    # Switch/create local branch that tracks origin/$ORBIT_BRANCH
+    if git show-ref --verify --quiet "refs/heads/$ORBIT_BRANCH"; then
+      git switch --quiet "$ORBIT_BRANCH" 2>/dev/null || git checkout -q "$ORBIT_BRANCH"
+    else
+      git switch --quiet -c "$ORBIT_BRANCH" --track "origin/$ORBIT_BRANCH" \
+        2>/dev/null || git checkout -q -B "$ORBIT_BRANCH" "origin/$ORBIT_BRANCH"
+    fi
+
+    # Update to remote
+    case "$ORBIT_UPDATE_STRATEGY" in
+      hard-reset) git reset --hard --quiet "origin/$ORBIT_BRANCH" ;;
+      ff-only)    git merge --ff-only --quiet "origin/$ORBIT_BRANCH" || true ;;
+    esac
   ) >/dev/null 2>&1 &!
 fi
 
 # Source Orbit
 source "$ORBIT_HOME/core/bootstrap.zsh"
+
