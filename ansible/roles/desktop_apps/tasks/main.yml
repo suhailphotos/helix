@@ -32,7 +32,9 @@
          | difference(desktop_casks_skip | default([])) }}
 
 # Pass 1: try to bring apps under brew with --force
-- name: Try install/overwrite casks with --force
+# roles/desktop_apps/tasks/main.yml
+
+- name: Try install/overwrite casks with --force (with retries)
   community.general.homebrew_cask:
     name: "{{ item }}"
     state: present
@@ -40,8 +42,11 @@
     install_options: [force]
   loop: "{{ desktop_casks_final }}"
   loop_control: { label: "{{ item }}" }
-  register: cask_force
-  ignore_errors: yes
+  register: cask_try
+  retries: 3         # ← retry a few times
+  delay: 20          # ← wait between tries
+  until: cask_try is succeeded
+  ignore_errors: yes # ← keep your graceful fallback
 
 # Pass 2: for failures, accept external apps (graceful, no hard fail)
 - name: Accept external apps for failed items
@@ -51,5 +56,5 @@
     path: "{{ brew_bin }}"
     accept_external_apps: true
   when: item.failed | default(false)
-  loop: "{{ cask_force.results | default([]) }}"
+  loop: "{{ cask_try.results | default([]) }}"
   loop_control: { label: "{{ item.item }}" }

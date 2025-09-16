@@ -20,9 +20,8 @@ brew_packages:
   - resvg
   - 1password-cli
   - node
-    # pyevn removed python is now managed by uv
+  # pyevn removed python is now managed by uv
   # - pyenv
-
   - rust-analyzer
   - pngpaste
   - tree-sitter

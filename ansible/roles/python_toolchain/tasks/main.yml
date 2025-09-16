@@ -9,6 +9,12 @@
 
 # ===== Legacy toolchain (pyenv/pipx/poetry) — disabled unless --tags legacy_py =====
 - block:
+    - name: Install pyenv via Homebrew (macOS) when legacy_py is enabled
+      when: ansible_system == "Darwin"
+      community.general.homebrew:
+        name: pyenv
+        state: present
+        path: "{{ brew_bin | default('/opt/homebrew/bin/brew') }}"
     - name: Ensure pyenv init in .zprofile
       lineinfile:
         path: "{{ lookup('env','HOME') }}/.zprofile"
