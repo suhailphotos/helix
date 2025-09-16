@@ -41,8 +41,7 @@
     - not cfg_is_repo
   shell: |
     set -e
-    ts="{{ ansible_date_time.iso8601_basic }}"
-    mv "{{ bindu_config_dir }}" "{{ bindu_config_dir }}.pre-bindu.{{ ts }}"
+    mv "{{ bindu_config_dir }}" "{{ bindu_config_dir }}.pre-bindu.{{ ansible_date_time.iso8601_basic }}"
     mkdir -p "{{ bindu_config_dir | dirname }}"
   args: { executable: /bin/bash }
 
@@ -54,15 +53,37 @@
   failed_when: false
   when: cfg_is_repo
 
-# If it’s some other repo, move it aside
+# 🔧 Normalize both URLs (strip tokens, .git, and unify SSH → https) before comparing
+- name: Normalize origin/remote URLs
+  set_fact:
+    bindu_origin_norm: >-
+      {{
+        (existing_origin.stdout | default(''))
+        | regex_replace('^ssh://', '')
+        | regex_replace('^git@github.com:', 'https://github.com/')
+        | regex_replace('^https?://[^@]+@', 'https://')
+        | regex_replace('\.git$', '')
+        | lower
+      }}
+    bindu_remote_norm: >-
+      {{
+        bindu_remote
+        | regex_replace('^ssh://', '')
+        | regex_replace('^git@github.com:', 'https://github.com/')
+        | regex_replace('^https?://[^@]+@', 'https://')
+        | regex_replace('\.git$', '')
+        | lower
+      }}
+  when: cfg_is_repo
+
+# If it’s some other repo, move it aside (now using normalized comparison)
 - name: If repo is not Bindu, move it aside
   when:
     - cfg_is_repo
-    - (existing_origin.stdout | default('')) != bindu_remote
+    - bindu_origin_norm | default('') != bindu_remote_norm | default('')
   shell: |
     set -e
-    ts="{{ ansible_date_time.iso8601_basic }}"
-    mv "{{ bindu_config_dir }}" "{{ bindu_config_dir }}.pre-bindu.{{ ts }}"
+    mv "{{ bindu_config_dir }}" "{{ bindu_config_dir }}.pre-bindu.{{ ansible_date_time.iso8601_basic }}"
   args: { executable: /bin/bash }
 
 # Ensure parent exists before (re)cloning
@@ -84,14 +105,15 @@
     accept_hostkey: yes
     force: yes
 
+# Ensure we track origin/{{ bindu_branch }}
 - name: Ensure we track origin/{{ bindu_branch }}
   shell: |
     set -e
     git -C "{{ bindu_config_dir }}" checkout -q "{{ bindu_branch }}"
     git -C "{{ bindu_config_dir }}" branch --set-upstream-to "origin/{{ bindu_branch }}" "{{ bindu_branch }}" || true
   args: { executable: /bin/bash }
-  changed_when: false
 
+# Ignore macOS metadata
 - name: Ignore macOS metadata
   lineinfile:
     path: "{{ bindu_config_dir }}/.gitignore"
