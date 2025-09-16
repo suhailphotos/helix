@@ -35,7 +35,6 @@
 # Per-project
 - name: Iterate projects
   include_tasks: per_project.yml
-  when: (uv_projects | length) > 0
   loop: "{{ uv_projects }}"
   loop_control:
     loop_var: project
@@ -43,4 +42,4 @@
   vars:
     pkg_dir: "{{ matrix_packages_dir }}/{{ project }}"
     uv_path_env: "{{ uv_path_env }}"
-    uv_pin_map: "{{ uv_pin_map }}"     # <— pass the renamed var (or omit; it will inherit)
+    # uv_pin_map is already set with set_fact earlier; it’s inherited automatically

@@ -34,10 +34,14 @@
       register: minor_guess
       changed_when: false
 
+    - name: Normalize minor string
+      set_fact:
+        uv_python_minor: "{{ (minor_guess.stdout | trim) | default('') }}"
+
     - name: Choose interpreter (prefer pinned micro for that minor)
       set_fact:
-        uv_python_minor: "{{ (minor_guess.stdout | trim) or '3.11' }}"
-        uv_python_version: "{{ uv_pin_map.get((minor_guess.stdout | trim) or '3.11', (minor_guess.stdout | trim) or '3.11') }}"
+        uv_python_minor: "{{ uv_python_minor if uv_python_minor|length > 0 else '3.11' }}"
+        uv_python_version: "{{ uv_pin_map[uv_python_minor] | default(uv_python_minor) }}"
 
     - name: Ensure chosen interpreter is installed in UV store
       shell: |
