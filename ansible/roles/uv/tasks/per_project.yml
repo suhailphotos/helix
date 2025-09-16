@@ -1,7 +1,5 @@
-# roles/uv/tasks/per_project.yml
 ---
 - name: Check pyproject.toml
-  become: false
   stat:
     path: "{{ pkg_dir }}/pyproject.toml"
   register: pyproj
@@ -13,56 +11,54 @@
   when: not pyproj.stat.exists
 
 - block:
-    - name: Derive python requirement (PEP 621 or Poetry) or fallback
-      become: false
+    # Extract first version mention (3.11 / 3.11.7 / >=3.11 etc.) → minor
+    - name: Derive required minor (X.Y) from pyproject
       shell: |
         python3 - <<'PY'
-        import sys, json, pathlib, re
+        import sys, pathlib, re
         p = pathlib.Path(r'{{ pkg_dir }}/pyproject.toml')
         try:
-            import tomllib  # 3.11+
+            import tomllib
         except ModuleNotFoundError:
             import tomli as tomllib
-        data = tomllib.load(p.open('rb'))
-        # Try PEP 621:
-        req = (data.get('project', {}) or {}).get('requires-python')
-        # Fall back to Poetry:
+        d = tomllib.load(p.open('rb'))
+        req = (d.get('project') or {}).get('requires-python')
         if not req:
-            req = (((data.get('tool', {}) or {}).get('poetry', {}) or {})
-                    .get('dependencies', {}) or {}).get('python')
-        # Emit a simple best-effort hint: first X.Y[.Z] in the range, else empty
+            req = (((d.get('tool') or {}).get('poetry') or {}).get('dependencies') or {}).get('python')
         ver = ""
         if req:
-            m = re.search(r'(\d+\.\d+(?:\.\d+)?)', req)
+            m = re.search(r'(\d+\.\d+)', req)  # minor
             if m: ver = m.group(1)
         print(ver)
         PY
       args: { executable: /bin/bash }
-      register: uv_req
+      register: minor_guess
       changed_when: false
 
-    - name: Decide python to use
+    - name: Choose interpreter (prefer pinned micro for that minor)
       set_fact:
-        uv_python_for_project: >-
-          {{ (uv_req.stdout | trim) if (uv_req.stdout | trim) else uv_default_python }}
+        uv_python_minor: "{{ (minor_guess.stdout | trim) if (minor_guess.stdout | trim) else '3.11' }}"
+        uv_python_version: >-
+          {{ (uv_python_pin_map[ (minor_guess.stdout | trim) ]
+              if (minor_guess.stdout | trim) in uv_python_pin_map
+              else (minor_guess.stdout | trim) if (minor_guess.stdout | trim)
+              else uv_python_pin_map['3.11']) }}
 
-    - name: uv sync (to ~/.venvs/<project>) — no activation
-      become: false
+    - name: Ensure chosen interpreter is installed in UV store
       shell: |
         set -e
-        # Let uv pick exact micro if we only have X.Y
-        if uv --version >/dev/null 2>&1; then
-          if [ -z "{{ uv_python_for_project }}" ]; then
-            UV_PROJECT_ENVIRONMENT="{{ ansible_env.HOME }}/.venvs/{{ project }}" uv sync
-          else
-            UV_PROJECT_ENVIRONMENT="{{ ansible_env.HOME }}/.venvs/{{ project }}" uv sync --python "{{ uv_python_for_project }}"
-          fi
-        else
-          echo "uv not found on PATH"; exit 1
-        fi
+        uv python find "{{ uv_python_version }}" >/dev/null 2>&1 || uv python install "{{ uv_python_version }}"
+      args: { executable: /bin/bash }
+      environment: { PATH: "{{ uv_path_env }}" }
+
+    - name: uv sync (to ~/.venvs/<project>) — no activation
+      shell: |
+        set -e
+        UV_PROJECT_ENVIRONMENT="{{ ansible_env.HOME }}/.venvs/{{ project }}" \
+        uv sync --python "{{ uv_python_version }}"
       args:
         executable: /bin/bash
         chdir: "{{ pkg_dir }}"
-      environment:
-        PATH: "{{ ansible_env.PATH }}:/opt/homebrew/bin:/usr/local/bin:{{ ansible_env.HOME }}/.local/bin"
+      environment: { PATH: "{{ uv_path_env }}" }
+
   when: pyproj.stat.exists

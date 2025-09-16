@@ -20,7 +20,9 @@ brew_packages:
   - resvg
   - 1password-cli
   - node
-  - pyenv
+    # pyevn removed python is now managed by uv
+  # - pyenv
+
   - rust-analyzer
   - pngpaste
   - tree-sitter
@@ -77,7 +79,8 @@ pyenv_versions:
 pyenv_global: "3.12.4"  # which one becomes `pyenv global`
 
 pipx_packages:
-  - poetry
+  # poetry removed since now I am moving to uv
+  # - poetry
 
 brew_casks:
   - iterm2

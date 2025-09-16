@@ -1,4 +1,3 @@
-# roles/uv/tasks/main.yml
 ---
 - name: Compute paths and project list
   set_fact:
@@ -8,18 +7,21 @@
       {{ uv_projects
          | default((uv_projects_macos | default([])) if ansible_system == 'Darwin'
                    else (uv_projects_linux | default([]))) }}
-    uv_default_python: "{{ uv_default_python | default(houdini_python_patch | default('3.11.7')) }}"
 
-# --- Install uv if missing ----------------------------------------------------
+    # Use UV's own Python store; default pins (you can extend per-host)
+    uv_python_pin_map: "{{ uv_python_pin_map | default({'3.11': houdini_python_patch | default('3.11.7')}) }}"
 
+- name: Build PATH for uv (no pyenv)
+  set_fact:
+    uv_path_env: "/opt/homebrew/bin:/usr/local/bin:{{ ansible_env.HOME }}/.local/bin:{{ ansible_env.PATH }}"
+
+# ---- Install uv if missing ----------------------------------------------------
 - name: Check uv
-  become: false
   shell: command -v uv
   register: uv_cmd
   changed_when: false
   failed_when: false
-  environment:
-    PATH: "{{ ansible_env.PATH }}:/opt/homebrew/bin:/usr/local/bin:{{ ansible_env.HOME }}/.local/bin"
+  environment: { PATH: "{{ uv_path_env }}" }
 
 - name: macOS | install uv (Homebrew)
   when: ansible_system == "Darwin" and uv_cmd.rc != 0
@@ -28,39 +30,34 @@
     state: present
     path: "{{ brew_bin | default('/opt/homebrew/bin/brew') }}"
 
-- name: Recheck uv (macOS)
-  when: ansible_system == "Darwin"
-  become: false
-  shell: command -v uv
-  register: uv_cmd_after
-  changed_when: false
-  failed_when: false
-  environment:
-    PATH: "{{ ansible_env.PATH }}:/opt/homebrew/bin:/usr/local/bin"
-
 - name: Linux | install uv (official script to ~/.local/bin)
   when: ansible_system == "Linux" and uv_cmd.rc != 0
-  become: false
-  shell: |
-    set -e
-    curl -LsSf https://astral.sh/uv/install.sh | sh
+  shell: curl -LsSf https://astral.sh/uv/install.sh | sh
   args: { executable: /bin/bash }
 
 - name: Ensure ~/.venvs exists for project envs
-  become: false
   file:
     path: "{{ ansible_env.HOME }}/.venvs"
     state: directory
     mode: "0755"
 
-# --- Bail if nothing to sync --------------------------------------------------
-
+# Nothing to do? bail on this host
 - name: No uv projects configured -> skip host
   meta: end_host
   when: (uv_projects | length) == 0
 
-# --- Per project --------------------------------------------------------------
+# Preinstall pinned interpreters (e.g., 3.11.7)
+- name: Preinstall pinned UV Pythons
+  shell: |
+    set -e
+    for minor in "{{ uv_python_pin_map.keys() | join(' ') }}"; do
+      ver="{{ uv_python_pin_map[minor] }}"
+      uv python find "$ver" >/dev/null 2>&1 || uv python install "$ver"
+    done
+  args: { executable: /bin/bash }
+  environment: { PATH: "{{ uv_path_env }}" }
 
+# Per-project sync
 - name: Iterate projects
   include_tasks: per_project.yml
   loop: "{{ uv_projects }}"
@@ -69,3 +66,5 @@
     label: "{{ project }}"
   vars:
     pkg_dir: "{{ matrix_packages_dir }}/{{ project }}"
+    uv_path_env: "{{ uv_path_env }}"
+    uv_python_pin_map: "{{ uv_python_pin_map }}"
