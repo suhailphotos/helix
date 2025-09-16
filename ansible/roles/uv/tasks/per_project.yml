@@ -1,0 +1,45 @@
+---
+- name: Check pyproject.toml
+  stat:
+    path: "{{ pkg_dir }}/pyproject.toml"
+  register: pyproj
+  changed_when: false
+
+- name: Skip if not a Python project
+  debug:
+    msg: "Skipping {{ project }} (no pyproject.toml)"
+  when: not pyproj.stat.exists
+
+- block:
+    - name: Choose interpreter (force pinned default)
+      set_fact:
+        uv_python_minor: "{{ uv_default_minor }}"
+        uv_python_version: "{{ uv_pin_map[uv_default_minor] | default(uv_default_minor) }}"
+
+    - name: Ensure chosen interpreter is installed in UV store
+      shell: |
+        set -e
+        uv python find "{{ uv_python_version }}" >/dev/null 2>&1 || uv python install "{{ uv_python_version }}"
+      args: { executable: /bin/bash }
+      environment: { PATH: "{{ uv_path_env }}" }
+
+    # Optional: create/refresh lock file (safe to skip if you prefer)
+    - name: uv lock (best-effort)
+      shell: uv lock
+      args:
+        executable: /bin/bash
+        chdir: "{{ pkg_dir }}"
+      environment: { PATH: "{{ uv_path_env }}" }
+      changed_when: false
+      failed_when: false
+
+    - name: uv sync (to ~/.venvs/<project>) — no activation
+      shell: |
+        set -e
+        UV_PROJECT_ENVIRONMENT="{{ ansible_env.HOME }}/.venvs/{{ project }}" \
+        uv sync --python "{{ uv_python_version }}"
+      args:
+        executable: /bin/bash
+        chdir: "{{ pkg_dir }}"
+      environment: { PATH: "{{ uv_path_env }}" }
+  when: pyproj.stat.exists

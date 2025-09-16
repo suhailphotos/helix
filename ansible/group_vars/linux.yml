@@ -7,6 +7,10 @@ nvim_src_rel: "nvim/.config/nvim"
 
 poetry_projects_linux: []
 
+# uv on Linux only if/when you’re ready
+uv_projects_linux: []
+
+
 zoxide_allow_install_script: false
 
 apt_packages:

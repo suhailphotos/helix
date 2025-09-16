@@ -20,6 +20,7 @@
     - { role: starship,               tags: ['starship','prompt'] }
     - { role: ghostty,                tags: ['ghostty'] }
     - { role: iterm,                  tags: ['iterm'] }
+    - { role: pixi,                   tags: ['pixi'] }
     - { role: python_toolchain,       tags: ['python'] }
     - { role: nvim,                   tags: ['nvim'] }
     - { role: home_shims,             tags: ['home','dotfiles'] }
@@ -27,3 +28,4 @@
     - { role: eza,                    tags: ['eza'] }
     - { role: yazi,                   tags: ['yazi'] }
     - { role: apple_sf_fonts,         when: (enable_sf_fonts | default(false)) | bool, tags: ['fonts'] }
+    - { role: uv,                     tags: ['uv'] }

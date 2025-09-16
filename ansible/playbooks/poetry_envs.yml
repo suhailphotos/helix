@@ -1,6 +1,7 @@
 - name: Build Poetry envs for listed projects
   hosts: macos,linux
   gather_facts: yes
+  tags: ['never','legacy_py']   # <— won’t run unless --tags legacy_py
 
   roles:
-    - { role: poetry_envs, tags: ['poetry','poetry_envs'] }
+    - { role: poetry_envs, tags: ['poetry','poetry_envs','legacy_py'] }

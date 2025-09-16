@@ -17,14 +17,12 @@ brew_packages:
   - pipx
   - stow
   - yazi
-  - ffmpeg
-  - poppler
-  - imagemagick
   - resvg
-  - 7zip
   - 1password-cli
   - node
-  - pyenv
+    # pyevn removed python is now managed by uv
+  # - pyenv
+
   - rust-analyzer
   - pngpaste
   - tree-sitter
@@ -37,6 +35,7 @@ brew_packages:
   - libtool
   - meson
   - rust
+  - uv
 
   # --- GNU userland (for consistent flags & color across macOS) ---
   - coreutils    # installs gls/gdate/... (gnubin path available)
@@ -55,6 +54,24 @@ brew_packages:
 #  - libffi
 #  - gdbm
 
+# uv project list (macOS)
+uv_projects_macos:
+  - usdUtils
+  - oauthManager
+  - pythonKitchen
+  - ocioTools
+  - helperScripts
+  - Incept
+  - Lumiera
+  - Ledu
+  - hdrUtils
+
+# Optional override for python if pyproject doesn't specify clearly:
+houdini_python_patch: "3.11.7"
+
+# Pixi defaults (can be left implicit)
+# pixi_hosts_dir: "{{ ansible_env.HOME }}/.config/pixi/hosts"
+
 # ---- Python toolchain knobs ----
 pyenv_versions:
   - "3.11.7"     # matches Houdini’s current line, good to have locally
@@ -62,7 +79,8 @@ pyenv_versions:
 pyenv_global: "3.12.4"  # which one becomes `pyenv global`
 
 pipx_packages:
-  - poetry
+  # poetry removed since now I am moving to uv
+  # - poetry
 
 brew_casks:
   - iterm2

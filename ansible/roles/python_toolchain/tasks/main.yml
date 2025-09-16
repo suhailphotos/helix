@@ -1,5 +1,5 @@
 ---
-# Ensure PATHs that pipx/pyenv expect are present for login shells
+# Keep PATH and nvim host venv if you want; they’re harmless.
 - name: Ensure ~/.local/bin is on PATH (pipx)
   lineinfile:
     path: "{{ lookup('env','HOME') }}/.zprofile"
@@ -7,79 +7,83 @@
     line: 'export PATH="$HOME/.local/bin:$PATH"'
     state: present
 
-- name: Ensure pyenv init in .zprofile
-  lineinfile:
-    path: "{{ lookup('env','HOME') }}/.zprofile"
-    create: yes
-    line: "{{ item }}"
-    state: present
-  loop:
-    - 'export PYENV_ROOT="$HOME/.pyenv"'
-    - 'command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"'
-    - 'eval "$(pyenv init -)"'
+# ===== Legacy toolchain (pyenv/pipx/poetry) — disabled unless --tags legacy_py =====
+- block:
+    - name: Ensure pyenv init in .zprofile
+      lineinfile:
+        path: "{{ lookup('env','HOME') }}/.zprofile"
+        create: yes
+        line: "{{ item }}"
+        state: present
+      loop:
+        - 'export PYENV_ROOT="$HOME/.pyenv"'
+        - 'command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"'
+        - 'eval "$(pyenv init -)"'
 
-# --- pipx path (prefer Homebrew pipx; fall back to system pipx if needed)
-- name: Compute pipx executable path from brew_bin
-  set_fact:
-    pipx_executable: "{{ brew_bin | regex_replace('/brew$', '/pipx') }}"
-  when: pipx_executable is not defined and (brew_bin is defined)
+    - name: Compute pipx executable path from brew_bin
+      set_fact:
+        pipx_executable: "{{ brew_bin | regex_replace('/brew$', '/pipx') }}"
+      when: pipx_executable is not defined and (brew_bin is defined)
 
-- name: "Fallback: discover pipx in PATH if brew_bin not set"
-  command: bash -lc 'command -v pipx || true'
-  register: pipx_which
-  changed_when: false
-  when: pipx_executable is not defined
+    - name: "Fallback: discover pipx in PATH if brew_bin not set"
+      command: bash -lc 'command -v pipx || true'
+      register: pipx_which
+      changed_when: false
+      when: pipx_executable is not defined
 
-- name: Set pipx_executable fallback fact
-  set_fact:
-    pipx_executable: "{{ pipx_which.stdout | default('/opt/homebrew/bin/pipx') }}"
-  when: pipx_executable is not defined
+    - name: Set pipx_executable fallback fact
+      set_fact:
+        pipx_executable: "{{ pipx_which.stdout | default('/opt/homebrew/bin/pipx') }}"
+      when: pipx_executable is not defined
 
-- name: pipx ensurepath (idempotent)
-  command: "{{ pipx_executable }} ensurepath"
-  changed_when: false
-  when: pipx_executable is defined
+    - name: pipx ensurepath (idempotent)
+      command: "{{ pipx_executable }} ensurepath"
+      changed_when: false
+      when: pipx_executable is defined
 
-- name: Install pipx packages
-  community.general.pipx:
-    name: "{{ item }}"
-    state: present
-    executable: "{{ pipx_executable }}"
-  loop: "{{ pipx_packages | default([]) }}"
-  tags: ['cli']
+    - name: Install pipx packages (e.g., Poetry)
+      community.general.pipx:
+        name: "{{ item }}"
+        state: present
+        executable: "{{ pipx_executable }}"
+      loop: "{{ pipx_packages | default([]) }}"
+      tags: ['cli']
+  tags: ['never','legacy_py']
 
-# --- pyenv installs
-- name: Install pyenv Python versions (-s = skip if present)
-  shell: |
-    pyenv install -s {{ item }}
-  args:
-    executable: /bin/zsh
-  environment:
-    PYENV_ROOT: "{{ lookup('env','HOME') }}/.pyenv"
-    PATH: "{{ lookup('env','HOME') }}/.pyenv/bin:{{ lookup('env','HOME') }}/.pyenv/shims:/opt/homebrew/bin:/usr/local/bin:{{ ansible_env.PATH }}"
-  loop: "{{ pyenv_versions | default([]) }}"
-  tags: ['cli']
+# ===== pyenv installs (legacy) =====
+- block:
+    - name: Install pyenv Python versions (-s = skip if present)
+      shell: |
+        pyenv install -s {{ item }}
+      args:
+        executable: /bin/zsh
+      environment:
+        PYENV_ROOT: "{{ lookup('env','HOME') }}/.pyenv"
+        PATH: "{{ lookup('env','HOME') }}/.pyenv/bin:{{ lookup('env','HOME') }}/.pyenv/shims:/opt/homebrew/bin:/usr/local/bin:{{ ansible_env.PATH }}"
+      loop: "{{ pyenv_versions | default([]) }}"
+      tags: ['cli']
 
-- name: Set pyenv global version
-  shell: |
-    pyenv global {{ pyenv_global }}
-    pyenv rehash
-  args:
-    executable: /bin/zsh
-  environment:
-    PYENV_ROOT: "{{ lookup('env','HOME') }}/.pyenv"
-    PATH: "{{ lookup('env','HOME') }}/.pyenv/bin:{{ lookup('env','HOME') }}/.pyenv/shims:/opt/homebrew/bin:/usr/local/bin:{{ ansible_env.PATH }}"
-  when: pyenv_global is defined
-  tags: ['cli']
+    - name: Set pyenv global version
+      shell: |
+        pyenv global {{ pyenv_global }}
+        pyenv rehash
+      args:
+        executable: /bin/zsh
+      environment:
+        PYENV_ROOT: "{{ lookup('env','HOME') }}/.pyenv"
+        PATH: "{{ lookup('env','HOME') }}/.pyenv/bin:{{ lookup('env','HOME') }}/.pyenv/shims:/opt/homebrew/bin:/usr/local/bin:{{ ansible_env.PATH }}"
+      when: pyenv_global is defined
+      tags: ['cli']
+  tags: ['never','legacy_py']
 
-# --- Neovim Python host (dedicated venv) -------------------------
+# --- Neovim Python host venv (keep this by default; no pyenv needed) ---
 - name: Ensure ~/.venvs exists
   file:
     path: "{{ lookup('env','HOME') }}/.venvs"
     state: directory
     mode: "0755"
 
-- name: Create nvim python venv if missing
+- name: Create nvim python venv if missing (uses system python3)
   shell: |
     test -x ~/.venvs/nvim/bin/python || python3 -m venv ~/.venvs/nvim
   args: { executable: /bin/bash }
