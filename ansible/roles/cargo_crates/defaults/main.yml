@@ -3,7 +3,7 @@
 # Optional fields: version (e.g. "0.24.3"), git (repo URL), tag/rev for git.
 
 cargo_crates_common:
-  - { name: cargo-modules, bin: cargo-modules }
+  # - { name: cargo-modules, bin: cargo-modules }
   # - { name: cargo-watch,   bin: cargo-watch }
   # - { name: cargo-nextest, bin: cargo-nextest }
   # - { name: bacon,         bin: bacon }
