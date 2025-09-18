@@ -17,3 +17,4 @@
     - { role: nvim,              tags: ['nvim'] }
     - { role: home_shims,        tags: ['home','dotfiles'] }
     - { role: tmux_setup,        tags: ['tmux'] }
+    - { role: cargo_crates,    tags: ['cargo'] }

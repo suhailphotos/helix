@@ -1,0 +1,80 @@
+---
+# Compose the final crate list for this OS
+- name: Build crate list
+  set_fact:
+    crates_final: >-
+      {{ (cargo_crates_common | default([]))
+         + ((cargo_crates_macos | default([])) if ansible_system == 'Darwin'
+            else (cargo_crates_linux | default([]))) }}
+
+# Require cargo to exist (you install rust via brew/apt elsewhere)
+- name: Check cargo presence
+  command: bash -lc 'command -v cargo'
+  register: cargo_cmd
+  changed_when: false
+  failed_when: cargo_cmd.rc != 0
+
+# Detect cargo-binstall (only used if mode == auto or binstall)
+- name: Check cargo-binstall presence
+  command: bash -lc 'command -v cargo-binstall'
+  register: binstall_cmd
+  changed_when: false
+  failed_when: false
+
+# Decide which installer we’ll use
+- name: Decide installer
+  set_fact:
+    use_binstall: >-
+      {{ (cargo_install_mode | default('auto')) == 'binstall'
+         or ((cargo_install_mode | default('auto')) == 'auto' and binstall_cmd.rc == 0) }}
+
+# Pre-check which crates are already installed (by bin)
+- name: Check each crate's binary
+  command: bash -lc 'command -v {{ (item.bin | default(item.name)) }}'
+  register: crate_bin_checks
+  changed_when: false
+  failed_when: false
+  loop: "{{ crates_final }}"
+
+# Install missing crates (no loop label; robust fallback if --locked fails)
+- name: Install missing crates
+  vars:
+    crate: "{{ item.item }}"
+    bin_name: "{{ crate.bin | default(crate.name) }}"
+    version_flag: "{{ ('--version ' ~ crate.version) if crate.version is defined else '' }}"
+    locked_flag: "--locked"
+    cargo_install_cmd: >-
+      {% if crate.git is defined -%}
+      cargo install {{ locked_flag }} --git {{ crate.git }}
+      {%- if crate.tag is defined %} --tag {{ crate.tag }}{% endif -%}
+      {%- if crate.rev is defined %} --rev {{ crate.rev }}{% endif -%}
+      {%- else -%}
+      cargo install {{ locked_flag }} {{ crate.name }} {{ version_flag }}
+      {%- endif -%}
+    cargo_install_cmd_unlock: >-
+      {% if crate.git is defined -%}
+      cargo install --git {{ crate.git }}
+      {%- if crate.tag is defined %} --tag {{ crate.tag }}{% endif -%}
+      {%- if crate.rev is defined %} --rev {{ crate.rev }}{% endif -%}
+      {%- else -%}
+      cargo install {{ crate.name }} {{ version_flag }}
+      {%- endif -%}
+    binstall_cmdline: >-
+      cargo binstall -y {{ crate.name }} {{ version_flag }}
+  shell: |
+    set -e
+    if {{ use_binstall | bool }} && [ -z "{{ crate.git | default('') }}" ]; then
+      {{ binstall_cmdline }}
+    else
+      # Try --locked first; if it fails (e.g., yanked dep), retry without --locked.
+      set +e
+      {{ cargo_install_cmd }}
+      rc=$?
+      set -e
+      if [ $rc -ne 0 ]; then
+        {{ cargo_install_cmd_unlock }}
+      fi
+    fi
+  args: { executable: /bin/bash }
+  loop: "{{ crate_bin_checks.results }}"
+  when: item.rc != 0

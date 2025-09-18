@@ -1,0 +1,18 @@
+# Do NOT touch PATH. Orbit owns that.
+# Declare crates here. If the binary name differs from the crate name, set "bin".
+# Optional fields: version (e.g. "0.24.3"), git (repo URL), tag/rev for git.
+
+cargo_crates_common:
+  - { name: cargo-modules, bin: cargo-modules }
+  # - { name: cargo-watch,   bin: cargo-watch }
+  # - { name: cargo-nextest, bin: cargo-nextest }
+  # - { name: bacon,         bin: bacon }
+
+cargo_crates_macos: []
+cargo_crates_linux: []
+
+# install mode:
+#   auto     → use cargo-binstall if already present, else cargo install
+#   cargo    → always use `cargo install`
+#   binstall → always use `cargo binstall` (will fail if not present)
+cargo_install_mode: auto

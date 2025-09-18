@@ -161,6 +161,17 @@ desktop_casks:
   - spotify
   - blender
 
+# -------------------------------------------------- 
+#         Crates
+# --------------------------------------------------
+#
+cargo_crates_macos:
+  - { name: cargo-modules, bin: cargo-modules }
+  - { name: cargo-watch,   bin: cargo-watch }
+  # speed-ups: if you want binstall-first workflow, include it:
+  - { name: cargo-binstall, bin: cargo-binstall }
+
+
 # examples — all optional
 eza_dir_foreground: Cyan
 eza_build_underline: false

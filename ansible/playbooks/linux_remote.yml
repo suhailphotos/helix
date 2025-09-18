@@ -16,3 +16,4 @@
     - { role: tmux_setup,        tags: ['tmux'] }
     - { role: pixi, tags: ['pixi'] }     # only if you’ll manage tools via pixi on Linux
     - { role: uv,   tags: ['uv'] }       # if uv_projects_linux is non-empty
+    - { role: cargo_crates,      tags: ['cargo'] }

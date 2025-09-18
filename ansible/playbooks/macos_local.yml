@@ -29,3 +29,4 @@
     - { role: yazi,                   tags: ['yazi'] }
     - { role: apple_sf_fonts,         when: (enable_sf_fonts | default(false)) | bool, tags: ['fonts'] }
     - { role: uv,                     tags: ['uv'] }
+    - { role: cargo_crates,           tags: ['cargo'] }

@@ -48,6 +48,11 @@ apt_packages:
 
 yazi_install_scope: system
 
+cargo_crates_linux:
+  - { name: cargo-nextest, bin: cargo-nextest }
+  - { name: bacon,         bin: bacon }
+
+
 # choose the system-wide default (C.UTF-8 is present on Ubuntu/Debian by default)
 default_locale: "C.UTF-8"
 
