@@ -2,7 +2,7 @@
 # Declare crates here. If the binary name differs from the crate name, set "bin".
 # Optional fields: version (e.g. "0.24.3"), git (repo URL), tag/rev for git.
 
-cargo_crates_common:
+cargo_crates_common: []
   # - { name: cargo-modules, bin: cargo-modules }
   # - { name: cargo-watch,   bin: cargo-watch }
   # - { name: cargo-nextest, bin: cargo-nextest }
