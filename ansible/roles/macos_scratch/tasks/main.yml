@@ -1,0 +1,48 @@
+---
+- name: Only run on macOS
+  meta: end_host
+  when: ansible_system != "Darwin"
+
+- name: Defaults
+  set_fact:
+    scratch_root: "{{ scratch_root | default(ansible_env.HOME + '/Documents/Scratch') }}"
+    scratch_subfolders: "{{ scratch_subfolders | default(['screenshots','screen-recordings','scripts','notes','photos','tmp']) }}"
+    scratch_screenshots_dir: "{{ scratch_root }}/screenshots"
+    scratch_recordings_dir: "{{ scratch_root }}/screen-recordings"
+
+# Create Scratch + subfolders
+- name: Ensure Scratch subfolders exist
+  file:
+    path: "{{ scratch_root }}/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ scratch_subfolders }}"
+  tags: ['scratch','screencapture']
+
+# Read current screenshot location
+- name: Read current screenshot location
+  shell: defaults read com.apple.screencapture location 2>/dev/null || true
+  args: { executable: /bin/bash }
+  register: sc_loc
+  changed_when: false
+  tags: ['scratch','screencapture']
+
+# Update if different
+- name: Point screenshots to {{ scratch_screenshots_dir }}
+  when: (sc_loc.stdout | trim) != (scratch_screenshots_dir | trim)
+  shell: |
+    defaults write com.apple.screencapture location -string "{{ scratch_screenshots_dir }}"
+  args: { executable: /bin/bash }
+  notify: Restart SystemUIServer
+  tags: ['scratch','screencapture']
+
+# Friendly reminder (what you asked to surface during install)
+- name: Reminder set screen recordings folder via UI
+  debug:
+    msg: |
+      To save screen recordings in your Scratch folder:
+        1) Press Shift+Command+5
+        2) Options → Save to → Other Location…
+        3) Choose: {{ scratch_recordings_dir }}
+      Tip: Make sure iCloud Drive → Desktop & Documents is enabled so Scratch syncs.
+  tags: ['scratch','screencapture']

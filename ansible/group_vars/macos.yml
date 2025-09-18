@@ -189,5 +189,15 @@ eza_dot_italic_names:
   - ".pytest_cache"
   - "__pycache__"
 
+# Scratch defaults (macOS)
+scratch_root: "{{ ansible_env.HOME }}/Documents/Scratch"
+scratch_subfolders:
+  - screenshots
+  - screen-recordings
+  - scripts
+  - notes
+  - photos
+  - tmp
+
 # p10 url
 p10k_raw_url: "{{ bindu_raw_base }}/p10k/.p10k.zsh"

@@ -1,0 +1,4 @@
+---
+- name: Restart SystemUIServer
+  shell: killall SystemUIServer || true
+  args: { executable: /bin/bash }

@@ -30,3 +30,4 @@
     - { role: apple_sf_fonts,         when: (enable_sf_fonts | default(false)) | bool, tags: ['fonts'] }
     - { role: uv,                     tags: ['uv'] }
     - { role: cargo_crates,           tags: ['cargo'] }
+    - { role: macos_scratch,          tags: ['scratch','screencapture'] }
