@@ -36,6 +36,7 @@ apt_packages:
   - xclip
   # Build essentials
   - build-essential
+  - tree-sitter-cli
   - cmake
   - ninja-build
   - pkg-config
