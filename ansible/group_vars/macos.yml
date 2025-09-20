@@ -25,6 +25,7 @@ brew_packages:
   - rust-analyzer
   - pngpaste
   - tree-sitter
+  - tree-sitter-cli
   # Build tools you asked for
   - cmake
   - ninja
