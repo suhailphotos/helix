@@ -7,7 +7,7 @@
     line: 'export PATH="$HOME/.local/bin:$PATH"'
     state: present
 
-# ===== Legacy toolchain (pyenv/pipx/poetry) — disabled unless --tags legacy_py =====
+# ===== Legacy toolchain (pyenv/pipx/poetry) — OFF unless enable_legacy_py: true =====
 - block:
     - name: Install pyenv via Homebrew (macOS) when legacy_py is enabled
       when: ansible_system == "Darwin"
@@ -15,6 +15,7 @@
         name: pyenv
         state: present
         path: "{{ brew_bin | default('/opt/homebrew/bin/brew') }}"
+
     - name: Ensure pyenv init in .zprofile
       lineinfile:
         path: "{{ lookup('env','HOME') }}/.zprofile"
@@ -31,7 +32,7 @@
         pipx_executable: "{{ brew_bin | regex_replace('/brew$', '/pipx') }}"
       when: pipx_executable is not defined and (brew_bin is defined)
 
-    - name: "Fallback: discover pipx in PATH if brew_bin not set"
+    - name: Discover pipx in PATH if brew_bin not set
       command: bash -lc 'command -v pipx || true'
       register: pipx_which
       changed_when: false
@@ -52,51 +53,77 @@
         name: "{{ item }}"
         state: present
         executable: "{{ pipx_executable }}"
-      loop: "{{ pipx_packages | default([]) }}"
-      tags: ['cli']
-  tags: ['never','legacy_py']
+      loop: "{{ pipx_packages | default([], true) }}"
+      when: (pipx_packages | default([], true)) | length > 0
+  when: enable_legacy_py | default(false)
 
-# ===== pyenv installs (legacy) =====
+# ===== pyenv installs (legacy) — also OFF unless enable_legacy_py =====
 - block:
     - name: Install pyenv Python versions (-s = skip if present)
       shell: |
         pyenv install -s {{ item }}
-      args:
-        executable: /bin/zsh
+      args: { executable: /bin/zsh }
       environment:
         PYENV_ROOT: "{{ lookup('env','HOME') }}/.pyenv"
         PATH: "{{ lookup('env','HOME') }}/.pyenv/bin:{{ lookup('env','HOME') }}/.pyenv/shims:/opt/homebrew/bin:/usr/local/bin:{{ ansible_env.PATH }}"
       loop: "{{ pyenv_versions | default([]) }}"
-      tags: ['cli']
 
     - name: Set pyenv global version
       shell: |
         pyenv global {{ pyenv_global }}
         pyenv rehash
-      args:
-        executable: /bin/zsh
+      args: { executable: /bin/zsh }
       environment:
         PYENV_ROOT: "{{ lookup('env','HOME') }}/.pyenv"
         PATH: "{{ lookup('env','HOME') }}/.pyenv/bin:{{ lookup('env','HOME') }}/.pyenv/shims:/opt/homebrew/bin:/usr/local/bin:{{ ansible_env.PATH }}"
       when: pyenv_global is defined
-      tags: ['cli']
-  tags: ['never','legacy_py']
+  when: enable_legacy_py | default(false)
 
-# --- Neovim Python host venv (keep this by default; no pyenv needed) ---
+# --- Neovim Python host venv via uv (no plain pip) ---
 - name: Ensure ~/.venvs exists
   file:
     path: "{{ lookup('env','HOME') }}/.venvs"
     state: directory
     mode: "0755"
 
-- name: Create nvim python venv if missing (uses system python3)
+# Build PATH for uv (mac & linux)
+- name: Build PATH for uv (mac & linux)
+  set_fact:
+    uv_path_env: "/opt/homebrew/bin:/usr/local/bin:{{ ansible_env.HOME }}/.local/bin:{{ ansible_env.PATH }}"
+
+# Decide minor + pin map first
+- name: Decide uv host interpreter minor & pin map for nvim
+  set_fact:
+    uv_host_minor: "{{ uv_host_minor | default('3.11') }}"
+    uv_pin_map: "{{ uv_python_pin_map | default({'3.11': (houdini_python_patch | default('3.11.7'))}) }}"
+
+# Now compute the concrete version from the map
+- name: Compute uv host version for nvim
+  set_fact:
+    uv_host_version: "{{ uv_pin_map[uv_host_minor] | default(uv_host_minor) }}"
+
+- name: Ensure chosen interpreter exists in uv store
   shell: |
-    test -x ~/.venvs/nvim/bin/python || python3 -m venv ~/.venvs/nvim
+    set -e
+    uv python find "{{ uv_host_version }}" >/dev/null 2>&1 || uv python install "{{ uv_host_version }}"
   args: { executable: /bin/bash }
+  environment: { PATH: "{{ uv_path_env }}" }
   changed_when: false
 
-- name: Install/upgrade pynvim in the nvim venv
+- name: Create nvim venv with uv if missing
   shell: |
-    ~/.venvs/nvim/bin/pip install -U pip pynvim
+    set -e
+    if [ ! -x "$HOME/.venvs/nvim/bin/python" ]; then
+      uv venv --python "{{ uv_host_version }}" "$HOME/.venvs/nvim"
+    fi
   args: { executable: /bin/bash }
+  environment: { PATH: "{{ uv_path_env }}" }
+  changed_when: false
+
+- name: Install/upgrade pynvim in the nvim venv (via uv pip)
+  shell: |
+    set -e
+    uv pip install -U --python "$HOME/.venvs/nvim/bin/python" pynvim
+  args: { executable: /bin/bash }
+  environment: { PATH: "{{ uv_path_env }}" }
   changed_when: false

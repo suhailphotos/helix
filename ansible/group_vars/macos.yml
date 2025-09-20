@@ -65,6 +65,10 @@ uv_projects_macos:
   - Ledu
   - hdrUtils
 
+uv_python_pin_map:
+  "3.11": "3.11.7"
+  "3.12": "3.12.4"
+
 # Optional override for python if pyproject doesn't specify clearly:
 houdini_python_patch: "3.11.7"
 
@@ -161,10 +165,9 @@ desktop_casks:
   - spotify
   - blender
 
-# -------------------------------------------------- 
+# --------------------------------------------------
 #         Crates
 # --------------------------------------------------
-#
 cargo_crates_macos:
   - { name: cargo-modules, bin: cargo-modules }
   - { name: cargo-watch,   bin: cargo-watch }
