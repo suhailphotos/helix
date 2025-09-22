@@ -1,0 +1,113 @@
+---
+- name: Resolve atrium path
+  ansible.builtin.stat:
+    path: "{{ atrium_root }}"
+  register: atrium_dir
+
+# Create/refresh a global ignore so Finder files never get picked up
+- name: Ensure .stow-global-ignore exists with sane patterns
+  ansible.builtin.copy:
+    dest: "{{ atrium_root }}/.stow-global-ignore"
+    mode: '0644'
+    content: |
+      ( ^ | / ) \.DS_Store$
+      ^\.stow-(local|global)-ignore$
+  when: atrium_dir.stat.exists
+
+# Remove any stray .DS_Store inside atrium (prevents accidental linking)
+- name: Find .DS_Store under atrium
+  ansible.builtin.find:
+    paths: "{{ atrium_root }}"
+    patterns: ".DS_Store"
+    file_type: file
+  register: dsstore_found
+  when: atrium_dir.stat.exists
+
+- name: Delete .DS_Store under atrium
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ dsstore_found.files | default([]) }}"
+  when: atrium_dir.stat.exists
+
+# Also remove ~/.DS_Store if it was accidentally linked earlier
+- name: Ensure ~/.DS_Store is absent
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.DS_Store"
+    state: absent
+
+- name: Skip if atrium not found
+  ansible.builtin.debug:
+    msg: "atrium not found at {{ atrium_root }} — skipping stow"
+  when: not atrium_dir.stat.exists
+
+- name: Ensure stow is installed
+  ansible.builtin.package:
+    name: stow
+    state: present
+  when: atrium_dir.stat.exists
+
+- name: Check each requested package exists
+  ansible.builtin.stat:
+    path: "{{ atrium_root }}/{{ item }}"
+  loop: "{{ atrium_stow_packages }}"
+  register: stow_pkg_stats
+  when: atrium_dir.stat.exists
+
+- name: Warn on missing packages
+  ansible.builtin.debug:
+    msg: "atrium_stow: package '{{ item.item }}' not found at {{ atrium_root }}/{{ item.item }} — skipping"
+  when:
+    - atrium_dir.stat.exists
+    - not item.stat.exists
+    - atrium_state == 'present'
+  loop: "{{ stow_pkg_stats.results }}"
+
+# Stow packages into $HOME
+- name: Stow packages into $HOME
+  ansible.builtin.command: >
+    {{ stow_bin }}
+    -v
+    {{ '--adopt' if atrium_use_adopt else '' }}
+    {{ '-R' if atrium_restow else '' }}
+    {% for rx in stow_ignore_regexes %} --ignore='{{ rx }}' {% endfor %}
+    -t {{ ansible_env.HOME }}
+    {{ item.item }}
+  args:
+    chdir: "{{ atrium_root }}"
+  loop: "{{ stow_pkg_stats.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when:
+    - atrium_dir.stat.exists
+    - atrium_state == 'present'
+    - item.stat.exists
+  register: stow_cmd
+  changed_when: >
+    'LINK:' in (stow_cmd.stdout | default('')) or
+    'MOVE:' in (stow_cmd.stdout | default('')) or
+    'UNLINK:' in (stow_cmd.stdout | default('')) or
+    'RMDIR:' in (stow_cmd.stdout | default('')) or
+    'MKDIR:' in (stow_cmd.stdout | default(''))
+
+# Unstow packages from $HOME
+- name: Unstow packages from $HOME
+  ansible.builtin.command: >
+    {{ stow_bin }}
+    -v -D
+    {% for rx in stow_ignore_regexes %} --ignore='{{ rx }}' {% endfor %}
+    -t {{ ansible_env.HOME }}
+    {{ item.item }}
+  args:
+    chdir: "{{ atrium_root }}"
+  loop: "{{ stow_pkg_stats.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when:
+    - atrium_dir.stat.exists
+    - atrium_state == 'absent'
+    - item.stat.exists
+  register: unstow_cmd
+  changed_when: >
+    'UNLINK:' in (unstow_cmd.stdout | default('')) or
+    'RMDIR:'  in (unstow_cmd.stdout | default(''))

@@ -203,5 +203,14 @@ scratch_subfolders:
   - photos
   - tmp
 
+atrium_stow_packages:
+  - incept
+  - notionmanager
+  - oauthmanager
+  - parivaha
+
+# First run on a new Mac? set true once, then flip back to false
+atrium_use_adopt: true
+
 # p10 url
 p10k_raw_url: "{{ bindu_raw_base }}/p10k/.p10k.zsh"
