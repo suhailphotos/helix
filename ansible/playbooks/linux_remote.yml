@@ -18,3 +18,4 @@
     - { role: uv,   tags: ['uv'] }       # if uv_projects_linux is non-empty
     - { role: cargo_crates,      tags: ['cargo'] }
     - { role: atrium_stow,       tags: ['atrium','stow'] }
+    - { role: nvim,              tags: ['nvim'] }

@@ -1,0 +1,40 @@
+# What Mason should install headlessly
+mason_packages_common:
+  # --- your current LSP set ---
+  - lua-language-server
+  - python-lsp-server
+  - typescript-language-server
+
+  # --- Python bits you already use in config (present on quasar) ---
+  - pyright            # LSP
+  - ruff               # LSP/daemon
+
+  # --- Rust bits you asked for ---
+  - rust-analyzer      # LSP
+  - codelldb           # DAP adapter used by rustaceanvim
+
+  # --- nice-to-haves that your config references ---
+  - stylua             # Lua formatter (your LSP uses `stylua --lsp`)
+  - taplo              # TOML LSP (Cargo.toml)
+  - marksman           # Markdown LSP (optional)
+
+# Treesitter languages to precompile (speedy first run)
+treesitter_parsers:
+  - rust
+  - lua
+  - toml
+  - json
+  - typescript
+  - javascript
+  - python
+  - bash
+  - yaml
+  - markdown
+  - markdown_inline
+  - vim
+  - vimdoc
+
+# Per-OS/host “extras” are optional
+mason_packages_macos: []
+mason_packages_linux: []
+mason_packages_extra: []
