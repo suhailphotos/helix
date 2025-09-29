@@ -16,7 +16,6 @@ zoxide_allow_install_script: false
 apt_packages:
   - neovim         # <— missing before
   - nodejs         # typescript-language-server runtime
-  - npm            # in case you ever use npm-based tools
   - unzip          # Mason extracts zips on Linux
   - git
   - curl

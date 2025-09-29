@@ -4,6 +4,12 @@
     update_cache: yes
     cache_valid_time: 3600
 
+- name: Check for DEB822 ubuntu.sources (Ubuntu 24.04+ default)
+  stat:
+    path: /etc/apt/sources.list.d/ubuntu.sources
+  register: ubuntu_sources
+  changed_when: false
+
 # Ensure Ubuntu 'universe' (and updates/security) are enabled
 - block:
     - name: Enable universe
@@ -25,6 +31,43 @@
       apt:
         update_cache: yes
         cache_valid_time: 0
+  when:
+    - ansible_distribution == "Ubuntu"
+    - not ubuntu_sources.stat.exists
+
+- name: Remove duplicate legacy .list files when DEB822 is present
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/apt/sources.list.d/archive_ubuntu_com_ubuntu.list
+    - /etc/apt/sources.list.d/security_ubuntu_com_ubuntu.list
+  when:
+    - ansible_distribution == "Ubuntu"
+    - ubuntu_sources.stat.exists
+
+# --- Node.js (with npm) from NodeSource so we avoid Debian's npm dependency tangle ---
+- block:
+    - name: Add NodeSource GPG key
+      get_url:
+        url: https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key
+        dest: /usr/share/keyrings/nodesource.gpg
+        mode: "0644"
+      become: yes
+
+    - name: Add NodeSource repo (Node 20.x LTS)
+      apt_repository:
+        filename: nodesource
+        repo: "deb [signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main"
+        state: present
+        update_cache: yes
+      become: yes
+
+    - name: Ensure nodejs (includes npm) is present
+      apt:
+        name: nodejs
+        state: present
+      become: yes
   when: ansible_distribution == "Ubuntu"
 
 - name: Install baseline packages on Linux
