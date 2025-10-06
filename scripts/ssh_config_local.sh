@@ -250,7 +250,7 @@ if [[ $INSTALL_1P_AGENT_CONFIG -eq 1 ]]; then
 fi
 
 # -----------------------------
-# NEW: GitHub via 1Password agent (symlink on mac; conditional IdentityAgent everywhere)
+# GitHub via 1Password agent (symlink on mac; conditional IdentityAgent everywhere)
 # -----------------------------
 if [[ $GITHUB_1PASSWORD -eq 1 ]]; then
   short_sock="$HOME/.1password/agent.sock"
@@ -275,10 +275,9 @@ if [[ $GITHUB_1PASSWORD -eq 1 ]]; then
 Host github.com
   HostName github.com
   User git
-  IdentitiesOnly yes
 
 # Only set IdentityAgent when the local 1Password socket exists.
-# If absent (e.g., headless server without 1Password), we keep it unset so
+# If absent (e.g., headless server without 1Password), keep it unset so
 # the default SSH_AUTH_SOCK (agent forwarding) is used instead.
 Match host github.com exec "test -S $HOME/.1password/agent.sock"
   IdentityAgent ~/.1password/agent.sock
