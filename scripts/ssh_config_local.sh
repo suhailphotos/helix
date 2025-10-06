@@ -267,7 +267,7 @@ if [[ $GITHUB_1PASSWORD -eq 1 ]]; then
   fi
 
   GITHUB_SNIP="$SSH_DIR/config.d/10-github.conf"
-  read -r -d '' GITHUB_CONTENT <<'SNIP'
+  GITHUB_CONTENT="$(cat <<'SNIP'
 # Managed by helix ssh_config_local.sh
 # GitHub: prefer a local 1Password agent *if present*; otherwise use SSH_AUTH_SOCK
 # (e.g., agent forwarding from a macOS client).
@@ -284,7 +284,7 @@ Match host github.com exec "test -S $HOME/.1password/agent.sock"
   IdentityAgent ~/.1password/agent.sock
 Match all
 SNIP
-
+)"
   if [[ $DRY_RUN -eq 1 ]]; then
     echo "---- would write $GITHUB_SNIP ----"
     printf "%s\n" "$GITHUB_CONTENT"
