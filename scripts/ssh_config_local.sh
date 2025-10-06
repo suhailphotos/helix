@@ -247,35 +247,41 @@ if [[ $INSTALL_1P_AGENT_CONFIG -eq 1 ]]; then
 fi
 
 # -----------------------------
-# NEW: GitHub via 1Password agent (symlink + snippet)
+# NEW: GitHub via 1Password agent (symlink on mac; conditional IdentityAgent everywhere)
 # -----------------------------
 if [[ $GITHUB_1PASSWORD -eq 1 ]]; then
   short_sock="$HOME/.1password/agent.sock"
-  if [[ "$(uname -s)" == "Darwin" ]]; then
-    target_sock="$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
-  else
-    # best-effort default on Linux; harmless if unused on macOS
-    target_sock="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/1password/agent.sock"
-  fi
 
-  if [[ $DRY_RUN -eq 1 ]]; then
-    echo "---- would ln -sfn '$target_sock' '$short_sock' ----"
-  else
-    mkdir -p "${short_sock%/*}"
-    ln -sfn "$target_sock" "$short_sock"    # create even if target doesn't (yet) exist
-    [[ -S "$target_sock" ]] || echo "ℹ 1Password agent socket not present yet; start/restart 1Password to activate."
+  # macOS: ensure the canonical short path points at the long sandbox path
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    long_sock_mac="$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+    if [[ $DRY_RUN -eq 1 ]]; then
+      echo "---- would ln -sfn '$long_sock_mac' -> '$short_sock' ----"
+    else
+      mkdir -p "${short_sock:h}"
+      ln -sfn "$long_sock_mac" "$short_sock"
+    fi
   fi
 
   GITHUB_SNIP="$SSH_DIR/config.d/10-github.conf"
-  GITHUB_CONTENT="$(cat <<'SNIP'
+  read -r -d '' GITHUB_CONTENT <<'SNIP'
 # Managed by helix ssh_config_local.sh
-# Use 1Password SSH agent for GitHub only
+# GitHub: prefer a local 1Password agent *if present*; otherwise use SSH_AUTH_SOCK
+# (e.g., agent forwarding from a macOS client).
+
 Host github.com
   HostName github.com
   User git
+  IdentitiesOnly yes
+
+# Only set IdentityAgent when the local 1Password socket exists.
+# If absent (e.g., headless server without 1Password), we keep it unset so
+# the default SSH_AUTH_SOCK (agent forwarding) is used instead.
+Match host github.com exec "test -S $HOME/.1password/agent.sock"
   IdentityAgent ~/.1password/agent.sock
+Match all
 SNIP
-)"
+
   if [[ $DRY_RUN -eq 1 ]]; then
     echo "---- would write $GITHUB_SNIP ----"
     printf "%s\n" "$GITHUB_CONTENT"
