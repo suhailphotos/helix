@@ -261,7 +261,7 @@ if [[ $GITHUB_1PASSWORD -eq 1 ]]; then
     if [[ $DRY_RUN -eq 1 ]]; then
       echo "---- would ln -sfn '$long_sock_mac' -> '$short_sock' ----"
     else
-      mkdir -p "${short_sock:h}"
+      mkdir -p "$(dirname "$short_sock")"
       ln -sfn "$long_sock_mac" "$short_sock"
     fi
   fi
