@@ -9,6 +9,7 @@ exec </dev/null
 HELIX_REPO_URL="${HELIX_REPO_URL:-https://github.com/suhailphotos/helix.git}"
 HELIX_BRANCH="${HELIX_BRANCH:-main}"
 HELIX_LOCAL_DIR="${HELIX_LOCAL_DIR:-$HOME/.cache/helix_bootstrap}"
+FORCE_1P_AGENT_CONFIG=0
 
 SSH_DIR="${SSH_DIR:-$HOME/.ssh}"
 USE_1PASSWORD=0                      # if 1 -> uncomment IdentityAgent in base; omit IdentityFile in snippets
@@ -215,14 +216,27 @@ if [[ $INSTALL_1P_AGENT_CONFIG -eq 1 ]]; then
     done
     if [[ -n "$src_base" ]]; then
       dst="$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t"
+      dst_file="$dst/agent.toml"
       if [[ $DRY_RUN -eq 1 ]]; then
-        echo "---- would copy $src_base -> $dst/agent.toml ----"
+        echo "---- would install $src_base -> $dst_file ----"
       else
         mkdir -p "$dst"
-        cp -f "$src_base" "$dst/agent.toml"
-        chmod 600 "$dst/agent.toml"
-        echo "==> Installed 1Password agent.toml to $dst"
-        echo "    Tip: restart 1Password completely to reload."
+        if [[ ! -f "$dst_file" ]]; then
+          cp -f "$src_base" "$dst_file"
+          chmod 600 "$dst_file"
+          echo "==> Installed 1Password agent.toml to $dst"
+          echo "    Tip: restart 1Password completely to reload."
+        elif cmp -s "$src_base" "$dst_file"; then
+          echo "✔ 1Password agent.toml already up to date"
+        elif [[ $FORCE_1P_AGENT_CONFIG -eq 1 ]]; then
+          cp -f "$src_base" "$dst_file"
+          chmod 600 "$dst_file"
+          echo "↻ 1Password agent.toml replaced (forced)"
+          echo "   Tip: restart 1Password completely to reload."
+        else
+          echo "⚠ 1Password agent.toml exists and differs; leaving as-is."
+          echo "   Pass --force-1p-agent-config to overwrite."
+        fi
       fi
     else
       echo "⚠ 1Password agent.toml not found under ~/.config/{1Password,1password}/ssh/"
@@ -236,17 +250,20 @@ fi
 # NEW: GitHub via 1Password agent (symlink + snippet)
 # -----------------------------
 if [[ $GITHUB_1PASSWORD -eq 1 ]]; then
-  # determine long socket on macOS, or use existing short on others
-  long_sock_mac="$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
   short_sock="$HOME/.1password/agent.sock"
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    target_sock="$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+  else
+    # best-effort default on Linux; harmless if unused on macOS
+    target_sock="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/1password/agent.sock"
+  fi
 
   if [[ $DRY_RUN -eq 1 ]]; then
-    echo "---- would ensure symlink $short_sock -> $long_sock_mac (if long exists) ----"
+    echo "---- would ln -sfn '$target_sock' '$short_sock' ----"
   else
-    mkdir -p "$(dirname "$short_sock")"
-    if [[ -S "$long_sock_mac" ]]; then
-      ln -sfn "$long_sock_mac" "$short_sock"
-    fi
+    mkdir -p "${short_sock%/*}"
+    ln -sfn "$target_sock" "$short_sock"    # create even if target doesn't (yet) exist
+    [[ -S "$target_sock" ]] || echo "ℹ 1Password agent socket not present yet; start/restart 1Password to activate."
   fi
 
   GITHUB_SNIP="$SSH_DIR/config.d/10-github.conf"
