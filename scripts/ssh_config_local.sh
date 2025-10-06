@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 trap 'echo "❌ ERROR at line $LINENO: $BASH_COMMAND" >&2' ERR
-
-# Detach stdin so no subcommand eats the rest of this script when piped via curl.
 exec </dev/null
 
 # -----------------------------
@@ -20,6 +18,11 @@ DEFAULT_USER="${DEFAULT_USER:-$USER}"
 IDENTITY_FILE="${IDENTITY_FILE:-$HOME/.ssh/id_rsa}"  # ignored when USE_1PASSWORD=1
 DRY_RUN=0
 
+# NEW: GitHub / 1Password helpers
+GITHUB_1PASSWORD=0           # write GitHub-only snippet using 1Password agent
+INSTALL_1P_AGENT_CONFIG=0    # copy agent.toml from ~/.config to 1Password sandbox
+GITHUB_ADD_KEY=0             # add "op://security/GitHub/public key" to GitHub
+
 print_usage() {
   cat <<'EOF'
 Generate ~/.ssh/config and per-host snippets from your Ansible inventory.
@@ -31,20 +34,30 @@ Examples
   # Include macOS hosts as well
   curl -fsSL https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/scripts/ssh_config_local.sh | bash -s -- --include-macos
 
-  # Prefer 1Password SSH agent (uncomment IdentityAgent; omit IdentityFile in snippets)
+  # Prefer 1Password SSH agent (uncomment IdentityAgent in base; omit IdentityFile in snippets)
   curl -fsSL https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/scripts/ssh_config_local.sh | bash -s -- --use-1password
 
   # Provide a default DNS suffix for hosts without ansible_host
   bash ssh_config_local.sh --default-domain suhail.tech
 
+  # NEW: GitHub via 1Password (symlink + snippet), install agent.toml, and add GitHub key
+  curl -fsSL https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/scripts/ssh_config_local.sh | bash -s -- \
+    --include-macos --github-1password --install-1p-agent-config --github-add-key
+
 Flags
-  --include-macos           Include hosts in the "macos" group
-  --use-1password           Uncomment IdentityAgent in base; omit IdentityFile in snippets
-  --default-domain DOMAIN   Append DOMAIN to hostnames missing ansible_host
-  --identity-file PATH      IdentityFile for hosts (default: ~/.ssh/id_rsa) [ignored with --use-1password]
-  --default-user USER       Default SSH user if not specified in inventory (default: $USER)
-  --dry-run                 Print what would be written, don’t touch files
-  -h, --help                Show help
+  --include-macos               Include hosts in the "macos" group
+  --use-1password               Uncomment IdentityAgent in base; omit IdentityFile in snippets
+  --default-domain DOMAIN       Append DOMAIN to hostnames missing ansible_host
+  --identity-file PATH          IdentityFile for hosts (default: ~/.ssh/id_rsa) [ignored with --use-1password]
+  --default-user USER           Default SSH user if not specified in inventory (default: $USER)
+  --dry-run                     Print what would be written, don’t touch files
+
+  # NEW (GitHub / 1Password)
+  --github-1password            Create ~/.1password/agent.sock symlink (if needed) and write ~/.ssh/config.d/10-github.conf
+  --install-1p-agent-config     Copy ~/.config/.../agent.toml to 1Password's sandbox path and chmod 600
+  --github-add-key              Add "op://security/GitHub/public key" to your GitHub account (idempotent)
+
+  -h, --help                    Show help
 EOF
 }
 
@@ -57,6 +70,12 @@ while [[ $# -gt 0 ]]; do
     --identity-file) IDENTITY_FILE="${2:-}"; shift ;;
     --default-user) DEFAULT_USER="${2:-}"; shift ;;
     --dry-run) DRY_RUN=1 ;;
+
+    # NEW flags
+    --github-1password) GITHUB_1PASSWORD=1 ;;
+    --install-1p-agent-config) INSTALL_1P_AGENT_CONFIG=1 ;;
+    --github-add-key) GITHUB_ADD_KEY=1 ;;
+
     -h|--help) print_usage; exit 0 ;;
     --) shift; break ;;
     *) echo "Unknown flag: $1" >&2; print_usage; exit 2 ;;
@@ -121,7 +140,7 @@ if [[ -f "$BASE_CFG" && $DRY_RUN -eq 0 ]]; then
   cp "$BASE_CFG" "$BASE_CFG.bak.$TIMESTAMP"
 fi
 
-# Your standard base config (with IdentityAgent commented)
+# Base config
 BASE_STANDARD="$(cat <<'STD'
 # Managed by helix ssh_config_local.sh
 
@@ -149,7 +168,6 @@ Include ~/.ssh/config.d/*.conf
 STD
 )"
 
-# If --use-1password, uncomment the IdentityAgent line
 if [[ $USE_1PASSWORD -eq 1 ]]; then
   BASE_CONTENT="$(printf "%s\n" "$BASE_STANDARD" \
     | sed 's/^  # IdentityAgent \(~\/\.1password\/agent\.sock\)$/  IdentityAgent \1/')"
@@ -187,6 +205,70 @@ SNIP
 fi
 
 # -----------------------------
+# NEW: 1Password agent config install (macOS)
+# -----------------------------
+if [[ $INSTALL_1P_AGENT_CONFIG -eq 1 ]]; then
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    src_base=""
+    for p in "$HOME/.config/1Password/ssh/agent.toml" "$HOME/.config/1password/ssh/agent.toml"; do
+      [[ -f "$p" ]] && src_base="$p" && break
+    done
+    if [[ -n "$src_base" ]]; then
+      dst="$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t"
+      if [[ $DRY_RUN -eq 1 ]]; then
+        echo "---- would copy $src_base -> $dst/agent.toml ----"
+      else
+        mkdir -p "$dst"
+        cp -f "$src_base" "$dst/agent.toml"
+        chmod 600 "$dst/agent.toml"
+        echo "==> Installed 1Password agent.toml to $dst"
+        echo "    Tip: restart 1Password completely to reload."
+      fi
+    else
+      echo "⚠ 1Password agent.toml not found under ~/.config/{1Password,1password}/ssh/"
+    fi
+  else
+    echo "ℹ Skipping --install-1p-agent-config (non-macOS)."
+  fi
+fi
+
+# -----------------------------
+# NEW: GitHub via 1Password agent (symlink + snippet)
+# -----------------------------
+if [[ $GITHUB_1PASSWORD -eq 1 ]]; then
+  # determine long socket on macOS, or use existing short on others
+  long_sock_mac="$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+  short_sock="$HOME/.1password/agent.sock"
+
+  if [[ $DRY_RUN -eq 1 ]]; then
+    echo "---- would ensure symlink $short_sock -> $long_sock_mac (if long exists) ----"
+  else
+    mkdir -p "$(dirname "$short_sock")"
+    if [[ -S "$long_sock_mac" ]]; then
+      ln -sfn "$long_sock_mac" "$short_sock"
+    fi
+  fi
+
+  GITHUB_SNIP="$SSH_DIR/config.d/10-github.conf"
+  GITHUB_CONTENT="$(cat <<'SNIP'
+# Managed by helix ssh_config_local.sh
+# Use 1Password SSH agent for GitHub only
+Host github.com
+  HostName github.com
+  User git
+  IdentityAgent ~/.1password/agent.sock
+SNIP
+)"
+  if [[ $DRY_RUN -eq 1 ]]; then
+    echo "---- would write $GITHUB_SNIP ----"
+    printf "%s\n" "$GITHUB_CONTENT"
+  else
+    printf "%s\n" "$GITHUB_CONTENT" > "$GITHUB_SNIP"
+    chmod 600 "$GITHUB_SNIP"
+  fi
+fi
+
+# -----------------------------
 # Parse inventory -> rows of: group \t host \t ansible_host \t ansible_user \t identity_file
 # -----------------------------
 YQ_QUERY='.all.children | to_entries[] | . as $grp
@@ -197,13 +279,10 @@ YQ_QUERY='.all.children | to_entries[] | . as $grp
 # Iterate and create per-host snippets
 while IFS=$'\t' read -r group host ans_host ans_user ans_identity; do
   [[ -z "${host:-}" ]] && continue
-
-  # Filter groups
   if [[ "$group" == "macos" && $INCLUDE_MACOS -ne 1 ]]; then
     continue
   fi
 
-  # HostName resolution
   host_name="$ans_host"
   if [[ -z "$host_name" ]]; then
     if [[ -n "$DEFAULT_DOMAIN" ]]; then
@@ -213,12 +292,10 @@ while IFS=$'\t' read -r group host ans_host ans_user ans_identity; do
     fi
   fi
 
-  # User & Identity
   user="${ans_user:-$DEFAULT_USER}"
   ident="${ans_identity:-$IDENTITY_FILE}"
 
   CONF_PATH="$SSH_DIR/config.d/${host}.conf"
-
   CONTENT="Host ${host}
   HostName ${host_name}
   User ${user}
@@ -237,6 +314,35 @@ while IFS=$'\t' read -r group host ans_host ans_user ans_identity; do
 
 done < <(yq -r "$YQ_QUERY" "$INVENTORY")
 
+# -----------------------------
+# NEW: Add 1Password public key to GitHub (idempotent)
+# -----------------------------
+if [[ $GITHUB_ADD_KEY -eq 1 ]]; then
+  if command -v gh >/dev/null 2>&1 && command -v op >/dev/null 2>&1; then
+    pub="$(op read 'op://security/GitHub/public key' || true)"
+    if [[ -n "${pub:-}" ]]; then
+      set +e
+      gh api user/keys --jq '.[].key' 2>/dev/null | grep -Fqx "$pub"
+      already=$?
+      set -e
+      if [[ $already -ne 0 ]]; then
+        if [[ $DRY_RUN -eq 1 ]]; then
+          echo "---- would add GitHub public key from 1Password ----"
+        else
+          printf "%s\n" "$pub" | gh ssh-key add -t "1Password SSH (shared)" -
+          echo "==> Added public key to GitHub"
+        fi
+      else
+        echo "✔ GitHub already has this 1Password public key"
+      fi
+    else
+      echo "⚠ Could not read 'op://security/GitHub/public key'"
+    fi
+  else
+    echo "⚠ Skipping --github-add-key (gh and/or op not found)"
+  fi
+fi
+
 echo
 if [[ $DRY_RUN -eq 1 ]]; then
   echo "Dry run complete. No files changed."
@@ -244,5 +350,6 @@ else
   echo "SSH config generated:"
   echo "   - Base: $BASE_CFG"
   echo "   - Snippets: $SSH_DIR/config.d/*.conf"
-  echo "Tip: test with 'ssh -v nimbus' (or any host)."
+  [[ $GITHUB_1PASSWORD -eq 1 ]] && echo "   - GitHub via 1Password: $SSH_DIR/config.d/10-github.conf"
+  echo "Tip: test with 'ssh -Tv git@github.com' and/or 'ssh -v nimbus'."
 fi
