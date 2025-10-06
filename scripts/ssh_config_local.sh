@@ -11,6 +11,8 @@ HELIX_BRANCH="${HELIX_BRANCH:-main}"
 HELIX_LOCAL_DIR="${HELIX_LOCAL_DIR:-$HOME/.cache/helix_bootstrap}"
 FORCE_1P_AGENT_CONFIG=0
 FORWARD_AGENT_ALL=0
+# Keep the SSH ControlMaster alive for long stretches (e.g. 12h or 24h)
+CONTROL_PERSIST="${CONTROL_PERSIST:-12h}"
 
 SSH_DIR="${SSH_DIR:-$HOME/.ssh}"
 USE_1PASSWORD=0                      # if 1 -> uncomment IdentityAgent in base; omit IdentityFile in snippets
@@ -145,11 +147,12 @@ if [[ -f "$BASE_CFG" && $DRY_RUN -eq 0 ]]; then
 fi
 
 # Base config
-BASE_STANDARD="$(cat <<'STD'
+BASE_STANDARD="$(cat <<STD
 # Managed by helix ssh_config_local.sh
 
 Host *
   # Quality of life
+  LogLevel QUIET
   AddKeysToAgent yes
   ServerAliveInterval 60
   ServerAliveCountMax 3
@@ -157,7 +160,7 @@ Host *
 
   # Connection multiplexing (faster repeated SSH/scp)
   ControlMaster auto
-  ControlPersist 10m
+  ControlPersist $CONTROL_PERSIST
   ControlPath ~/.ssh/cm-%r@%h:%p
 
   # Host key handling (use ask for strict checking; or accept-new if you trust LAN)
