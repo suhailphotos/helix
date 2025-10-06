@@ -11,8 +11,11 @@ HELIX_BRANCH="${HELIX_BRANCH:-main}"
 HELIX_LOCAL_DIR="${HELIX_LOCAL_DIR:-$HOME/.cache/helix_bootstrap}"
 FORCE_1P_AGENT_CONFIG=0
 FORWARD_AGENT_ALL=0
+
 # Keep the SSH ControlMaster alive for long stretches (e.g. 12h or 24h)
 CONTROL_PERSIST="${CONTROL_PERSIST:-12h}"
+# Keep all mux control sockets in a dedicated folder to avoid clutter
+CONTROL_DIR="${CONTROL_DIR:-$SSH_DIR/controlpath}"
 
 SSH_DIR="${SSH_DIR:-$HOME/.ssh}"
 USE_1PASSWORD=0                      # if 1 -> uncomment IdentityAgent in base; omit IdentityFile in snippets
@@ -139,6 +142,9 @@ fi
 # -----------------------------
 mkdir -p "$SSH_DIR/config.d"
 chmod 700 "$SSH_DIR" "$SSH_DIR/config.d"
+# Create the control socket directory (short path helps macOS socket length limits)
+mkdir -p "$CONTROL_DIR"
+chmod 700 "$CONTROL_DIR"
 
 BASE_CFG="$SSH_DIR/config"
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
@@ -161,7 +167,7 @@ Host *
   # Connection multiplexing (faster repeated SSH/scp)
   ControlMaster auto
   ControlPersist $CONTROL_PERSIST
-  ControlPath ~/.ssh/cm-%r@%h:%p
+  ControlPath $CONTROL_DIR/%r@%h:%p
 
   # Host key handling (use ask for strict checking; or accept-new if you trust LAN)
   StrictHostKeyChecking ask
