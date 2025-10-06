@@ -167,7 +167,7 @@ Host *
   # Connection multiplexing (faster repeated SSH/scp)
   ControlMaster auto
   ControlPersist $CONTROL_PERSIST
-  ControlPath $CONTROL_DIR/cm-%r@%h:%p
+  ControlPath $CONTROL_DIR/%r@%h:%p
 
   # Host key handling (use ask for strict checking; or accept-new if you trust LAN)
   StrictHostKeyChecking ask
