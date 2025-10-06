@@ -11,13 +11,13 @@ HELIX_BRANCH="${HELIX_BRANCH:-main}"
 HELIX_LOCAL_DIR="${HELIX_LOCAL_DIR:-$HOME/.cache/helix_bootstrap}"
 FORCE_1P_AGENT_CONFIG=0
 FORWARD_AGENT_ALL=0
+SSH_DIR="${SSH_DIR:-$HOME/.ssh}"
 
 # Keep the SSH ControlMaster alive for long stretches (e.g. 12h or 24h)
 CONTROL_PERSIST="${CONTROL_PERSIST:-12h}"
 # Keep all mux control sockets in a dedicated folder to avoid clutter
 CONTROL_DIR="${CONTROL_DIR:-$SSH_DIR/controlpath}"
 
-SSH_DIR="${SSH_DIR:-$HOME/.ssh}"
 USE_1PASSWORD=0                      # if 1 -> uncomment IdentityAgent in base; omit IdentityFile in snippets
 INCLUDE_MACOS=0                      # if 1 -> include macOS group too
 DEFAULT_DOMAIN="${DEFAULT_DOMAIN:-}" # e.g. "suhail.tech" to turn "nimbus" -> "nimbus.suhail.tech" if no ansible_host
