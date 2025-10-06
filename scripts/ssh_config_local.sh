@@ -10,6 +10,7 @@ HELIX_REPO_URL="${HELIX_REPO_URL:-https://github.com/suhailphotos/helix.git}"
 HELIX_BRANCH="${HELIX_BRANCH:-main}"
 HELIX_LOCAL_DIR="${HELIX_LOCAL_DIR:-$HOME/.cache/helix_bootstrap}"
 FORCE_1P_AGENT_CONFIG=0
+FORWARD_AGENT_ALL=0
 
 SSH_DIR="${SSH_DIR:-$HOME/.ssh}"
 USE_1PASSWORD=0                      # if 1 -> uncomment IdentityAgent in base; omit IdentityFile in snippets
@@ -52,6 +53,7 @@ Flags
   --identity-file PATH          IdentityFile for hosts (default: ~/.ssh/id_rsa) [ignored with --use-1password]
   --default-user USER           Default SSH user if not specified in inventory (default: $USER)
   --dry-run                     Print what would be written, don’t touch files
+  --forward-agent               Add 'ForwardAgent yes' to all generated host snippets
 
   # NEW (GitHub / 1Password)
   --github-1password            Create ~/.1password/agent.sock symlink (if needed) and write ~/.ssh/config.d/10-github.conf
@@ -71,6 +73,7 @@ while [[ $# -gt 0 ]]; do
     --identity-file) IDENTITY_FILE="${2:-}"; shift ;;
     --default-user) DEFAULT_USER="${2:-}"; shift ;;
     --dry-run) DRY_RUN=1 ;;
+    --forward-agent) FORWARD_AGENT_ALL=1 ;;
 
     # NEW flags
     --github-1password) GITHUB_1PASSWORD=1 ;;
@@ -325,6 +328,10 @@ while IFS=$'\t' read -r group host ans_host ans_user ans_identity; do
 "
   if [[ $USE_1PASSWORD -eq 0 ]]; then
     CONTENT+="  IdentityFile ${ident}\n"
+  fi
+
+  if [[ $FORWARD_AGENT_ALL -eq 1 ]]; then
+    CONTENT+="  ForwardAgent yes\n"
   fi
 
   if [[ $DRY_RUN -eq 1 ]]; then
