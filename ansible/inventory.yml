@@ -8,7 +8,7 @@ all:
         quasar:
           ansible_connection: local
           ansible_python_interpreter: /usr/bin/python3
-          ansible_host: "2603:8001:a000:101:1c45:bda2:5ccf:3c83"
+          ansible_host: "2603:8001:a000:101:1460:2dd5:67b2:1d9c"
           ansible_user: suhail
           identity_file: "~/.ssh/id_quasar"
         feather:
@@ -29,6 +29,7 @@ all:
         # --- Raspberry Pi 5 ---
         wisp:
           # ansible_host: wisp.local     # use this if mDNS works
-          ansible_user: suhail
           # If mDNS doesn't resolve yet, swap the above for the IPv6 you used:
-          ansible_host: "2603:8001:a000:102:5e33:727b:d9e9:95fc"
+          ansible_host: "2603:8001:a000:100:98ec:d450:be2:8caa"
+          ansible_user: suhail
+

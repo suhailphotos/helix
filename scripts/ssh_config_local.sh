@@ -19,11 +19,15 @@ CONTROL_PERSIST="${CONTROL_PERSIST:-12h}"
 CONTROL_DIR="${CONTROL_DIR:-$SSH_DIR/controlpath}"
 
 USE_1PASSWORD=0                      # if 1 -> uncomment IdentityAgent in base; omit IdentityFile in snippets
-INCLUDE_MACOS=0                      # if 1 -> include macOS group too
+INCLUDE_MACOS=0                      # if 1 -> include macOS group too (legacy behavior)
 DEFAULT_DOMAIN="${DEFAULT_DOMAIN:-}" # e.g. "suhail.tech" to turn "nimbus" -> "nimbus.suhail.tech" if no ansible_host
 DEFAULT_USER="${DEFAULT_USER:-$USER}"
 IDENTITY_FILE="${IDENTITY_FILE:-$HOME/.ssh/id_rsa}"  # ignored when USE_1PASSWORD=1
 DRY_RUN=0
+
+# Behavior toggles
+REFRESH=0                            # NEW: overwrite existing per-host files only when --refresh
+ONLY_LIST=""                         # NEW: limit to specific hosts: --only wisp,quasar
 
 # NEW: GitHub / 1Password helpers
 GITHUB_1PASSWORD=0           # write GitHub-only snippet using 1Password agent
@@ -52,13 +56,17 @@ Examples
     --include-macos --github-1password --install-1p-agent-config --github-add-key
 
 Flags
-  --include-macos               Include hosts in the "macos" group
+  --include-macos               Include hosts in the "macos" group (legacy behavior)
   --use-1password               Uncomment IdentityAgent in base; omit IdentityFile in snippets
   --default-domain DOMAIN       Append DOMAIN to hostnames missing ansible_host
   --identity-file PATH          IdentityFile for hosts (default: ~/.ssh/id_rsa) [ignored with --use-1password]
   --default-user USER           Default SSH user if not specified in inventory (default: $USER)
   --dry-run                     Print what would be written, don’t touch files
   --forward-agent               Add 'ForwardAgent yes' to all generated host snippets
+
+  # NEW safety/precision
+  --refresh                     Overwrite existing per-host files (by default, existing files are preserved)
+  --only LIST                   Comma-separated hostnames to generate (e.g., --only wisp,quasar)
 
   # NEW (GitHub / 1Password)
   --github-1password            Create ~/.1password/agent.sock symlink (if needed) and write ~/.ssh/config.d/10-github.conf
@@ -79,6 +87,8 @@ while [[ $# -gt 0 ]]; do
     --default-user) DEFAULT_USER="${2:-}"; shift ;;
     --dry-run) DRY_RUN=1 ;;
     --forward-agent) FORWARD_AGENT_ALL=1 ;;
+    --refresh) REFRESH=1 ;;
+    --only) ONLY_LIST="${2:-}"; shift ;;
 
     # NEW flags
     --github-1password) GITHUB_1PASSWORD=1 ;;
@@ -148,9 +158,24 @@ chmod 700 "$CONTROL_DIR"
 
 BASE_CFG="$SSH_DIR/config"
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
-if [[ -f "$BASE_CFG" && $DRY_RUN -eq 0 ]]; then
-  cp "$BASE_CFG" "$BASE_CFG.bak.$TIMESTAMP"
-fi
+# Build a helper to write files only when content changes
+write_if_changed() {
+  local path="$1"; shift
+  local content="$*"
+  if [[ $DRY_RUN -eq 1 ]]; then
+    echo "---- would write $path ----"
+    printf "%s\n" "$content"
+    return 0
+  fi
+  if [[ -f "$path" ]]; then
+    if diff -q <(printf "%s\n" "$content") "$path" >/dev/null 2>&1; then
+      return 0
+    fi
+    cp "$path" "$path.bak.$TIMESTAMP" || true
+  fi
+  printf "%s\n" "$content" > "$path"
+  chmod 600 "$path"
+}
 
 # Base config
 BASE_STANDARD="$(cat <<STD
@@ -188,13 +213,7 @@ else
   BASE_CONTENT="$BASE_STANDARD"
 fi
 
-if [[ $DRY_RUN -eq 1 ]]; then
-  echo "---- would write $BASE_CFG ----"
-  printf "%s\n" "$BASE_CONTENT"
-else
-  printf "%s" "$BASE_CONTENT" > "$BASE_CFG"
-  chmod 600 "$BASE_CFG"
-fi
+write_if_changed "$BASE_CFG" "$BASE_CONTENT"
 
 # -----------------------------
 # macOS-only: always send NVIM_BG to servers
@@ -208,13 +227,7 @@ Host *
   SendEnv NVIM_BG
 SNIP
 )"
-  if [[ $DRY_RUN -eq 1 ]]; then
-    echo "---- would write $SENDENV_SNIPPET ----"
-    printf "%s\n" "$SENDENV_CONTENT"
-  else
-    printf "%s\n" "$SENDENV_CONTENT" > "$SENDENV_SNIPPET"
-    chmod 600 "$SENDENV_SNIPPET"
-  fi
+  write_if_changed "$SENDENV_SNIPPET" "$SENDENV_CONTENT"
 fi
 
 # -----------------------------
@@ -293,13 +306,17 @@ Match host github.com exec "test -S $HOME/.1password/agent.sock"
 Match all
 SNIP
 )"
-  if [[ $DRY_RUN -eq 1 ]]; then
-    echo "---- would write $GITHUB_SNIP ----"
-    printf "%s\n" "$GITHUB_CONTENT"
-  else
-    printf "%s\n" "$GITHUB_CONTENT" > "$GITHUB_SNIP"
-    chmod 600 "$GITHUB_SNIP"
-  fi
+  write_if_changed "$GITHUB_SNIP" "$GITHUB_CONTENT"
+fi
+
+# -----------------------------
+# Host filters
+# -----------------------------
+lc() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
+declare -A ONLY_SET=()
+if [[ -n "$ONLY_LIST" ]]; then
+  IFS=',' read -r -a __ONLY_ARR <<< "$(printf '%s' "$ONLY_LIST" | tr -d ' ')"
+  for h in "${__ONLY_ARR[@]}"; do ONLY_SET["$(lc "$h")"]=1; done
 fi
 
 # -----------------------------
@@ -313,8 +330,16 @@ YQ_QUERY='.all.children | to_entries[] | . as $grp
 # Iterate and create per-host snippets
 while IFS=$'\t' read -r group host ans_host ans_user ans_identity; do
   [[ -z "${host:-}" ]] && continue
+
+  # legacy macOS toggle
   if [[ "$group" == "macos" && $INCLUDE_MACOS -ne 1 ]]; then
+    # skip macOS entries unless explicitly requested
     continue
+  fi
+
+  # --only filter (if provided)
+  if [[ -n "$ONLY_LIST" ]]; then
+    [[ -n "${ONLY_SET[$(lc "$host")]:-}" ]] || continue
   fi
 
   host_name="$ans_host"
@@ -340,6 +365,14 @@ while IFS=$'\t' read -r group host ans_host ans_user ans_identity; do
 
   if [[ $FORWARD_AGENT_ALL -eq 1 ]]; then
     CONTENT+="  ForwardAgent yes\n"
+  fi
+
+  if [[ -f "$CONF_PATH" && $REFRESH -eq 0 ]]; then
+    # Preserve existing file (default). If you ever want to refresh, pass --refresh.
+    if [[ $DRY_RUN -eq 1 ]]; then
+      echo "---- would SKIP (exists) $CONF_PATH ----"
+    fi
+    continue
   fi
 
   if [[ $DRY_RUN -eq 1 ]]; then
