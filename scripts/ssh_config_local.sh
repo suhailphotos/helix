@@ -26,13 +26,13 @@ IDENTITY_FILE="${IDENTITY_FILE:-$HOME/.ssh/id_rsa}"  # ignored when USE_1PASSWOR
 DRY_RUN=0
 
 # Behavior toggles
-REFRESH=0                            # NEW: overwrite existing per-host files only when --refresh
-ONLY_LIST=""                         # NEW: limit to specific hosts: --only wisp,quasar
+REFRESH=0                            # overwrite existing per-host files only when --refresh
+ONLY_LIST=""                         # limit to specific hosts: --only wisp,quasar
 
-# NEW: GitHub / 1Password helpers
-GITHUB_1PASSWORD=0           # write GitHub-only snippet using 1Password agent
-INSTALL_1P_AGENT_CONFIG=0    # copy agent.toml from ~/.config to 1Password sandbox
-GITHUB_ADD_KEY=0             # add "op://security/GitHub/public key" to GitHub
+# GitHub / 1Password helpers
+GITHUB_1PASSWORD=0
+INSTALL_1P_AGENT_CONFIG=0
+GITHUB_ADD_KEY=0
 
 print_usage() {
   cat <<'EOF'
@@ -51,26 +51,24 @@ Examples
   # Provide a default DNS suffix for hosts without ansible_host
   bash ssh_config_local.sh --default-domain suhail.tech
 
-  # NEW: GitHub via 1Password (symlink + snippet), install agent.toml, and add GitHub key
+  # GitHub via 1Password (symlink + snippet), install agent.toml, and add GitHub key
   curl -fsSL https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main/scripts/ssh_config_local.sh | bash -s -- \
     --include-macos --github-1password --install-1p-agent-config --github-add-key
 
 Flags
-  --include-macos               Include hosts in the "macos" group (legacy behavior)
+  --include-macos               Include hosts in the "macos" group
   --use-1password               Uncomment IdentityAgent in base; omit IdentityFile in snippets
   --default-domain DOMAIN       Append DOMAIN to hostnames missing ansible_host
   --identity-file PATH          IdentityFile for hosts (default: ~/.ssh/id_rsa) [ignored with --use-1password]
   --default-user USER           Default SSH user if not specified in inventory (default: $USER)
   --dry-run                     Print what would be written, don’t touch files
   --forward-agent               Add 'ForwardAgent yes' to all generated host snippets
-
-  # NEW safety/precision
-  --refresh                     Overwrite existing per-host files (by default, existing files are preserved)
+  --refresh                     Overwrite existing per-host files (default: preserve)
   --only LIST                   Comma-separated hostnames to generate (e.g., --only wisp,quasar)
 
-  # NEW (GitHub / 1Password)
-  --github-1password            Create ~/.1password/agent.sock symlink (if needed) and write ~/.ssh/config.d/10-github.conf
-  --install-1p-agent-config     Copy ~/.config/.../agent.toml to 1Password's sandbox path and chmod 600
+  # GitHub / 1Password
+  --github-1password            Create ~/.1password/agent.sock symlink (macOS) and write ~/.ssh/config.d/10-github.conf
+  --install-1p-agent-config     Copy ~/.config/.../agent.toml to 1Password's sandbox path and chmod 600 (macOS)
   --github-add-key              Add "op://security/GitHub/public key" to your GitHub account (idempotent)
 
   -h, --help                    Show help
@@ -89,12 +87,9 @@ while [[ $# -gt 0 ]]; do
     --forward-agent) FORWARD_AGENT_ALL=1 ;;
     --refresh) REFRESH=1 ;;
     --only) ONLY_LIST="${2:-}"; shift ;;
-
-    # NEW flags
     --github-1password) GITHUB_1PASSWORD=1 ;;
     --install-1p-agent-config) INSTALL_1P_AGENT_CONFIG=1 ;;
     --github-add-key) GITHUB_ADD_KEY=1 ;;
-
     -h|--help) print_usage; exit 0 ;;
     --) shift; break ;;
     *) echo "Unknown flag: $1" >&2; print_usage; exit 2 ;;
@@ -102,9 +97,7 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
-# -----------------------------
 # Locate repo & inventory.yml
-# -----------------------------
 SCRIPT_PATH="${BASH_SOURCE[0]:-}"
 if [[ -n "$SCRIPT_PATH" && -f "$SCRIPT_PATH" ]]; then
   SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
@@ -134,31 +127,19 @@ else
 fi
 
 INVENTORY="$REPO_ROOT/ansible/inventory.yml"
-if [[ ! -f "$INVENTORY" ]]; then
-  echo "Inventory not found at $INVENTORY" >&2
-  exit 1
-fi
+[[ -f "$INVENTORY" ]] || { echo "Inventory not found at $INVENTORY" >&2; exit 1; }
 
-# -----------------------------
 # Need yq
-# -----------------------------
-if ! command -v yq >/dev/null 2>&1; then
-  echo "This script needs 'yq'. Run your Ansible bootstrap first, or: brew install yq" >&2
-  exit 1
-fi
+command -v yq >/dev/null 2>&1 || { echo "This script needs 'yq'. brew install yq" >&2; exit 1; }
 
-# -----------------------------
 # Prepare ~/.ssh layout
-# -----------------------------
-mkdir -p "$SSH_DIR/config.d"
-chmod 700 "$SSH_DIR" "$SSH_DIR/config.d"
-# Create the control socket directory (short path helps macOS socket length limits)
-mkdir -p "$CONTROL_DIR"
-chmod 700 "$CONTROL_DIR"
+mkdir -p "$SSH_DIR/config.d" "$CONTROL_DIR"
+chmod 700 "$SSH_DIR" "$SSH_DIR/config.d" "$CONTROL_DIR"
 
 BASE_CFG="$SSH_DIR/config"
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
-# Build a helper to write files only when content changes
+
+# helper: write file if content changed (backs up existing)
 write_if_changed() {
   local path="$1"; shift
   local content="$*"
@@ -212,12 +193,9 @@ if [[ $USE_1PASSWORD -eq 1 ]]; then
 else
   BASE_CONTENT="$BASE_STANDARD"
 fi
-
 write_if_changed "$BASE_CFG" "$BASE_CONTENT"
 
-# -----------------------------
-# macOS-only: always send NVIM_BG to servers
-# -----------------------------
+# macOS-only: NVIM_BG
 if [[ "$(uname -s)" == "Darwin" ]]; then
   SENDENV_SNIPPET="$SSH_DIR/config.d/90-nvim-bg.conf"
   SENDENV_CONTENT="$(cat <<'SNIP'
@@ -230,54 +208,42 @@ SNIP
   write_if_changed "$SENDENV_SNIPPET" "$SENDENV_CONTENT"
 fi
 
-# -----------------------------
-# NEW: 1Password agent config install (macOS)
-# -----------------------------
-if [[ $INSTALL_1P_AGENT_CONFIG -eq 1 ]]; then
-  if [[ "$(uname -s)" == "Darwin" ]]; then
-    src_base=""
-    for p in "$HOME/.config/1Password/ssh/agent.toml" "$HOME/.config/1password/ssh/agent.toml"; do
-      [[ -f "$p" ]] && src_base="$p" && break
-    done
-    if [[ -n "$src_base" ]]; then
-      dst="$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t"
-      dst_file="$dst/agent.toml"
-      if [[ $DRY_RUN -eq 1 ]]; then
-        echo "---- would install $src_base -> $dst_file ----"
-      else
-        mkdir -p "$dst"
-        if [[ ! -f "$dst_file" ]]; then
-          cp -f "$src_base" "$dst_file"
-          chmod 600 "$dst_file"
-          echo "==> Installed 1Password agent.toml to $dst"
-          echo "    Tip: restart 1Password completely to reload."
-        elif cmp -s "$src_base" "$dst_file"; then
-          echo "✔ 1Password agent.toml already up to date"
-        elif [[ $FORCE_1P_AGENT_CONFIG -eq 1 ]]; then
-          cp -f "$src_base" "$dst_file"
-          chmod 600 "$dst_file"
-          echo "↻ 1Password agent.toml replaced (forced)"
-          echo "   Tip: restart 1Password completely to reload."
-        else
-          echo "⚠ 1Password agent.toml exists and differs; leaving as-is."
-          echo "   Pass --force-1p-agent-config to overwrite."
-        fi
-      fi
+# 1Password agent config (macOS)
+if [[ $INSTALL_1P_AGENT_CONFIG -eq 1 && "$(uname -s)" == "Darwin" ]]; then
+  src_base=""
+  for p in "$HOME/.config/1Password/ssh/agent.toml" "$HOME/.config/1password/ssh/agent.toml"; do
+    [[ -f "$p" ]] && src_base="$p" && break
+  done
+  if [[ -n "$src_base" ]]; then
+    dst="$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t"
+    dst_file="$dst/agent.toml"
+    if [[ $DRY_RUN -eq 1 ]]; then
+      echo "---- would install $src_base -> $dst_file ----"
     else
-      echo "⚠ 1Password agent.toml not found under ~/.config/{1Password,1password}/ssh/"
+      mkdir -p "$dst"
+      if [[ ! -f "$dst_file" ]]; then
+        cp -f "$src_base" "$dst_file"; chmod 600 "$dst_file"
+        echo "==> Installed 1Password agent.toml to $dst"
+        echo "    Tip: restart 1Password completely to reload."
+      elif cmp -s "$src_base" "$dst_file"; then
+        echo "✔ 1Password agent.toml already up to date"
+      elif [[ $FORCE_1P_AGENT_CONFIG -eq 1 ]]; then
+        cp -f "$src_base" "$dst_file"; chmod 600 "$dst_file"
+        echo "↻ 1Password agent.toml replaced (forced)"
+        echo "   Tip: restart 1Password completely to reload."
+      else
+        echo "⚠ 1Password agent.toml exists and differs; leaving as-is."
+        echo "   Pass --force-1p-agent-config to overwrite."
+      fi
     fi
   else
-    echo "ℹ Skipping --install-1p-agent-config (non-macOS)."
+    echo "⚠ 1Password agent.toml not found under ~/.config/{1Password,1password}/ssh/"
   fi
 fi
 
-# -----------------------------
-# GitHub via 1Password agent (symlink on mac; conditional IdentityAgent everywhere)
-# -----------------------------
+# GitHub via 1Password agent
 if [[ $GITHUB_1PASSWORD -eq 1 ]]; then
   short_sock="$HOME/.1password/agent.sock"
-
-  # macOS: ensure the canonical short path points at the long sandbox path
   if [[ "$(uname -s)" == "Darwin" ]]; then
     long_sock_mac="$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
     if [[ $DRY_RUN -eq 1 ]]; then
@@ -310,13 +276,13 @@ SNIP
 fi
 
 # -----------------------------
-# Host filters
+# Host filters (bash 3.2 friendly)
 # -----------------------------
 lc() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
-declare -A ONLY_SET=()
+ONLY_LIST_NORM=""
 if [[ -n "$ONLY_LIST" ]]; then
-  IFS=',' read -r -a __ONLY_ARR <<< "$(printf '%s' "$ONLY_LIST" | tr -d ' ')"
-  for h in "${__ONLY_ARR[@]}"; do ONLY_SET["$(lc "$h")"]=1; done
+  # normalize to space-separated, lowercase, wrapped with spaces for safe matching
+  ONLY_LIST_NORM=" $(printf '%s' "$ONLY_LIST" | tr '[:upper:]' '[:lower:]' | tr ',' ' ' | xargs) "
 fi
 
 # -----------------------------
@@ -331,15 +297,17 @@ YQ_QUERY='.all.children | to_entries[] | . as $grp
 while IFS=$'\t' read -r group host ans_host ans_user ans_identity; do
   [[ -z "${host:-}" ]] && continue
 
-  # legacy macOS toggle
+  # skip macOS unless explicitly requested
   if [[ "$group" == "macos" && $INCLUDE_MACOS -ne 1 ]]; then
-    # skip macOS entries unless explicitly requested
     continue
   fi
 
-  # --only filter (if provided)
-  if [[ -n "$ONLY_LIST" ]]; then
-    [[ -n "${ONLY_SET[$(lc "$host")]:-}" ]] || continue
+  # --only filter
+  if [[ -n "$ONLY_LIST_NORM" ]]; then
+    case "$ONLY_LIST_NORM" in
+      *" $(lc "$host") "*) : ;;   # keep
+      *) continue ;;
+    esac
   fi
 
   host_name="$ans_host"
@@ -362,16 +330,13 @@ while IFS=$'\t' read -r group host ans_host ans_user ans_identity; do
   if [[ $USE_1PASSWORD -eq 0 ]]; then
     CONTENT+="  IdentityFile ${ident}\n"
   fi
-
   if [[ $FORWARD_AGENT_ALL -eq 1 ]]; then
     CONTENT+="  ForwardAgent yes\n"
   fi
 
+  # Default: preserve existing per-host snippet
   if [[ -f "$CONF_PATH" && $REFRESH -eq 0 ]]; then
-    # Preserve existing file (default). If you ever want to refresh, pass --refresh.
-    if [[ $DRY_RUN -eq 1 ]]; then
-      echo "---- would SKIP (exists) $CONF_PATH ----"
-    fi
+    [[ $DRY_RUN -eq 1 ]] && echo "---- would SKIP (exists) $CONF_PATH ----"
     continue
   fi
 
@@ -385,9 +350,7 @@ while IFS=$'\t' read -r group host ans_host ans_user ans_identity; do
 
 done < <(yq -r "$YQ_QUERY" "$INVENTORY")
 
-# -----------------------------
-# NEW: Add 1Password public key to GitHub (idempotent)
-# -----------------------------
+# Add 1Password public key to GitHub (idempotent)
 if [[ $GITHUB_ADD_KEY -eq 1 ]]; then
   if command -v gh >/dev/null 2>&1 && command -v op >/dev/null 2>&1; then
     pub="$(op read 'op://security/GitHub/public key' || true)"
