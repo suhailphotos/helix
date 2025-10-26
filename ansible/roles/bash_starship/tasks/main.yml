@@ -1,0 +1,65 @@
+---
+- name: Ensure XDG config dirs exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ ansible_env.HOME }}/.config"
+    - "{{ ansible_env.HOME }}/.config/starship"
+
+- name: Check starship presence
+  command: bash -lc 'command -v starship'
+  register: starship_cmd
+  changed_when: false
+  failed_when: false
+
+- name: Check for starship config file
+  stat:
+    path: "{{ ansible_env.HOME }}/.config/starship/starship.toml"
+  register: starship_cfg
+  changed_when: false
+
+- name: Note skipping starship bash init (binary not found)
+  debug:
+    msg: "bash_starship: skipping because starship is not on PATH"
+  when: starship_cmd.rc != 0
+
+- name: Ensure ~/.local/bin is on PATH for login shells
+  lineinfile:
+    path: "{{ ansible_env.HOME }}/.profile"
+    create: yes
+    line: 'export PATH="$HOME/.local/bin:$PATH"'
+    state: present
+  when: starship_cmd.rc == 0
+
+- name: Check if ~/.bashrc already initializes starship
+  shell: grep -qE '\bstarship init bash\b' "{{ ansible_env.HOME }}/.bashrc"
+  args: { executable: /bin/bash }
+  register: starship_init_present
+  changed_when: false
+  failed_when: false
+
+# Our managed block (idempotent on re-runs) — only if no existing init found
+- name: Enable Starship in ~/.bashrc (managed block)
+  blockinfile:
+    path: "{{ ansible_env.HOME }}/.bashrc"
+    create: yes
+    marker: "# {mark} ANSIBLE_STARSHIP"
+    block: |
+      # Starship (auto-managed by Ansible)
+      export STARSHIP_CONFIG="$HOME/.config/starship/starship.toml"
+      if [ -n "$PS1" ] && command -v starship >/dev/null 2>&1; then
+        eval "$(starship init bash)"
+      fi
+  when: starship_init_present.rc != 0
+
+# If a manual starship init already exists, just ensure the config path is set once
+- name: Ensure STARSHIP_CONFIG export exists (no duplicate)
+  lineinfile:
+    path: "{{ ansible_env.HOME }}/.bashrc"
+    regexp: '^export STARSHIP_CONFIG='
+    line: 'export STARSHIP_CONFIG="$HOME/.config/starship/starship.toml"'
+    insertafter: BOF
+    state: present
+  when: starship_init_present.rc == 0

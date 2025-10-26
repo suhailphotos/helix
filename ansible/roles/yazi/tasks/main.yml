@@ -1,5 +1,10 @@
 ---
 # roles/yazi/tasks/main.yml
+#
+
+- name: Skip Yazi when disabled
+  meta: end_host
+  when: not (yazi_enabled | default(true) | bool)
 
 - name: Defaults
   set_fact:

@@ -64,10 +64,11 @@
     dest: "{{ ansible_env.HOME }}/.curlrc"
     mode: "0644"
 
-# Linux-only: install full ~/.bashrc from your template (skip macOS)
 - name: Install ~/.bashrc (Linux only)
   template:
     src: bashrc.j2
     dest: "{{ ansible_env.HOME }}/.bashrc"
     mode: "0644"
-  when: ansible_facts.os_family != "Darwin"
+  when:
+    - ansible_facts.os_family != 'Darwin'
+    - (home_shims_install_bashrc | default(false)) | bool

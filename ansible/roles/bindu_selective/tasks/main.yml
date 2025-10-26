@@ -1,0 +1,41 @@
+---
+# roles/bindu_selective/tasks/main.yml
+
+- name: Defaults
+  set_fact:
+    # Allow override from group_vars; keep a safe default
+    bindu_raw_base: "{{ bindu_raw_base | default('https://raw.githubusercontent.com/suhailphotos/bindu/refs/heads/main') }}"
+    bindu_files: "{{ bindu_selective_files | default([]) }}"
+
+- name: Nothing to do if no files are listed
+  debug:
+    msg: "bindu_selective_files is empty — skipping Bindu selective download."
+  when: (bindu_files | length) == 0
+
+# IMPORTANT:
+# Do NOT use `expanduser` here — that expands on the *controller*.
+# Resolve "~" to the *remote* HOME using ansible_env.HOME.
+- name: Ensure parent dirs exist
+  file:
+    path: "{{ (item.dest | regex_replace('^~', ansible_env.HOME)) | dirname }}"
+    state: directory
+    mode: "0755"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  loop: "{{ bindu_files }}"
+  loop_control:
+    label: "{{ item.dest }}"
+  when: (bindu_files | length) > 0
+
+- name: Download config files from Bindu (GitHub raw)
+  get_url:
+    url:  "{{ bindu_raw_base }}/{{ item.src }}"
+    dest: "{{ item.dest | regex_replace('^~', ansible_env.HOME) }}"
+    mode: "0644"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    force: yes
+  loop: "{{ bindu_files }}"
+  loop_control:
+    label: "{{ item.src }} → {{ item.dest | regex_replace('^~', ansible_env.HOME) }}"
+  when: (bindu_files | length) > 0

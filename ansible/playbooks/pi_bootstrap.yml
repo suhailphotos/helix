@@ -1,24 +1,25 @@
-- name: Bootstrap Raspberry Pi (Debian-based)
+# playbooks/pi_bootstrap.yml
+
+- name: System bootstrap (sudo)
   hosts: wisp
   gather_facts: yes
   become: yes
-
   roles:
     - { role: linux_bootstrap, tags: ['bootstrap'] }
     - { role: rpi_basics,      tags: ['rpi'] }
+    - { role: starship,        tags: ['starship'] }   # installs the binary
 
-    # Light shell/runtime setup (safe on Pi)
-    - { role: bindu_config_repo, tags: ['bindu','config'] }
-    - { role: orbit,             tags: ['orbit'] }
-    - { role: zsh_orbit,         tags: ['zsh','orbit'] }
-    - { role: starship,          tags: ['starship'] }
-    - { role: eza,               tags: ['eza'] }
-    - { role: home_shims,        tags: ['home','dotfiles'] }
-    - { role: tmux_setup,        tags: ['tmux'] }
+- name: User bootstrap (~suhail, no sudo)
+  hosts: wisp
+  gather_facts: yes
+  become: no
+  roles:
+    # use EITHER your selective downloader OR your repo clone (not both)
+    - { role: bindu_selective,    tags: ['bindu','config'] }
+    # - { role: bindu_config_repo,   tags: ['bindu','config'] }
 
-    # Optional (comment in later if you want Neovim + tooling on the Pi)
-    - { role: nvim,    tags: ['nvim'] }
-    - { role: yazi,    tags: ['yazi'] }
-    # - { role: uv,      tags: ['uv'] }
-    # - { role: pixi,    tags: ['pixi'] }
-    # - { role: cargo_crates, tags: ['cargo'] }
+    - { role: home_shims,          tags: ['home','dotfiles'] }
+    - { role: eza,                 tags: ['eza'] }
+    - { role: tmux_setup,          tags: ['tmux'] }
+    - { role: nvim,                tags: ['nvim'] }
+    - { role: yazi,                tags: ['yazi'] }

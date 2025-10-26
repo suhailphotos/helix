@@ -70,3 +70,20 @@ default_locale: "C.UTF-8"
 # if you prefer en_US.UTF-8, also generate it (harmless to leave as-is)
 generate_locales:
   - "en_US.UTF-8 UTF-8"
+
+bindu_raw_base: "https://raw.githubusercontent.com/suhailphotos/bindu/refs/heads/main"
+
+bindu_selective_files:
+  - { src: "bat/config",              dest: "~/.config/bat/config" }
+  - { src: "eza/theme.yml",           dest: "~/.config/eza/theme.yml" }
+  - { src: "gh/config.yml",           dest: "~/.config/gh/config.yml" }
+  - { src: "gh/hosts.yml",            dest: "~/.config/gh/hosts.yml" }   # NOTE: only keep if sanitized (no tokens)
+  - { src: "git/config",              dest: "~/.config/git/config" }
+  - { src: "git/ignore",              dest: "~/.config/git/ignore" }
+  - { src: "htop/htoprc",             dest: "~/.config/htop/htoprc" }
+  - { src: "pip/pip.conf",            dest: "~/.config/pip/pip.conf" }
+  - { src: "starship/starship.toml",  dest: "~/.config/starship/starship.toml" }
+  - { src: "tmux/tmux.conf",          dest: "~/.config/tmux/tmux.conf" }
+  - { src: "yazi/keymap.toml",        dest: "~/.config/yazi/keymap.toml" }
+  - { src: "yazi/theme.toml",         dest: "~/.config/yazi/theme.toml" }
+  - { src: "yazi/yazi.toml",          dest: "~/.config/yazi/yazi.toml" }
