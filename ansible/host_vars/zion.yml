@@ -1,0 +1,2 @@
+use_selective_configs: true
+starship_profile: "starship_pve.toml"

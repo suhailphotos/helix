@@ -77,13 +77,52 @@ bindu_selective_files:
   - { src: "bat/config",              dest: "~/.config/bat/config" }
   - { src: "eza/theme.yml",           dest: "~/.config/eza/theme.yml" }
   - { src: "gh/config.yml",           dest: "~/.config/gh/config.yml" }
-  - { src: "gh/hosts.yml",            dest: "~/.config/gh/hosts.yml" }   # NOTE: only keep if sanitized (no tokens)
+  - { src: "gh/hosts.yml",            dest: "~/.config/gh/hosts.yml" }   # keep only if sanitized
   - { src: "git/config",              dest: "~/.config/git/config" }
   - { src: "git/ignore",              dest: "~/.config/git/ignore" }
   - { src: "htop/htoprc",             dest: "~/.config/htop/htoprc" }
   - { src: "pip/pip.conf",            dest: "~/.config/pip/pip.conf" }
-  - { src: "starship/starship.toml",  dest: "~/.config/starship/starship.toml" }
+
+  # Choose per-host file via `starship_profile`
+  - { src: "starship/{{ starship_profile | default('starship_rpi.toml') }}",
+      dest: "~/.config/starship/starship.toml" }
+
   - { src: "tmux/tmux.conf",          dest: "~/.config/tmux/tmux.conf" }
-  - { src: "yazi/keymap.toml",        dest: "~/.config/yazi/keymap.toml" }
-  - { src: "yazi/theme.toml",         dest: "~/.config/yazi/theme.toml" }
-  - { src: "yazi/yazi.toml",          dest: "~/.config/yazi/yazi.toml" }
+
+
+# Where to pull NVIM files from (your raw GitHub)
+nvim_raw_base: "{{ bindu_raw_base }}/nvim"
+
+# EXACT files to copy (no yazi)
+nvim_selective_files:
+  # plugin specs
+  - { src: "lua/suhail/lazy/telescope.lua",   dest: "~/.config/nvim/lua/suhail/lazy/telescope.lua" }
+  - { src: "lua/suhail/lazy/treesitter.lua",  dest: "~/.config/nvim/lua/suhail/lazy/treesitter.lua" }
+  - { src: "lua/suhail/lazy/devicons.lua",    dest: "~/.config/nvim/lua/suhail/lazy/devicons.lua" }
+  - { src: "lua/suhail/lazy/undotree.lua",    dest: "~/.config/nvim/lua/suhail/lazy/undotree.lua" }
+  - { src: "lua/suhail/lazy/fugitive.lua",    dest: "~/.config/nvim/lua/suhail/lazy/fugitive.lua" }
+  - { src: "lua/suhail/lazy/tmux_nav.lua",    dest: "~/.config/nvim/lua/suhail/lazy/tmux_nav.lua" }
+  - { src: "lua/suhail/lazy/clipboard.lua",   dest: "~/.config/nvim/lua/suhail/lazy/clipboard.lua" }
+  - { src: "lua/suhail/lazy/iris.lua",        dest: "~/.config/nvim/lua/suhail/lazy/iris.lua" }
+
+  # bootstrap + helpers those specs rely on
+  - { src: "lua/suhail/lazy_init.lua",             dest: "~/.config/nvim/lua/suhail/lazy_init.lua" }
+  - { src: "lua/suhail/ui/telescope_nvchad.lua",   dest: "~/.config/nvim/lua/suhail/ui/telescope_nvchad.lua" }
+
+  # core keymaps/options
+  - { src: "lua/suhail/remap.lua",  dest: "~/.config/nvim/lua/suhail/remap.lua" }
+  - { src: "lua/suhail/set.lua",    dest: "~/.config/nvim/lua/suhail/set.lua" }
+
+  # theme picker keys
+  - { src: "lua/suhail/keys/theme.lua", dest: "~/.config/nvim/lua/suhail/keys/theme.lua" }
+
+# What the templated plugin list should include (edit later if you want more)
+nvim_lazy_modules:
+  - "suhail.lazy.iris"
+  - "suhail.lazy.devicons"
+  - "suhail.lazy.telescope"
+  - "suhail.lazy.treesitter"
+  - "suhail.lazy.tmux_nav"
+  - "suhail.lazy.clipboard"
+  - "suhail.lazy.undotree"
+  - "suhail.lazy.fugitive"

@@ -13,4 +13,9 @@ rpi_disable_ssh_passwords: true
 rpi_enable_i2c: false
 rpi_enable_spi: false
 
+# Disable Yazi
 yazi_enabled: false
+
+# Only copy seletive starship config file
+use_selective_configs: true
+starship_profile: "starship_rpi.toml"

@@ -14,12 +14,10 @@
   gather_facts: yes
   become: no
   roles:
-    # use EITHER your selective downloader OR your repo clone (not both)
-    - { role: bindu_selective,    tags: ['bindu','config'] }
-    # - { role: bindu_config_repo,   tags: ['bindu','config'] }
-
-    - { role: home_shims,          tags: ['home','dotfiles'] }
-    - { role: eza,                 tags: ['eza'] }
-    - { role: tmux_setup,          tags: ['tmux'] }
-    - { role: nvim,                tags: ['nvim'] }
-    - { role: yazi,                tags: ['yazi'] }
+    - { role: bindu_selective,  tags: ['bindu','config'] }  # leave for non-nvim files
+    - { role: bash_starship,    tags: ['starship','bash'] }
+    - { role: home_shims,       tags: ['home','dotfiles'] }
+    - { role: eza,              tags: ['eza'] }
+    - { role: tmux_setup,       tags: ['tmux'] }
+    - { role: nvim_selective,   tags: ['nvim'] }
+    - { role: yazi,             tags: ['yazi'] }

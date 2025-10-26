@@ -1,0 +1,124 @@
+---
+- name: Defaults
+  set_fact:
+    # Raw base for your NVIM files (e.g. https://raw.githubusercontent.com/.../nvim)
+    nvim_raw_base: "{{ nvim_raw_base | default(bindu_raw_base ~ '/nvim') }}"
+    nvim_lazy_modules: >-
+      {{ nvim_lazy_modules
+         | default([
+           'suhail.lazy.iris',
+           'suhail.lazy.devicons',
+           'suhail.lazy.telescope',
+           'suhail.lazy.treesitter',
+           'suhail.lazy.tmux_nav',
+           'suhail.lazy.clipboard',
+           'suhail.lazy.undotree',
+           'suhail.lazy.fugitive',
+         ]) }}
+    nvim_files: "{{ nvim_selective_files | default([]) }}"
+    nvim_init_path: "{{ ansible_env.HOME }}/.config/nvim/init.lua"
+    nvim_lazy_init_path: "{{ ansible_env.HOME }}/.config/nvim/lua/suhail/lazy/init.lua"
+
+# --------------------- deps (Linux only; macOS handled by your brew role) ---------------------
+- block:
+    - name: Install minimal deps for Neovim (Debian/Ubuntu)
+      become: yes
+      apt:
+        name:
+          - neovim
+          - git
+          - ripgrep
+          - fd-find
+          - build-essential
+          - unzip
+        state: present
+        update_cache: yes
+
+    - name: Ensure fd alias exists (fdfind → fd)
+      become: yes
+      file:
+        src: /usr/bin/fdfind
+        dest: /usr/local/bin/fd
+        state: link
+      when: ansible_facts.distribution in ['Ubuntu','Debian'] and
+            ansible_facts.pkg_mgr == 'apt' and
+            (ansible_facts.env is not defined or ansible_facts.env is not defined or True)  # keep simple
+      failed_when: false
+  when: ansible_facts.os_family == "Debian"
+
+# --------------------- ensure dirs ---------------------
+- name: Collect destination directories
+  set_fact:
+    nvim_dest_dirs: >-
+      {{
+        ([nvim_init_path, nvim_lazy_init_path] +
+         (nvim_files | map(attribute='dest') | list))
+        | map('regex_replace', '^~', ansible_env.HOME)
+        | map('dirname')
+        | unique
+      }}
+
+- name: Ensure destination directories exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ nvim_dest_dirs }}"
+
+# --------------------- copy raw files ---------------------
+- name: Download Neovim files from GitHub raw
+  get_url:
+    url:  "{{ nvim_raw_base }}/{{ item.src }}"
+    dest: "{{ item.dest | regex_replace('^~', ansible_env.HOME) }}"
+    mode: "0644"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    force: yes
+  loop: "{{ nvim_files }}"
+  loop_control:
+    label: "{{ item.src }} → {{ item.dest }}"
+
+# --------------------- template the two init files ---------------------
+- name: Template top-level init.lua
+  template:
+    src: "init.lua.j2"
+    dest: "{{ nvim_init_path }}"
+    mode: "0644"
+
+- name: Template plugin list (lua/suhail/lazy/init.lua)
+  template:
+    src: "lazy_init.lua.j2"
+    dest: "{{ nvim_lazy_init_path }}"
+    mode: "0644"
+
+# --------------------- niceties ---------------------
+- name: Ensure Vim undodir exists
+  file:
+    path: "{{ ansible_env.HOME }}/.vim/undodir"
+    state: directory
+    mode: "0755"
+
+# --------------------- headless prime ---------------------
+- name: Check for nvim binary
+  command: bash -lc 'command -v nvim'
+  register: nvim_cmd
+  changed_when: false
+  failed_when: false
+
+- name: Prime plugins (lazy sync)
+  when: nvim_cmd.rc == 0 and not ansible_check_mode
+  shell: |
+    nvim --headless "+Lazy! sync" "+qa"
+  args: { executable: /bin/bash }
+  changed_when: false
+  failed_when: false
+
+- name: Treesitter update (sync)
+  when: nvim_cmd.rc == 0 and not ansible_check_mode
+  shell: |
+    nvim --headless "+TSUpdateSync" "+qa"
+  args: { executable: /bin/bash }
+  changed_when: false
+  failed_when: false
+
+

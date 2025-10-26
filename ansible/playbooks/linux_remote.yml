@@ -5,17 +5,29 @@
 
   roles:
     - { role: linux_bootstrap,   tags: ['linux_bootstrap','bootstrap'] }
-    - { role: bindu_config_repo, tags: ['bindu','config'] }
+
+    # Full config (Bindu repo) for normal machines
+    - { role: bindu_config_repo, when: not (use_selective_configs | default(false)) | bool, tags: ['bindu','config'] }
+
+    # Selective files for lightweight machines
+    - { role: bindu_selective,   when: (use_selective_configs | default(false)) | bool,     tags: ['bindu','config'] }
+
     - { role: orbit,             tags: ['orbit'] }
     - { role: zoxide,            tags: ['zoxide'] }
     - { role: zsh_orbit,         tags: ['zsh','orbit'] }
     - { role: starship,          tags: ['starship','prompt'] }
+    - { role: bash_starship,     tags: ['starship','bash'] }   # <-- ensures STARSHIP_CONFIG in ~/.bashrc
+
     - { role: eza,               tags: ['eza'] }
     - { role: yazi,              tags: ['yazi'] }
     - { role: home_shims,        tags: ['home','dotfiles'] }
     - { role: tmux_setup,        tags: ['tmux'] }
-    - { role: pixi, tags: ['pixi'] }     # only if you’ll manage tools via pixi on Linux
-    - { role: uv,   tags: ['uv'] }       # if uv_projects_linux is non-empty
+    - { role: pixi,              tags: ['pixi'] }
+    - { role: uv,                tags: ['uv'] }
     - { role: cargo_crates,      tags: ['cargo'] }
+
+    # NVIM: full on normal boxes, selective on lightweight
+    - { role: nvim,              when: not (use_selective_configs | default(false)) | bool, tags: ['nvim'] }
+    - { role: nvim_selective,    when: (use_selective_configs | default(false)) | bool,     tags: ['nvim'] }
+
     - { role: atrium_stow,       tags: ['atrium','stow'] }
-    - { role: nvim,              tags: ['nvim'] }
