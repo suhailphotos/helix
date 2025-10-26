@@ -26,3 +26,9 @@ all:
           ansible_host: "2603:8001:a000:100::cafe"
           ansible_user: root
           identity_file: "~/.ssh/lab_zion"
+        # --- Raspberry Pi 5 ---
+        wisp:
+          # ansible_host: wisp.local     # use this if mDNS works
+          ansible_user: suhail
+          # If mDNS doesn't resolve yet, swap the above for the IPv6 you used:
+          ansible_host: "2603:8001:a000:102:5e33:727b:d9e9:95fc"

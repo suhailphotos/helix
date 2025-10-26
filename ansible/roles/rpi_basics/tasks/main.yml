@@ -1,0 +1,86 @@
+---
+# Raspberry Pi niceties that sit on top of your linux_bootstrap
+
+- name: Ensure baseline packages (Pi-friendly)
+  become: yes
+  apt:
+    name:
+      - avahi-daemon      # mDNS: lets you use wisp.local
+      - git
+      - curl
+      - vim
+      - tmux
+      - htop
+      - net-tools
+      - unzip
+      - python3-pip
+      - python3-venv
+      - build-essential
+    state: present
+    update_cache: yes
+
+# --- Detect & install exactly one vcgencmd provider without noisy errors ---
+
+- name: Detect available vcgencmd provider (raspi-utils first)
+  become: yes
+  shell: |
+    set -e
+    for p in raspi-utils raspi-utils-dt libraspberrypi-bin; do
+      if apt-cache show "$p" >/dev/null 2>&1; then
+        echo "$p"
+        exit 0
+      fi
+    done
+    exit 1
+  args: { executable: /bin/bash }
+  register: vcg_pkg
+  changed_when: false
+
+- name: Fail if no vcgencmd provider found in APT
+  fail:
+    msg: "No package found that provides vcgencmd (tried raspi-utils, raspi-utils-dt, libraspberrypi-bin). Check Pi OS repos."
+  when: vcg_pkg.rc != 0
+
+- name: Install vcgencmd provider
+  become: yes
+  apt:
+    name: "{{ vcg_pkg.stdout }}"
+    state: present
+    update_cache: yes
+
+- name: Verify vcgencmd exists
+  command: bash -lc 'command -v vcgencmd'
+  register: vcgencmd_check
+  changed_when: false
+
+
+
+- name: Enable & start Avahi for mDNS
+  become: yes
+  systemd:
+    name: avahi-daemon
+    state: started
+    enabled: yes
+
+- name: Set timezone
+  become: yes
+  community.general.timezone:
+    name: "{{ rpi_timezone | default('America/Los_Angeles') }}"
+
+
+# Optional: enable I2C / SPI via raspi-config (only on Raspberry Pi OS)
+- name: Check for raspi-config
+  become: yes
+  stat:
+    path: /usr/bin/raspi-config
+  register: rpi_cfg
+
+- name: Enable I2C
+  when: rpi_cfg.stat.exists and (rpi_enable_i2c | default(false) | bool)
+  become: yes
+  command: raspi-config nonint do_i2c 0
+
+- name: Enable SPI
+  when: rpi_cfg.stat.exists and (rpi_enable_spi | default(false) | bool)
+  become: yes
+  command: raspi-config nonint do_spi 0

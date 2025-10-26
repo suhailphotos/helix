@@ -1,0 +1,24 @@
+- name: Bootstrap Raspberry Pi (Debian-based)
+  hosts: wisp
+  gather_facts: yes
+  become: yes
+
+  roles:
+    - { role: linux_bootstrap, tags: ['bootstrap'] }
+    - { role: rpi_basics,      tags: ['rpi'] }
+
+    # Light shell/runtime setup (safe on Pi)
+    - { role: bindu_config_repo, tags: ['bindu','config'] }
+    - { role: orbit,             tags: ['orbit'] }
+    - { role: zsh_orbit,         tags: ['zsh','orbit'] }
+    - { role: starship,          tags: ['starship'] }
+    - { role: eza,               tags: ['eza'] }
+    - { role: home_shims,        tags: ['home','dotfiles'] }
+    - { role: tmux_setup,        tags: ['tmux'] }
+
+    # Optional (comment in later if you want Neovim + tooling on the Pi)
+    - { role: nvim,    tags: ['nvim'] }
+    - { role: yazi,    tags: ['yazi'] }
+    # - { role: uv,      tags: ['uv'] }
+    # - { role: pixi,    tags: ['pixi'] }
+    # - { role: cargo_crates, tags: ['cargo'] }

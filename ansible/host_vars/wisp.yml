@@ -1,0 +1,14 @@
+# Make the system default en_US.UTF-8 (fixes your login warnings)
+default_locale: "en_US.UTF-8"
+generate_locales:
+  - "en_US.UTF-8 UTF-8"
+
+# Timezone
+rpi_timezone: "America/Los_Angeles"
+
+# Optional: turn off SSH password logins once your key works
+rpi_disable_ssh_passwords: true
+
+# Optional: enable hardware interfaces automatically
+rpi_enable_i2c: false
+rpi_enable_spi: false
