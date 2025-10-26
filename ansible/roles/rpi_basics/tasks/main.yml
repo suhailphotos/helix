@@ -19,10 +19,24 @@
     state: present
     update_cache: yes
 
+- name: Disable SSH password logins (optional)
+  when: rpi_disable_ssh_passwords | default(false) | bool
+  become: yes
+  copy:
+    dest: /etc/ssh/sshd_config.d/50-no-passwords.conf
+    content: "PasswordAuthentication no\n"
+    mode: "0644"
+
+- name: Reload sshd to apply auth changes
+  become: yes
+  command: systemctl reload ssh
+  changed_when: false
+
 # --- Detect & install exactly one vcgencmd provider without noisy errors ---
 
 - name: Detect available vcgencmd provider (raspi-utils first)
   become: yes
+  check_mode: no          # <— run even with --check
   shell: |
     set -e
     for p in raspi-utils raspi-utils-dt libraspberrypi-bin; do
@@ -39,7 +53,7 @@
 - name: Fail if no vcgencmd provider found in APT
   fail:
     msg: "No package found that provides vcgencmd (tried raspi-utils, raspi-utils-dt, libraspberrypi-bin). Check Pi OS repos."
-  when: vcg_pkg.rc != 0
+  when: vcg_pkg is not defined or vcg_pkg.rc != 0
 
 - name: Install vcgencmd provider
   become: yes
@@ -47,12 +61,14 @@
     name: "{{ vcg_pkg.stdout }}"
     state: present
     update_cache: yes
+  when:
+    - vcg_pkg is defined
+    - (vcg_pkg.stdout | default('')) | length > 0
 
 - name: Verify vcgencmd exists
   command: bash -lc 'command -v vcgencmd'
   register: vcgencmd_check
   changed_when: false
-
 
 
 - name: Enable & start Avahi for mDNS

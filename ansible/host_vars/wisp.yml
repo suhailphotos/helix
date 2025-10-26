@@ -7,7 +7,7 @@ generate_locales:
 rpi_timezone: "America/Los_Angeles"
 
 # Optional: turn off SSH password logins once your key works
-rpi_disable_ssh_passwords: true
+rpi_disable_ssh_passwords: false
 
 # Optional: enable hardware interfaces automatically
 rpi_enable_i2c: false
