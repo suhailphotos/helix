@@ -17,11 +17,11 @@ all:
     linux:
       hosts:
         flicker:
-          ansible_host: flicker.suhail.tech
+          ansible_host: flicker.suhail.ink
         nimbus:
-          ansible_host: nimbus.suhail.tech
+          ansible_host: nimbus.suhail.ink
         nexus:
-          ansible_host: nexus.suhail.tech
+          ansible_host: nexus.suhail.ink
         zion:
           ansible_host: "2603:8001:a000:100::cafe"
           ansible_user: root
