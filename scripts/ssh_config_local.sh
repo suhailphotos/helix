@@ -34,6 +34,11 @@ GITHUB_1PASSWORD=0
 INSTALL_1P_AGENT_CONFIG=0
 GITHUB_ADD_KEY=0
 
+# NEW: classic GitHub key (Linux, no 1Password agent)
+GITHUB_KEY=0
+GITHUB_KEY_PATH="${GITHUB_KEY_PATH:-$HOME/.ssh/id_github}"
+
+
 print_usage() {
   cat <<'EOF'
 Generate ~/.ssh/config and per-host snippets from your Ansible inventory.
@@ -70,6 +75,7 @@ Flags
   --github-1password            Create ~/.1password/agent.sock symlink (macOS) and write ~/.ssh/config.d/10-github.conf
   --install-1p-agent-config     Copy ~/.config/.../agent.toml to 1Password's sandbox path and chmod 600 (macOS)
   --github-add-key              Add "op://security/GitHub/public key" to your GitHub account (idempotent)
+  --github-key PATH              Write Host github.com using IdentityFile PATH (e.g. ~/.ssh/id_github)
 
   -h, --help                    Show help
 EOF
@@ -90,6 +96,11 @@ while [[ $# -gt 0 ]]; do
     --github-1password) GITHUB_1PASSWORD=1 ;;
     --install-1p-agent-config) INSTALL_1P_AGENT_CONFIG=1 ;;
     --github-add-key) GITHUB_ADD_KEY=1 ;;
+    --github-key)
+      GITHUB_KEY=1
+      GITHUB_KEY_PATH="${2:-$HOME/.ssh/id_github}"
+      shift
+      ;;
     -h|--help) print_usage; exit 0 ;;
     --) shift; break ;;
     *) echo "Unknown flag: $1" >&2; print_usage; exit 2 ;;
@@ -273,6 +284,22 @@ Match all
 SNIP
 )"
   write_if_changed "$GITHUB_SNIP" "$GITHUB_CONTENT"
+fi
+
+# Classic GitHub host using a dedicated key (Linux, no 1Password agent)
+if [[ $GITHUB_KEY -eq 1 ]]; then
+  GITHUB_CLASSIC_SNIP="$SSH_DIR/config.d/10-github-classic.conf"
+  GITHUB_CLASSIC_CONTENT="$(cat <<SNIP
+# Managed by helix ssh_config_local.sh
+# GitHub (classic key)
+Host github.com
+  HostName github.com
+  User git
+  IdentityFile ${GITHUB_KEY_PATH}
+  IdentitiesOnly yes
+SNIP
+)"
+  write_if_changed "$GITHUB_CLASSIC_SNIP" "$GITHUB_CLASSIC_CONTENT"
 fi
 
 # -----------------------------
