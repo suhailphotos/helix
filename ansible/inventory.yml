@@ -35,7 +35,7 @@ all:
           ansible_user: root
           identity_file: "~/.ssh/id_proxmox"
 
-        tba-node:                               # placeholder for third Proxmox node
+        summit:                               # placeholder for third Proxmox node
           ansible_host: summit.suhail.ink     # or IPv6
           ansible_user: root
           identity_file: "~/.ssh/id_proxmox"
