@@ -14,22 +14,37 @@ all:
         feather:
           ansible_connection: local
           ansible_python_interpreter: /usr/bin/python3
+
     linux:
       hosts:
         flicker:
           ansible_host: flicker.suhail.ink
+          identity_file: "~/.ssh/id_proxmox"
         nimbus:
           ansible_host: nimbus.suhail.ink
+          identity_file: "~/.ssh/id_proxmox"
         nexus:
           ansible_host: nexus.suhail.ink
+          identity_file: "~/.ssh/id_proxmox"
+
+        # --- Proxmox nodes (shared client key) ---
         zion:
           ansible_host: "2603:8001:a000:100::cafe"
           ansible_user: root
-          identity_file: "~/.ssh/lab_zion"
+          identity_file: "~/.ssh/id_proxmox"
+
+        atlas:
+          ansible_host: atlas.suhail.ink        # update to real IP / v6 when ready
+          ansible_user: root
+          identity_file: "~/.ssh/id_proxmox"
+
+        tba-node:                               # placeholder for third Proxmox node
+          ansible_host: summit.suhail.ink     # or IPv6
+          ansible_user: root
+          identity_file: "~/.ssh/id_proxmox"
+
         # --- Raspberry Pi 5 ---
         wisp:
-          # ansible_host: wisp.local     # use this if mDNS works
-          # If mDNS doesn't resolve yet, swap the above for the IPv6 you used:
           ansible_host: "2603:8001:a000:100:98ec:d450:be2:8caa"
           ansible_user: suhail
-
+          identity_file: "~/.ssh/id_proxmox"
