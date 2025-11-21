@@ -31,12 +31,12 @@ all:
           identity_file: "~/.ssh/id_proxmox"
 
         atlas:
-          ansible_host: atlas.suhail.ink        # update to real IP / v6 when ready
+          ansible_host: "2603:8001:a000:100::babe"
           ansible_user: root
           identity_file: "~/.ssh/id_proxmox"
 
         summit:                               # placeholder for third Proxmox node
-          ansible_host: summit.suhail.ink     # or IPv6
+          ansible_host: "2603:8001:a000:100::beef"    # or IPv6
           ansible_user: root
           identity_file: "~/.ssh/id_proxmox"
 
