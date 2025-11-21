@@ -11,6 +11,7 @@
     update: yes          # pull updates if already cloned
     force: yes           # keep this repo clean; runtime-only
     accept_hostkey: yes
+  when: ORBIT_REMOTE is defined
 
 # Optional: just warn if Dropbox dev tree isn't present yet (don’t modify it)
 - name: Check if Dropbox dev Orbit exists

@@ -105,7 +105,7 @@
     accept_hostkey: yes
     force: yes
 
-# Ensure we track origin/{{ bindu_branch }}
+# Ensure we track origin
 - name: Ensure we track origin/{{ bindu_branch }}
   shell: |
     set -e

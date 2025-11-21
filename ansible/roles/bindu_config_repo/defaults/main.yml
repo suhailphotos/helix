@@ -1,0 +1,4 @@
+---
+# Default branch for the Bindu config repo.
+# This will be overridden by any value you already set in group_vars/host_vars.
+bindu_branch: main
