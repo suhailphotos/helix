@@ -8,7 +8,7 @@ all:
         quasar:
           ansible_connection: local
           ansible_python_interpreter: /usr/bin/python3
-          ansible_host: "2603:8001:a000:101:1460:2dd5:67b2:1d9c"
+          ansible_host: "2603:8001:a000:101:1080:1811:2dd8:c0b6"
           ansible_user: suhail
           identity_file: "~/.ssh/id_quasar"
         feather:
