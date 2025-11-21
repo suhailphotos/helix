@@ -16,11 +16,10 @@
     - { role: zoxide,            tags: ['zoxide'] }
     - { role: zsh_orbit,         tags: ['zsh','orbit'] }
     - { role: starship,          tags: ['starship','prompt'] }
+    - { role: home_shims,        tags: ['home','dotfiles'] }
     - { role: bash_starship,     tags: ['starship','bash'] }   # <-- ensures STARSHIP_CONFIG in ~/.bashrc
-
     - { role: eza,               tags: ['eza'] }
     - { role: yazi,              tags: ['yazi'] }
-    - { role: home_shims,        tags: ['home','dotfiles'] }
     - { role: tmux_setup,        tags: ['tmux'] }
     - { role: pixi,              tags: ['pixi'] }
     - { role: uv,                tags: ['uv'] }
