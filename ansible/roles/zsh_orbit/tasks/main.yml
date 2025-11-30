@@ -9,7 +9,7 @@
 - name: Install ~/.zshrc that sources Orbit and configures history
   template:
     src: zshrc.j2
-    dest: "{{ ansible_user_dir }}/.zshrc"
+    dest: "~/.zshrc"
     mode: "0644"
     backup: yes
   become: false

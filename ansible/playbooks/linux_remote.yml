@@ -2,7 +2,7 @@
 - name: Bootstrap Linux basics (Ubuntu/Debian) remotely
   hosts: linux
   gather_facts: yes
-  become: yes    # root for system packages, locales, etc.
+  become: yes    # root for system stuff
 
   roles:
     - { role: linux_bootstrap,   tags: ['linux_bootstrap','bootstrap'] }
@@ -17,8 +17,7 @@
     - { role: zsh_orbit,
         when: (use_zsh_shell | default(false)) | bool,
         vars: { install_zsh: true },
-        tags: ['zsh','orbit'],
-        become: false }
+        tags: ['zsh','orbit'] }
 
     # Shell-agnostic bits (OK on bash or zsh)
     - { role: zoxide,            tags: ['zoxide'] }
