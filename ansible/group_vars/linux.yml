@@ -20,6 +20,7 @@ uv_projects_linux: []
 zoxide_allow_install_script: false
 
 apt_packages:
+  - stow
   - neovim         # <— missing before
   - nodejs         # typescript-language-server runtime
   - unzip          # Mason extracts zips on Linux
