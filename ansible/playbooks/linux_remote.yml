@@ -1,3 +1,4 @@
+# playbooks/linux_remote.yml
 - name: Bootstrap Linux basics (Ubuntu/Debian) remotely
   hosts: linux
   gather_facts: yes
@@ -12,12 +13,15 @@
     # Selective files for lightweight machines
     - { role: bindu_selective,   when: (use_selective_configs | default(false)) | bool,     tags: ['bindu','config'] }
 
-    - { role: orbit,             tags: ['orbit'] }
+    # ZSH / Orbit only on dev boxes
+    - { role: orbit,     when: (use_zsh_shell | default(false)) | bool, tags: ['orbit'] }
+    - { role: zsh_orbit, when: (use_zsh_shell | default(false)) | bool, tags: ['zsh','orbit'] }
+
+    # Shell-agnostic bits (OK on bash or zsh)
     - { role: zoxide,            tags: ['zoxide'] }
-    - { role: zsh_orbit,         tags: ['zsh','orbit'] }
     - { role: starship,          tags: ['starship','prompt'] }
     - { role: home_shims,        tags: ['home','dotfiles'] }
-    - { role: bash_starship,     tags: ['starship','bash'] }   # <-- ensures STARSHIP_CONFIG in ~/.bashrc
+    - { role: bash_starship,     tags: ['starship','bash'] }
     - { role: eza,               tags: ['eza'] }
     - { role: yazi,              tags: ['yazi'] }
     - { role: tmux_setup,        tags: ['tmux'] }

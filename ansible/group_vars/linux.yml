@@ -1,3 +1,5 @@
+# group_vars/linux.yml
+
 helix_repo_raw_base: "https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main"
 helix_dotfiles_raw_base: "{{ helix_repo_raw_base }}/dotfiles"
 matrix_root: "{{ lookup('env','MATRIX') | default('/home/' + ansible_user + '/Dropbox/matrix', true) }}"

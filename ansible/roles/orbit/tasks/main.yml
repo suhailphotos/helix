@@ -1,15 +1,16 @@
+# roles/orbit/tasks/main.yml
 # Manage ONLY the runtime clone that your shell sources.
 # Dev copy in Dropbox is user-managed (sync) and left untouched.
 
-- name: Ensure runtime Orbit (~/.orbit) exists & is on origin/main (clean)
+- name: Ensure runtime Orbit (~/.orbit) exists (bootstrap only)
   git:
     repo: "{{ ORBIT_REMOTE }}"
     dest: "{{ ORBIT_HOME | default(ansible_env.HOME + '/.orbit') }}"
     version: "{{ ORBIT_BRANCH | default('main') }}"
     depth: 1
     single_branch: yes
-    update: yes          # pull updates if already cloned
-    force: yes           # keep this repo clean; runtime-only
+    update: no           # let zsh handle updates
+    force: no            # don't stomp on whatever the shell does
     accept_hostkey: yes
   when: ORBIT_REMOTE is defined
 

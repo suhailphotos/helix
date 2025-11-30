@@ -4,6 +4,3 @@ ORBIT_REMOTE: "https://github.com/suhailphotos/orbit.git"
 ORBIT_BRANCH: "main"
 
 use_zsh_shell: true
-
-bindu_branch: "main"
-# bindu_remote: "git@github.com:suhailphotos/bindu.git"  # if you prefer SSH

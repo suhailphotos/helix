@@ -10,22 +10,43 @@ if [[ -o interactive && ! -o login && -r "$HOME/.zprofile" ]]; then
   source "$HOME/.zprofile"
 fi
 
-# --- Orbit bootstrap (branch-pinned, repo-local)
+# ----------------------------
+# History: persist across SSH
+# ----------------------------
+HISTFILE="${ZDOTDIR:-$HOME}/.zsh_history"
+HISTSIZE=${HISTSIZE:-200000}
+SAVEHIST=${SAVEHIST:-200000}
+
+setopt APPEND_HISTORY          # append instead of overwriting
+setopt INC_APPEND_HISTORY      # write each command immediately
+setopt SHARE_HISTORY           # share history between shells
+setopt HIST_IGNORE_DUPS        # skip duplicate commands
+setopt HIST_IGNORE_SPACE       # ignore commands starting with space
+setopt HIST_REDUCE_BLANKS      # trim extra spaces
+setopt EXTENDED_HISTORY        # timestamps + exit status
+setopt HIST_VERIFY             # show expanded command before running
+
+# If you ever want to share bash's history file:
+# HISTFILE="${ZDOTDIR:-$HOME}/.bash_history"
+# (but separate files are usually nicer)
+
+# ----------------------------
+# Orbit bootstrap (branch-pinned, repo-local)
+# ----------------------------
 export ORBIT_HOME="${ORBIT_HOME:-$HOME/.orbit}"
 export ORBIT_REMOTE="${ORBIT_REMOTE:-https://github.com/suhailphotos/orbit.git}"
-export ORBIT_BRANCH="${ORBIT_BRANCH:-main}"     # <-- pick per-machine
+export ORBIT_BRANCH="${ORBIT_BRANCH:-main}"     # can be overridden per-machine
 export ORBIT_UPDATE_STRATEGY="${ORBIT_UPDATE_STRATEGY:-hard-reset}"  # hard-reset | ff-only
 
-# First-time install
+# First-time install / update
 if [[ ! -d "$ORBIT_HOME/.git" ]]; then
   git clone --quiet --depth 1 --branch "$ORBIT_BRANCH" "$ORBIT_REMOTE" "$ORBIT_HOME"
 else
-  # Ensure local checkout tracks the branch named above and update it
   (
     cd "$ORBIT_HOME" || exit 0
     git fetch --quiet origin
 
-    # Switch/create local branch that tracks origin/$ORBIT_BRANCH
+    # ensure local branch tracks origin/$ORBIT_BRANCH
     if git show-ref --verify --quiet "refs/heads/$ORBIT_BRANCH"; then
       git switch --quiet "$ORBIT_BRANCH" 2>/dev/null || git checkout -q "$ORBIT_BRANCH"
     else
@@ -33,7 +54,6 @@ else
         2>/dev/null || git checkout -q -B "$ORBIT_BRANCH" "origin/$ORBIT_BRANCH"
     fi
 
-    # Update to remote
     case "$ORBIT_UPDATE_STRATEGY" in
       hard-reset) git reset --hard --quiet "origin/$ORBIT_BRANCH" ;;
       ff-only)    git merge --ff-only --quiet "origin/$ORBIT_BRANCH" || true ;;
@@ -43,4 +63,3 @@ fi
 
 # Source Orbit
 source "$ORBIT_HOME/core/bootstrap.zsh"
-

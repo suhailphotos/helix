@@ -1,5 +1,11 @@
 ---
-- name: Install minimal ~/.zshrc that sources Orbit
+- name: Ensure zsh is installed on dev boxes
+  package:
+    name: zsh
+    state: present
+  become: yes
+
+- name: Install minimal ~/.zshrc that sources Orbit and configures history
   template:
     src: zshrc.j2
     dest: "{{ ansible_env.HOME }}/.zshrc"
