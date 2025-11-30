@@ -1,15 +1,15 @@
 ---
-- name: Ensure zsh is installed on dev boxes (optional)
+- name: Ensure zsh is installed (optional)
   package:
     name: zsh
     state: present
   become: yes
-  when: install_zsh | default(true) | bool
+  when: install_zsh | default(false) | bool
 
 - name: Install ~/.zshrc that sources Orbit and configures history
   template:
     src: zshrc.j2
-    dest: "{{ ansible_env.HOME }}/.zshrc"
+    dest: "{{ ansible_user_dir }}/.zshrc"
     mode: "0644"
     backup: yes
-  become: false   # IMPORTANT: write into the user's home, not root's
+  become: false

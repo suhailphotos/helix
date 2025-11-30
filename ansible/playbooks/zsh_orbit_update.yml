@@ -1,0 +1,10 @@
+# playbooks/zsh_orbit_update.yml
+- name: Update Orbit ~/.zshrc only (no sudo, no packages)
+  hosts: linux
+  gather_facts: yes
+  become: false
+
+  roles:
+    - role: zsh_orbit
+      vars:
+        install_zsh: false

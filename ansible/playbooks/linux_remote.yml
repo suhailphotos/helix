@@ -13,14 +13,10 @@
     # Selective files for lightweight machines
     - { role: bindu_selective,   when: (use_selective_configs | default(false)) | bool,     tags: ['bindu','config'] }
 
-    # ZSH / Orbit only on dev boxes (run as user for dotfiles/clone)
-    - { role: orbit,
-        when: (use_zsh_shell | default(false)) | bool,
-        tags: ['orbit'],
-        become: false }
-
+    # ZSH / Orbit only on dev boxes
     - { role: zsh_orbit,
         when: (use_zsh_shell | default(false)) | bool,
+        vars: { install_zsh: true },
         tags: ['zsh','orbit'],
         become: false }
 
