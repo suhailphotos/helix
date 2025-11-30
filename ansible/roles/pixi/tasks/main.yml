@@ -4,14 +4,17 @@
   meta: end_host
   when: ansible_system not in ["Darwin", "Linux"]
 
-# 1) Work out the real user home (not /root when using become)
-- name: Compute user home for pixi
-  set_fact:
-    user_home: "{{ ansible_user_dir | default(ansible_env.HOME) }}"
+# 1) Detect the real user HOME (non-root), independent of become
+- name: Detect real user home for pixi
+  become: false
+  shell: 'printf %s "$HOME"'
+  register: pixi_home_raw
+  changed_when: false
 
-# 2) Now compute pixi paths using user_home
+# 2) Compute user-scoped paths for pixi using that HOME
 - name: Compute user-scoped paths for pixi
   set_fact:
+    user_home: "{{ pixi_home_raw.stdout | default(ansible_env.HOME) }}"
     pixi_hosts_dir: "{{ pixi_hosts_dir | default(user_home + '/.config/pixi/hosts') }}"
     pixi_bin_dir: "{{ user_home }}/.pixi/bin"
 
@@ -34,8 +37,7 @@
   args:
     executable: /bin/bash
   environment:
-    # make sure installer sees the *user* home, not /root
-    HOME: "{{ user_home }}"
+    HOME: "{{ user_home }}"   # <- force installer to use the real user home
     PATH: "/opt/homebrew/bin:/usr/local/bin:{{ ansible_env.PATH }}"
 
 - name: Ensure ~/.pixi/manifests exists (for Stow target)
