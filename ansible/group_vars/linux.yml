@@ -2,8 +2,12 @@
 
 helix_repo_raw_base: "https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main"
 helix_dotfiles_raw_base: "{{ helix_repo_raw_base }}/dotfiles"
-matrix_root: "{{ lookup('env','MATRIX') | default('/home/' + ansible_user + '/Dropbox/matrix', true) }}"
+
+# On Linux, anchor matrix under the *remote* $HOME.
+# No controller MATRIX/DROPBOX, so macOS paths don't leak in.
+matrix_root: "{{ ansible_env.HOME + '/Dropbox/matrix' }}"
 matrix_packages_dir: "{{ matrix_root }}/packages"
+
 houdini_python_patch: "3.11.7"
 nvim_src_rel: "nvim/.config/nvim"
 

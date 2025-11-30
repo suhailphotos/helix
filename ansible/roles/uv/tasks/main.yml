@@ -1,7 +1,17 @@
 ---
+# 1) Host-level gate: only run uv on hosts that explicitly opt in
+- name: uv disabled on this host - skipping uv role
+  debug:
+    msg: "uv is not enabled on this host (uv_enabled != true); skipping uv role."
+  when: not (uv_enabled | default(false))
+
+- meta: end_host
+  when: not (uv_enabled | default(false))
+
+# 2) Compute paths and project list (macOS vs Linux)
 - name: Compute paths and project list
   set_fact:
-    matrix_root: "{{ matrix_root | default(lookup('env','MATRIX') | default(ansible_env.HOME + '/Library/CloudStorage/Dropbox/matrix', true)) }}"
+    # matrix_root comes from group_vars/macos.yml or group_vars/linux.yml
     matrix_packages_dir: "{{ matrix_packages_dir | default(matrix_root + '/packages') }}"
     uv_projects: >-
       {{ uv_projects | default((uv_projects_macos | default([])) if ansible_system == 'Darwin'
@@ -10,26 +20,63 @@
     uv_pin_map: "{{ uv_python_pin_map | default({'3.11': (houdini_python_patch | default('3.11.7'))}) }}"
     uv_default_minor: "{{ uv_default_minor | default('3.11') }}"
 
+# 3) Build PATH for uv (mac vs linux)
 - name: Build PATH for uv
   set_fact:
-    uv_path_env: "/opt/homebrew/bin:/usr/local/bin:{{ ansible_env.HOME }}/.local/bin:{{ ansible_env.PATH }}"
+    uv_path_env: >-
+      {{ ("/opt/homebrew/bin:/usr/local/bin:" if ansible_system == 'Darwin' else "") ~
+         ansible_env.HOME ~ "/.local/bin:" ~ ansible_env.PATH }}
 
-# Ensure uv is present (you already install via Homebrew in macOS bootstrap; keep your existing tasks)
+# 4) Detect uv binary
+- name: Detect uv binary
+  command: "command -v uv"
+  register: uv_cmd
+  changed_when: false
+  failed_when: false
+  environment:
+    PATH: "{{ uv_path_env }}"
 
+- name: uv not installed - skipping uv role on this host
+  debug:
+    msg: "uv binary not found in PATH; skipping uv role on this host."
+  when: uv_cmd.rc != 0
+
+- meta: end_host
+  when: uv_cmd.rc != 0
+
+# 5) Check Dropbox/matrix (matrix_root/packages) is available
+- name: Check if matrix_packages_dir exists
+  stat:
+    path: "{{ matrix_packages_dir }}"
+  register: matrix_pkgs_stat
+
+- name: Dropbox/matrix not available - skipping uv on this host
+  debug:
+    msg: "matrix_packages_dir {{ matrix_packages_dir }} does not exist; Dropbox/matrix not ready, skipping uv."
+  when: not matrix_pkgs_stat.stat.exists
+
+- meta: end_host
+  when: not matrix_pkgs_stat.stat.exists
+
+# 6) Ensure default interpreter exists in UV store
 - name: Ensure default interpreter exists in UV store
   shell: |
     set -e
     ver="{{ uv_pin_map[uv_default_minor] | default(uv_default_minor) }}"
     uv python find "$ver" >/dev/null 2>&1 || uv python install "$ver"
-  args: { executable: /bin/bash }
-  environment: { PATH: "{{ uv_path_env }}" }
+  args:
+    executable: /bin/bash
+  environment:
+    PATH: "{{ uv_path_env }}"
 
+# 7) Ensure ~/.venvs exists
 - name: Ensure ~/.venvs exists
   file:
     path: "{{ ansible_env.HOME }}/.venvs"
     state: directory
     mode: "0755"
 
+# 8) Iterate per-project (only when uv + Dropbox/matrix are available)
 - name: Iterate projects
   include_tasks: per_project.yml
   loop: "{{ uv_projects }}"

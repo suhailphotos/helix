@@ -4,3 +4,4 @@ ORBIT_REMOTE: "https://github.com/suhailphotos/orbit.git"
 ORBIT_BRANCH: "main"
 
 use_zsh_shell: true
+uv_enabled: false

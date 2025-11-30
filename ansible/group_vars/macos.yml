@@ -73,6 +73,9 @@ uv_python_pin_map:
 # Optional override for python if pyproject doesn't specify clearly:
 houdini_python_patch: "3.11.7"
 
+# Enable uv role on all macOS hosts
+uv_enabled: true
+
 # Pixi defaults (can be left implicit)
 # pixi_hosts_dir: "{{ ansible_env.HOME }}/.config/pixi/hosts"
 
