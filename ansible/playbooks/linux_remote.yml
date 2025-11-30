@@ -2,7 +2,7 @@
 - name: Bootstrap Linux basics (Ubuntu/Debian) remotely
   hosts: linux
   gather_facts: yes
-  become: yes
+  become: yes    # root for system packages, locales, etc.
 
   roles:
     - { role: linux_bootstrap,   tags: ['linux_bootstrap','bootstrap'] }
@@ -13,9 +13,16 @@
     # Selective files for lightweight machines
     - { role: bindu_selective,   when: (use_selective_configs | default(false)) | bool,     tags: ['bindu','config'] }
 
-    # ZSH / Orbit only on dev boxes
-    - { role: orbit,     when: (use_zsh_shell | default(false)) | bool, tags: ['orbit'] }
-    - { role: zsh_orbit, when: (use_zsh_shell | default(false)) | bool, tags: ['zsh','orbit'] }
+    # ZSH / Orbit only on dev boxes (run as user for dotfiles/clone)
+    - { role: orbit,
+        when: (use_zsh_shell | default(false)) | bool,
+        tags: ['orbit'],
+        become: false }
+
+    - { role: zsh_orbit,
+        when: (use_zsh_shell | default(false)) | bool,
+        tags: ['zsh','orbit'],
+        become: false }
 
     # Shell-agnostic bits (OK on bash or zsh)
     - { role: zoxide,            tags: ['zoxide'] }

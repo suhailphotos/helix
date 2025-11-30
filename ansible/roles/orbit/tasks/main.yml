@@ -10,9 +10,10 @@
     depth: 1
     single_branch: yes
     update: no           # let zsh handle updates
-    force: no            # don't stomp on whatever the shell does
+    force: no            # don't stomp whatever the shell does
     accept_hostkey: yes
   when: ORBIT_REMOTE is defined
+  become: false          # IMPORTANT: run as the user, not root
 
 # Optional: just warn if Dropbox dev tree isn't present yet (don’t modify it)
 - name: Check if Dropbox dev Orbit exists
@@ -20,8 +21,10 @@
     path: "{{ ORBIT_DEV_HOME | default('') }}"
   register: orbit_dev_dir
   when: ORBIT_DEV_HOME is defined
+  become: false
 
 - name: Warn if Dropbox dev Orbit not found (maybe still syncing)
   debug:
     msg: "ORBIT_DEV_HOME not present: {{ ORBIT_DEV_HOME }} (Dropbox may still be syncing)"
   when: ORBIT_DEV_HOME is defined and not orbit_dev_dir.stat.exists
+  become: false
