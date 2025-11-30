@@ -11,10 +11,14 @@
   register: pixi_home_raw
   changed_when: false
 
-# 2) Compute user-scoped paths for pixi using that HOME
-- name: Compute user-scoped paths for pixi
+# 2) Store user_home as a separate fact
+- name: Set user_home fact for pixi
   set_fact:
     user_home: "{{ pixi_home_raw.stdout | default(ansible_env.HOME) }}"
+
+# 3) Now compute pixi paths using user_home
+- name: Compute user-scoped paths for pixi
+  set_fact:
     pixi_hosts_dir: "{{ pixi_hosts_dir | default(user_home + '/.config/pixi/hosts') }}"
     pixi_bin_dir: "{{ user_home }}/.pixi/bin"
 
@@ -37,7 +41,8 @@
   args:
     executable: /bin/bash
   environment:
-    HOME: "{{ user_home }}"   # <- force installer to use the real user home
+    # Force installer to use the *real* user home (not /root)
+    HOME: "{{ user_home }}"
     PATH: "/opt/homebrew/bin:/usr/local/bin:{{ ansible_env.PATH }}"
 
 - name: Ensure ~/.pixi/manifests exists (for Stow target)
