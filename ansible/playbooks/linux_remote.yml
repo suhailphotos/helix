@@ -2,16 +2,25 @@
 - name: Bootstrap Linux basics (Ubuntu/Debian) remotely
   hosts: linux
   gather_facts: yes
-  become: yes    # root for system stuff
+  become: yes
 
   roles:
     - { role: linux_bootstrap,   tags: ['linux_bootstrap','bootstrap'] }
 
-    # Full config (Bindu repo) for normal machines
-    - { role: bindu_config_repo, when: not (use_selective_configs | default(false)) | bool, tags: ['bindu','config'] }
+    # Optional: upstream Neovim for hosts that need >=0.10.x
+    - { role: nvim_upstream,
+        when: (nvim_use_upstream | default(false)) | bool,
+        tags: ['nvim','nvim_upstream'] }
 
-    # Selective files for lightweight machines
-    - { role: bindu_selective,   when: (use_selective_configs | default(false)) | bool,     tags: ['bindu','config'] }
+    # Full config (Bindu repo) for normal machines
+    - { role: bindu_config_repo,
+        when: not (use_selective_configs | default(false)) | bool,
+        tags: ['bindu','config'] }
+
+    # Selective files for lightweight machines (zion / atlas / anchor)
+    - { role: bindu_selective,
+        when: (use_selective_configs | default(false)) | bool,
+        tags: ['bindu','config'] }
 
     # ZSH / Orbit only on dev boxes
     - { role: zsh_orbit,
@@ -25,14 +34,39 @@
     - { role: home_shims,        tags: ['home','dotfiles'] }
     - { role: bash_starship,     tags: ['starship','bash'] }
     - { role: eza,               tags: ['eza'] }
-    - { role: yazi,              tags: ['yazi'] }
+
+    # Only install Yazi when explicitly enabled (default true for old hosts)
+    - { role: yazi,
+        when: (yazi_enabled | default(true)) | bool,
+        tags: ['yazi'] }
+
     - { role: tmux_setup,        tags: ['tmux'] }
-    - { role: pixi,              tags: ['pixi'] }
-    - { role: uv,                tags: ['uv'] }
+    - { role: pixi,
+        when: (pixi_enabled | default(true)) | bool,
+        tags: ['pixi'] }
+
+    # UV only when enabled (anchor keeps this false)
+    - { role: uv,
+        when: (uv_enabled | default(false)) | bool,
+        tags: ['uv'] }
+
     - { role: cargo_crates,      tags: ['cargo'] }
 
     # NVIM: full on normal boxes, selective on lightweight
-    - { role: nvim,              when: not (use_selective_configs | default(false)) | bool, tags: ['nvim'] }
-    - { role: nvim_selective,    when: (use_selective_configs | default(false)) | bool,     tags: ['nvim'] }
+    - { role: nvim,
+        when: not (use_selective_configs | default(false)) | bool,
+        tags: ['nvim'] }
+
+    - { role: nvim_selective,
+        when: (use_selective_configs | default(false)) | bool,
+        tags: ['nvim'] }
 
     - { role: atrium_stow,       tags: ['atrium','stow'] }
+
+    # NEW: UniFi controller via APT, only where unifi_controller: true
+    - { role: unifi_controller,
+        when: (unifi_controller | default(false)) | bool,
+        tags: ['unifi'] }
+    - { role: docker_engine,
+        when: (docker_enabled | default(false)) | bool,
+        tags: ['docker'] }

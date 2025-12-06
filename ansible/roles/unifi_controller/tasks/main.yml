@@ -1,0 +1,42 @@
+---
+- name: Ensure base packages for UniFi install
+  become: yes
+  apt:
+    name:
+      - ca-certificates
+      - apt-transport-https
+      - curl
+    state: present
+    update_cache: yes
+
+- name: Download UniFi "latest" installer script (GlennR)
+  become: yes
+  get_url:
+    url: "https://get.glennr.nl/unifi/install/install_latest/unifi-latest.sh"
+    dest: "/root/unifi-latest.sh"
+    mode: "0755"
+
+# Make this idempotent: only run if UniFi isn't already installed.
+# /usr/lib/unifi is the standard install location.
+- name: Run UniFi installer (non-interactive, no swap)
+  become: yes
+  shell: "bash /root/unifi-latest.sh --skip --skip-swap"
+  args:
+    chdir: "/root"
+    creates: "/usr/lib/unifi"
+
+- name: Ensure UniFi service is enabled and running
+  become: yes
+  systemd:
+    name: unifi
+    enabled: yes
+    state: started
+  register: unifi_systemd
+  failed_when: false
+
+- name: Show UniFi service status summary
+  debug:
+    msg: >
+      UniFi install finished. Check 'systemctl status unifi'.
+      Then open https://{{ ansible_host }}:8443 or
+      https://{{ ansible_host }}:11443 in your browser.

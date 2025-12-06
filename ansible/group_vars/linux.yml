@@ -19,9 +19,15 @@ uv_projects_linux: []
 
 zoxide_allow_install_script: false
 
+# pixi: on by default for normal Linux boxes
+pixi_enabled: true
+
+# Use upstream Neovim tarball (GitHub releases) on all Linux nodes
+nvim_use_upstream: true
+
 apt_packages:
   - stow
-  - neovim         # <— missing before
+ #- neovim         # <— missing before
   - nodejs         # typescript-language-server runtime
   - unzip          # Mason extracts zips on Linux
   - git

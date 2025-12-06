@@ -1,5 +1,22 @@
+# --- Clean up any stale NodeSource config so apt can run cleanly ---
+- name: Remove old NodeSource list/sources if present
+  become: yes
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/apt/sources.list.d/nodesource.list
+    - /etc/apt/sources.list.d/nodesource.sources
+
+- name: Remove old NodeSource lines from /etc/apt/sources.list if any
+  become: yes
+  ansible.builtin.lineinfile:
+    path: /etc/apt/sources.list
+    regexp: 'deb .*deb.nodesource.com'
+    state: absent
 
 - name: Ensure apt cache is up-to-date
+  become: yes
   apt:
     update_cache: yes
     cache_valid_time: 3600
@@ -13,21 +30,25 @@
 # Ensure Ubuntu 'universe' (and updates/security) are enabled
 - block:
     - name: Enable universe
+      become: yes
       apt_repository:
         repo: "deb http://archive.ubuntu.com/ubuntu {{ ansible_distribution_release }} universe"
         state: present
 
     - name: Enable universe -updates
+      become: yes
       apt_repository:
         repo: "deb http://archive.ubuntu.com/ubuntu {{ ansible_distribution_release }}-updates universe"
         state: present
 
     - name: Enable universe -security
+      become: yes
       apt_repository:
         repo: "deb http://security.ubuntu.com/ubuntu {{ ansible_distribution_release }}-security universe"
         state: present
 
     - name: apt update after adding repos
+      become: yes
       apt:
         update_cache: yes
         cache_valid_time: 0
@@ -35,7 +56,9 @@
     - ansible_distribution == "Ubuntu"
     - not ubuntu_sources.stat.exists
 
-- name: Remove duplicate legacy .list files when DEB822 is present
+# Remove Linode legacy mirror .list files to avoid duplicate 'universe' entries
+- name: Remove duplicate legacy .list files
+  become: yes
   file:
     path: "{{ item }}"
     state: absent
@@ -44,33 +67,49 @@
     - /etc/apt/sources.list.d/security_ubuntu_com_ubuntu.list
   when:
     - ansible_distribution == "Ubuntu"
-    - ubuntu_sources.stat.exists
 
-# --- Node.js (with npm) from NodeSource so we avoid Debian's npm dependency tangle ---
+# --- Optional: Node.js from NodeSource via official setup script ---
 - block:
-    - name: Add NodeSource GPG key
-      get_url:
-        url: https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key
-        dest: /usr/share/keyrings/nodesource.gpg
-        mode: "0644"
+    - name: Ensure curl is installed (for NodeSource setup)
       become: yes
-
-    - name: Add NodeSource repo (Node 20.x LTS)
-      apt_repository:
-        filename: nodesource
-        repo: "deb [signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main"
+      ansible.builtin.apt:
+        name: curl
         state: present
         update_cache: yes
-      become: yes
 
-    - name: Ensure nodejs (includes npm) is present
-      apt:
+    - name: Download NodeSource setup script (Node.js 20.x)
+      become: yes
+      ansible.builtin.get_url:
+        url: https://deb.nodesource.com/setup_20.x
+        dest: /tmp/nodesource_setup.sh
+        mode: '0755'
+
+    - name: Run NodeSource setup script (adds repo & key)
+      become: yes
+      ansible.builtin.command: /tmp/nodesource_setup.sh
+      args:
+        creates: /etc/apt/sources.list.d/nodesource.list
+
+    - name: Install Node.js from NodeSource
+      become: yes
+      ansible.builtin.apt:
         name: nodejs
         state: present
-      become: yes
-  when: ansible_distribution == "Ubuntu"
+        update_cache: yes
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - install_node_from_nodesource | default(false)
+
+- name: apt update after adding repos
+  become: yes
+  ansible.builtin.apt:
+    update_cache: yes
+    cache_valid_time: 0
+  register: apt_update_after_repos
+  failed_when: false
 
 - name: Install baseline packages on Linux
+  become: yes
   apt:
     name: "{{ apt_packages }}"
     state: present
@@ -78,6 +117,7 @@
 # --- System UTF-8 locale (Debian/Ubuntu) ---
 - block:
     - name: Ensure requested locales are present in /etc/locale.gen
+      become: yes
       lineinfile:
         path: /etc/locale.gen
         regexp: '^#?\s*{{ item }}$'
@@ -86,15 +126,17 @@
       when: (generate_locales | default([])) | length > 0
 
     - name: Run locale-gen if we touched /etc/locale.gen
+      become: yes
       command: locale-gen
       when: (generate_locales | default([])) | length > 0
 
     - name: Set system default UTF-8 locale
+      become: yes
       command: "update-locale LANG={{ default_locale }} LC_CTYPE={{ default_locale }}"
   when: ansible_facts.os_family == "Debian"
 
 # roles/linux_bootstrap/tasks/main.yml (after apt install)
-# Remember to initiate zoxide `eval "$(zoxide init zsh --cmd cd)"`
+# Remember to initiate zoxide `eval \"$(zoxide init zsh --cmd cd)\"`
 - name: Stat /usr/bin/bat
   stat: { path: /usr/bin/bat }
   register: bat_bin

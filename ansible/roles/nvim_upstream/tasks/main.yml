@@ -1,0 +1,56 @@
+---
+# roles/nvim_upstream/tasks/main.yml
+
+# 1) Map Ansible arch to Neovim's archive label, without extra spaces
+- name: Set Neovim arch label
+  set_fact:
+    nvim_arch_label: >-
+      {{ 'x86_64'
+         if ansible_architecture in ['x86_64', 'amd64']
+         else 'arm64'
+         if ansible_architecture in ['aarch64', 'arm64']
+         else 'x86_64'
+      }}
+
+# 2) Ensure /opt exists (parent dir)
+- name: Ensure /opt exists
+  become: yes
+  file:
+    path: /opt
+    state: directory
+    mode: "0755"
+
+# 3) Ensure target dir exists
+- name: Ensure /opt/nvim-linux-{{ nvim_arch_label }} exists
+  become: yes
+  file:
+    path: "/opt/nvim-linux-{{ nvim_arch_label }}"
+    state: directory
+    mode: "0755"
+
+# 4) Download latest Neovim tarball
+- name: Download latest Neovim for {{ nvim_arch_label }}
+  become: yes
+  get_url:
+    url: "https://github.com/neovim/neovim/releases/latest/download/nvim-linux-{{ nvim_arch_label }}.tar.gz"
+    dest: "/opt/nvim-linux-{{ nvim_arch_label }}.tar.gz"
+    mode: "0644"
+
+# 5) Extract into /opt/nvim-linux-ARCH (overwrite = upgrade on rerun)
+- name: Extract Neovim archive into /opt/nvim-linux-{{ nvim_arch_label }}
+  become: yes
+  unarchive:
+    src: "/opt/nvim-linux-{{ nvim_arch_label }}.tar.gz"
+    dest: "/opt/nvim-linux-{{ nvim_arch_label }}"
+    remote_src: yes
+    extra_opts:
+      - "--strip-components=1"
+
+# 6) Symlink /usr/local/bin/nvim to upstream Neovim
+- name: Symlink /usr/local/bin/nvim to upstream Neovim
+  become: yes
+  file:
+    src: "/opt/nvim-linux-{{ nvim_arch_label }}/bin/nvim"
+    dest: /usr/local/bin/nvim
+    state: link
+    force: yes

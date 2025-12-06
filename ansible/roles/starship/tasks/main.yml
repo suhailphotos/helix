@@ -6,23 +6,30 @@
     state: present
     path: "{{ brew_bin | default('/opt/homebrew/bin/brew') }}"
 
-- name: Install Starship on Debian/Ubuntu via apt (best-effort)
-  when: ansible_facts.os_family == "Debian"
-  become: yes
-  apt:
-    name: starship
-    state: present
-    update_cache: yes
-  register: starship_apt
-  failed_when: false
-
-# Fallback: official installer to ~/.local/bin (only if apt not available / failed)
 - name: Install Starship via official script (fallback)
-  when: ansible_facts.os_family != "Darwin"
-        and (starship_apt is not defined or starship_apt is failed or starship_apt is skipped)
+  when:
+    - ansible_facts.os_family == "Debian"
+    - starship_apt is not defined
+      or starship_apt.rc | default(1) != 0
+  become: yes
   shell: |
     set -e
     curl -fsSL https://starship.rs/install.sh -o /tmp/install_starship.sh
-    sh /tmp/install_starship.sh -y -b "{{ ansible_env.HOME }}/.local/bin"
-  args: { executable: /bin/bash }
-  changed_when: false
+    sh /tmp/install_starship.sh -y -b /usr/local/bin
+  args:
+    executable: /bin/bash
+  changed_when: true
+
+# Fallback: official installer (if apt missing or no starship package)
+- name: Install Starship via official script (fallback)
+  when:
+    - ansible_facts.os_family == "Debian"
+    - starship_apt is not defined or starship_apt.rc != 0
+  become: yes
+  shell: |
+    set -e
+    curl -fsSL https://starship.rs/install.sh -o /tmp/install_starship.sh
+    sh /tmp/install_starship.sh -y -b /usr/local/bin
+  args:
+    executable: /bin/bash
+  changed_when: true
