@@ -139,3 +139,17 @@ nvim_lazy_modules:
   - "suhail.lazy.clipboard"
   - "suhail.lazy.undotree"
   - "suhail.lazy.fugitive"
+
+  # --- Dropbox daemon defaults (Linux) ---
+
+# Off by default; enable per-host in host_vars.
+dropbox_enabled: false
+
+# Which user should own and run Dropbox
+dropbox_user: "{{ ansible_user | default('root') }}"
+
+# Home for that user (anchor uses root → /root)
+dropbox_home: "{{ (dropbox_user == 'root') | ternary('/root', '/home/' + dropbox_user) }}"
+
+# Optional exclude list – usually overridden per host
+dropbox_excludes: []

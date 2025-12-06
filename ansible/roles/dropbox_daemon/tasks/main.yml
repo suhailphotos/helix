@@ -1,0 +1,70 @@
+---
+# roles/dropbox_daemon/tasks/main.yml
+
+- name: Ensure Dropbox prerequisites are installed
+  become: yes
+  apt:
+    name:
+      - ca-certificates
+      - wget
+      - python3
+    state: present
+    update_cache: yes
+
+# This matches:
+#   cd ~
+#   wget -O - "https://www.dropbox.com/download?plat=lnx.x86_64" | tar xzf -
+- name: Download and extract Dropbox daemon for {{ dropbox_user }}
+  become: yes
+  become_user: "{{ dropbox_user }}"
+  shell: |
+    set -e
+    cd "{{ dropbox_home }}"
+    wget -O - "https://www.dropbox.com/download?plat=lnx.x86_64" | tar xzf -
+  args:
+    creates: "{{ dropbox_home }}/.dropbox-dist/dropboxd"
+
+# CLI helper:
+#   wget -O ~/dropbox.py "https://www.dropbox.com/download?dl=packages/dropbox.py"
+#   chmod +x ~/dropbox.py
+#   sudo mv ~/dropbox.py /usr/local/bin/dropbox
+- name: Install Dropbox CLI helper to /usr/local/bin/dropbox
+  become: yes
+  get_url:
+    url: "https://www.dropbox.com/download?dl=packages/dropbox.py"
+    dest: "/usr/local/bin/dropbox"
+    mode: "0755"
+
+# systemd service for Dropbox daemon
+- name: Install dropbox systemd service
+  become: yes
+  template:
+    src: dropbox.service.j2
+    dest: /etc/systemd/system/dropbox.service
+    mode: "0644"
+
+- name: Reload systemd daemon for Dropbox
+  become: yes
+  systemd:
+    daemon_reload: yes
+
+- name: Enable and start Dropbox service
+  become: yes
+  systemd:
+    name: dropbox.service
+    enabled: yes
+    state: started
+
+# Optional exclude list – best-effort (don’t fail play if Dropbox isn’t linked yet)
+- name: Configure Dropbox exclude list (best-effort)
+  become: yes
+  become_user: "{{ dropbox_user }}"
+  shell: |
+    set -e
+    cd "{{ dropbox_home }}/Dropbox"
+    dropbox exclude add {{ dropbox_excludes | join(' ') }}
+  when:
+    - dropbox_excludes | length > 0
+  register: dropbox_exclude_cmd
+  failed_when: false
+  changed_when: "'Excluded:' in dropbox_exclude_cmd.stdout"

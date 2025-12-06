@@ -1,0 +1,14 @@
+[Unit]
+Description=Dropbox Daemon ({{ dropbox_user }})
+After=network.target
+
+[Service]
+Type=simple
+User={{ dropbox_user }}
+ExecStart={{ dropbox_home }}/.dropbox-dist/dropboxd
+ExecStop=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

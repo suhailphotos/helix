@@ -7,6 +7,11 @@
   roles:
     - { role: linux_bootstrap,   tags: ['linux_bootstrap','bootstrap'] }
 
+    # Dropbox daemon (only when enabled per-host)
+    - { role: dropbox_daemon,
+        when: (dropbox_enabled | default(false)) | bool,
+        tags: ['dropbox'] }
+
     # Optional: upstream Neovim for hosts that need >=0.10.x
     - { role: nvim_upstream,
         when: (nvim_use_upstream | default(false)) | bool,

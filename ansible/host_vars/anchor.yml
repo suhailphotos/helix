@@ -18,3 +18,17 @@ unifi_enabled: false
 unifi_use_mongodb36: false
 
 docker_enabled: true
+
+# --- Dropbox on anchor (for docker-compose in ~/Dropbox) ---
+dropbox_enabled: true
+dropbox_user: "root"
+dropbox_home: "/root"
+
+# Folders under ~/Dropbox to exclude from sync on this node
+dropbox_excludes:
+  - movies
+  - pictures
+  - shared
+  - threeD
+  - appData
+  - appSettings
