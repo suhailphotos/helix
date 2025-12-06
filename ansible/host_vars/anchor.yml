@@ -1,0 +1,26 @@
+# host_vars/anchor.yml
+# Cloud node: Unifi controller style, minimal dev setup.
+
+# Use the lightweight config path in playbooks/linux_remote.yml:
+# - bindu_selective instead of full bindu_config_repo
+# - nvim_selective instead of full nvim
+use_selective_configs: true
+
+# Don't turn this into a dev shell box
+use_zsh_shell: false        # skip zsh_orbit
+
+# Yazi file manager not needed here
+yazi_enabled: false
+
+# Don't install extra Rust dev tools on this node
+cargo_crates_linux: []
+
+# uv on Linux is off by default (uv_enabled not set in group_vars/linux.yml),
+# but we make it explicit so it's obvious from one file:
+uv_enabled: false
+
+# Optional: re-use your “server-ish” Starship profile if you want a nice prompt
+starship_profile: "starship_anchor.toml"   # or starship_anchor.toml if you add one in Bindu
+
+# Placeholder for future Unifi role gating
+unifi_controller: true
