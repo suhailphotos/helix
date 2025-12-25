@@ -62,7 +62,7 @@
 # macOS path (brew)
 # -----------------------
 - name: macOS | install prerequisites (optional)
-  when: ansible_system == "Darwin" and yazi_manage_prereqs
+  when: ansible_facts['system'] == "Darwin" and yazi_manage_prereqs
   community.general.homebrew:
     name:
       - ffmpeg
@@ -80,7 +80,7 @@
     path: "{{ brew_bin | default('/opt/homebrew/bin/brew') }}"
 
 - name: macOS | install yazi
-  when: ansible_system == "Darwin" and yazi_cmd.rc != 0
+  when: ansible_facts['system'] == "Darwin" and yazi_cmd.rc != 0
   community.general.homebrew:
     name: yazi
     state: present

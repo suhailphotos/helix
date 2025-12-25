@@ -10,7 +10,7 @@
 # ===== Legacy toolchain (pyenv/pipx/poetry) — OFF unless enable_legacy_py: true =====
 - block:
     - name: Install pyenv via Homebrew (macOS) when legacy_py is enabled
-      when: ansible_system == "Darwin"
+      when: ansible_facts['system'] == "Darwin"
       community.general.homebrew:
         name: pyenv
         state: present
@@ -89,7 +89,7 @@
 # Build PATH for uv (mac & linux)
 - name: Build PATH for uv (mac & linux)
   set_fact:
-    uv_path_env: "/opt/homebrew/bin:/usr/local/bin:{{ ansible_env.HOME }}/.local/bin:{{ ansible_env.PATH }}"
+    uv_path_env: "/opt/homebrew/bin:/usr/local/bin:{{ ansible_facts['env']['HOME'] }}/.local/bin:{{ ansible_env.PATH }}"
 
 # Decide minor + pin map first
 - name: Decide uv host interpreter minor & pin map for nvim

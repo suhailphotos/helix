@@ -40,7 +40,7 @@
       shell: |
         set -e
         export PATH="{{ poetry_path_env }}"
-        pe="${PYENV_ROOT:-{{ ansible_env.HOME }}/.pyenv}/versions"
+        pe="${PYENV_ROOT:-{{ ansible_facts['env']['HOME'] }}/.pyenv}/versions"
         spec='{{ python_spec }}'
         prefer='{{ houdini_python_patch }}'
 
@@ -73,7 +73,7 @@
       args: { executable: /bin/bash, chdir: "{{ pkg_dir }}" }
       environment:
         PATH: "{{ poetry_path_env }}"
-        PYENV_ROOT: "{{ pyenv_root.stdout | default(ansible_env.HOME + '/.pyenv') }}"
+        PYENV_ROOT: "{{ pyenv_root.stdout | default(ansible_facts['env']['HOME'] + '/.pyenv') }}"
       register: chosen_python
       changed_when: false
 

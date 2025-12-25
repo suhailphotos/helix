@@ -14,10 +14,10 @@
 
 # IMPORTANT:
 # Do NOT use `expanduser` here — that expands on the *controller*.
-# Resolve "~" to the *remote* HOME using ansible_env.HOME.
+# Resolve "~" to the *remote* HOME using ansible_facts['env']['HOME'].
 - name: Ensure parent dirs exist
   file:
-    path: "{{ (item.dest | regex_replace('^~', ansible_env.HOME)) | dirname }}"
+    path: "{{ (item.dest | regex_replace('^~', ansible_facts['env']['HOME'])) | dirname }}"
     state: directory
     mode: "0755"
     owner: "{{ ansible_user }}"
@@ -30,12 +30,12 @@
 - name: Download config files from Bindu (GitHub raw)
   get_url:
     url:  "{{ bindu_raw_base }}/{{ item.src }}"
-    dest: "{{ item.dest | regex_replace('^~', ansible_env.HOME) }}"
+    dest: "{{ item.dest | regex_replace('^~', ansible_facts['env']['HOME']) }}"
     mode: "0644"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     force: yes
   loop: "{{ bindu_files }}"
   loop_control:
-    label: "{{ item.src }} → {{ item.dest | regex_replace('^~', ansible_env.HOME) }}"
+    label: "{{ item.src }} → {{ item.dest | regex_replace('^~', ansible_facts['env']['HOME']) }}"
   when: (bindu_files | length) > 0

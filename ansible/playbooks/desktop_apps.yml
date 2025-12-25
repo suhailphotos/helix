@@ -8,7 +8,7 @@
       meta: end_host
       when:
         - ansible_connection == 'local'
-        - (ansible_hostname | lower) != (inventory_hostname | lower)
+        - (ansible_facts['hostname'] | lower) != (inventory_hostname | lower)
 
   roles:
     - { role: desktop_apps, tags: ['desktop_apps','apps'] }

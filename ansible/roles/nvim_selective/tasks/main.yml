@@ -16,8 +16,8 @@
            'suhail.lazy.fugitive',
          ]) }}
     nvim_files: "{{ nvim_selective_files | default([]) }}"
-    nvim_init_path: "{{ ansible_env.HOME }}/.config/nvim/init.lua"
-    nvim_lazy_init_path: "{{ ansible_env.HOME }}/.config/nvim/lua/suhail/lazy/init.lua"
+    nvim_init_path: "{{ ansible_facts['env']['HOME'] }}/.config/nvim/init.lua"
+    nvim_lazy_init_path: "{{ ansible_facts['env']['HOME'] }}/.config/nvim/lua/suhail/lazy/init.lua"
 
 # --------------------- deps (Linux only; macOS handled by your brew role) ---------------------
 - block:
@@ -53,7 +53,7 @@
       {{
         ([nvim_init_path, nvim_lazy_init_path] +
          (nvim_files | map(attribute='dest') | list))
-        | map('regex_replace', '^~', ansible_env.HOME)
+        | map('regex_replace', '^~', ansible_facts['env']['HOME'])
         | map('dirname')
         | unique
       }}
@@ -69,7 +69,7 @@
 - name: Download Neovim files from GitHub raw
   get_url:
     url:  "{{ nvim_raw_base }}/{{ item.src }}"
-    dest: "{{ item.dest | regex_replace('^~', ansible_env.HOME) }}"
+    dest: "{{ item.dest | regex_replace('^~', ansible_facts['env']['HOME']) }}"
     mode: "0644"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
@@ -94,7 +94,7 @@
 # --------------------- niceties ---------------------
 - name: Ensure Vim undodir exists
   file:
-    path: "{{ ansible_env.HOME }}/.vim/undodir"
+    path: "{{ ansible_facts['env']['HOME'] }}/.vim/undodir"
     state: directory
     mode: "0755"
 

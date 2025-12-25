@@ -5,8 +5,8 @@
     helix_remote: "{{ helix_remote | default('https://github.com/suhailphotos/helix.git') }}"
     helix_main_branch: "{{ helix_main_branch | default('main') }}"
     helix_config_branch: "{{ helix_config_branch | default('config') }}"
-    helix_repo_dir: "{{ helix_home | default(ansible_env.HOME + '/.helix') }}"
-    config_dir: "{{ ansible_env.HOME }}/.config"
+    helix_repo_dir: "{{ helix_home | default(ansible_facts['env']['HOME'] + '/.helix') }}"
+    config_dir: "{{ ansible_facts['env']['HOME'] }}/.config"
 
 # Ensure runtime helix exists (shallow clone on main)
 - name: Ensure runtime helix exists

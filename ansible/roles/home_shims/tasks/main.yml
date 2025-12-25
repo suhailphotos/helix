@@ -12,7 +12,7 @@
 
 - name: Stat existing home dotfiles (per-item, skip .bashrc on macOS)
   stat:
-    path: "{{ ansible_env.HOME }}/{{ item }}"
+    path: "{{ ansible_facts['env']['HOME'] }}/{{ item }}"
   loop: "{{ home_shims_backup_list }}"
   register: home_shims_stats
   changed_when: false
@@ -47,27 +47,27 @@
   when: home_shims_install_tmux_shim | default(true) | bool
   template:
     src: tmux.conf.j2
-    dest: "{{ ansible_env.HOME }}/.tmux.conf"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.tmux.conf"
     mode: "0644"
 
 # Awk shim → points to ~/.config/awk/.awkrc
 - name: Install ~/.awkrc shim
   template:
     src: awkrc.j2
-    dest: "{{ ansible_env.HOME }}/.awkrc"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.awkrc"
     mode: "0644"
 
 # Curl shim → points to ~/.config/curl/.curlrc
 - name: Install ~/.curlrc shim
   template:
     src: curlrc.j2
-    dest: "{{ ansible_env.HOME }}/.curlrc"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.curlrc"
     mode: "0644"
 
 - name: Install ~/.bashrc (Linux only)
   template:
     src: bashrc.j2
-    dest: "{{ ansible_env.HOME }}/.bashrc"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.bashrc"
     mode: "0644"
   when:
     - ansible_facts.os_family != 'Darwin'

@@ -6,9 +6,9 @@
   set_fact:
     nvim_arch_label: >-
       {{ 'x86_64'
-         if ansible_architecture in ['x86_64', 'amd64']
+         if ansible_facts['architecture'] in ['x86_64', 'amd64']
          else 'arm64'
-         if ansible_architecture in ['aarch64', 'arm64']
+         if ansible_facts['architecture'] in ['aarch64', 'arm64']
          else 'x86_64'
       }}
 

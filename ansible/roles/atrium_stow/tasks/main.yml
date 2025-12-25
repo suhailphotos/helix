@@ -33,7 +33,7 @@
 # Also remove ~/.DS_Store if it was accidentally linked earlier
 - name: Ensure ~/.DS_Store is absent
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.DS_Store"
+    path: "{{ ansible_facts['env']['HOME'] }}/.DS_Store"
     state: absent
 
 - name: Skip if atrium not found
@@ -71,7 +71,7 @@
     {{ '--adopt' if atrium_use_adopt else '' }}
     {{ '-R' if atrium_restow else '' }}
     {% for rx in stow_ignore_regexes %} --ignore='{{ rx }}' {% endfor %}
-    -t {{ ansible_env.HOME }}
+    -t {{ ansible_facts['env']['HOME'] }}
     {{ item.item }}
   args:
     chdir: "{{ atrium_root }}"
@@ -96,7 +96,7 @@
     {{ stow_bin }}
     -v -D
     {% for rx in stow_ignore_regexes %} --ignore='{{ rx }}' {% endfor %}
-    -t {{ ansible_env.HOME }}
+    -t {{ ansible_facts['env']['HOME'] }}
     {{ item.item }}
   args:
     chdir: "{{ atrium_root }}"

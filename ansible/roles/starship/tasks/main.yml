@@ -1,6 +1,6 @@
 ---
 - name: Install Starship on macOS
-  when: ansible_system == "Darwin"
+  when: ansible_facts['system'] == "Darwin"
   community.general.homebrew:
     name: starship
     state: present

@@ -4,7 +4,7 @@
   set_fact:
     crates_final: >-
       {{ (cargo_crates_common | default([]))
-         + ((cargo_crates_macos | default([])) if ansible_system == 'Darwin'
+         + ((cargo_crates_macos | default([])) if ansible_facts['system'] == 'Darwin'
             else (cargo_crates_linux | default([]))) }}
 
 # Require cargo to exist (you install rust via brew/apt elsewhere)

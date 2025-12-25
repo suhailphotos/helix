@@ -14,7 +14,7 @@
     # matrix_root comes from group_vars/macos.yml or group_vars/linux.yml
     matrix_packages_dir: "{{ matrix_packages_dir | default(matrix_root + '/packages') }}"
     uv_projects: >-
-      {{ uv_projects | default((uv_projects_macos | default([])) if ansible_system == 'Darwin'
+      {{ uv_projects | default((uv_projects_macos | default([])) if ansible_facts['system'] == 'Darwin'
                                else (uv_projects_linux | default([]))) }}
     # Map minors → pinned micros (default 3.11 → 3.11.7)
     uv_pin_map: "{{ uv_python_pin_map | default({'3.11': (houdini_python_patch | default('3.11.7'))}) }}"
@@ -24,8 +24,8 @@
 - name: Build PATH for uv
   set_fact:
     uv_path_env: >-
-      {{ ("/opt/homebrew/bin:/usr/local/bin:" if ansible_system == 'Darwin' else "") ~
-         ansible_env.HOME ~ "/.local/bin:" ~ ansible_env.PATH }}
+      {{ ("/opt/homebrew/bin:/usr/local/bin:" if ansible_facts['system'] == 'Darwin' else "") ~
+         ansible_facts['env']['HOME'] ~ "/.local/bin:" ~ ansible_env.PATH }}
 
 # 4) Detect uv binary
 - name: Detect uv binary
@@ -72,7 +72,7 @@
 # 7) Ensure ~/.venvs exists
 - name: Ensure ~/.venvs exists
   file:
-    path: "{{ ansible_env.HOME }}/.venvs"
+    path: "{{ ansible_facts['env']['HOME'] }}/.venvs"
     state: directory
     mode: "0755"
 

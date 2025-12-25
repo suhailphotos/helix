@@ -1,7 +1,7 @@
 ---
 - name: Only run on macOS
   meta: end_host
-  when: ansible_system != "Darwin"
+  when: ansible_facts['system'] != "Darwin"
 
 # Find Homebrew
 - name: Detect Homebrew (Apple Silicon path)

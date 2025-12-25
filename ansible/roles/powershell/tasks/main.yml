@@ -1,7 +1,7 @@
 ---
 - name: Only run on macOS
   meta: end_host
-  when: ansible_system != "Darwin"
+  when: ansible_facts['system'] != "Darwin"
 
 - name: Install PowerShell via Homebrew cask (deprecated, dev-only)
   when: (powershell_install_method | default('brew_cask')) == 'brew_cask'
@@ -38,13 +38,13 @@
 
 - name: Ensure PowerShell profile directory exists
   file:
-    path: "{{ ansible_env.HOME }}/Documents/PowerShell"
+    path: "{{ ansible_facts['env']['HOME'] }}/Documents/PowerShell"
     state: directory
     mode: "0755"
 
 - name: Add Apogee init to PowerShell profile (CurrentUserAllHosts)
   copy:
-    dest: "{{ ansible_env.HOME }}/Documents/PowerShell/Microsoft.PowerShell_profile.ps1"
+    dest: "{{ ansible_facts['env']['HOME'] }}/Documents/PowerShell/Microsoft.PowerShell_profile.ps1"
     mode: "0644"
     content: |
       # Apogee bootstrap

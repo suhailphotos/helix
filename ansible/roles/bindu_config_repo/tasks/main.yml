@@ -10,7 +10,7 @@
   set_fact:
     bindu_remote: "{{ bindu_remote | default('https://github.com/suhailphotos/bindu.git') }}"
     bindu_branch: "{{ bindu_branch | default('main') }}"
-    bindu_config_dir: "{{ bindu_config_dir | default(ansible_env.HOME + '/.config') }}"
+    bindu_config_dir: "{{ bindu_config_dir | default(ansible_facts['env']['HOME'] + '/.config') }}"
 
 - name: Stat ~/.config
   stat:

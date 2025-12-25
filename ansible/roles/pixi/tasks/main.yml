@@ -2,7 +2,7 @@
 ---
 - name: Only macOS/Linux
   meta: end_host
-  when: ansible_system not in ["Darwin", "Linux"]
+  when: ansible_facts['system'] not in ["Darwin", "Linux"]
 
 # 1) Detect the real user HOME (non-root), independent of become
 - name: Detect real user home for pixi
@@ -14,7 +14,7 @@
 # 2) Store user_home as a separate fact
 - name: Set user_home fact for pixi
   set_fact:
-    user_home: "{{ pixi_home_raw.stdout | default(ansible_env.HOME) }}"
+    user_home: "{{ pixi_home_raw.stdout | default(ansible_facts['env']['HOME']) }}"
 
 # 3) Now compute pixi paths using user_home
 - name: Compute user-scoped paths for pixi

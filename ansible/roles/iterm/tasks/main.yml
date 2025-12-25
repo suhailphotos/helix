@@ -1,7 +1,7 @@
 ---
 - name: Only run on macOS
   meta: end_host
-  when: ansible_system != "Darwin"
+  when: ansible_facts['system'] != "Darwin"
 
 - name: Ensure MesloLGS NF fonts directory exists
   file:

@@ -2,9 +2,9 @@
 # Compute basics
 - name: Compute paths and PATH for pyenv/poetry
   set_fact:
-    matrix_root: "{{ matrix_root | default(lookup('env','MATRIX') | default(ansible_env.HOME + '/Library/CloudStorage/Dropbox/matrix', true)) }}"
+    matrix_root: "{{ matrix_root | default(lookup('env','MATRIX') | default(ansible_facts['env']['HOME'] + '/Library/CloudStorage/Dropbox/matrix', true)) }}"
     matrix_packages_dir: "{{ matrix_packages_dir | default(matrix_root + '/packages') }}"
-    poetry_path_env: "{{ ansible_env.HOME }}/.local/bin:/opt/homebrew/bin:/usr/local/bin:{{ ansible_env.HOME }}/.pyenv/bin:{{ ansible_env.HOME }}/.pyenv/shims:{{ ansible_env.PATH }}"
+    poetry_path_env: "{{ ansible_facts['env']['HOME'] }}/.local/bin:/opt/homebrew/bin:/usr/local/bin:{{ ansible_facts['env']['HOME'] }}/.pyenv/bin:{{ ansible_facts['env']['HOME'] }}/.pyenv/shims:{{ ansible_env.PATH }}"
     houdini_python_patch: "{{ houdini_python_patch | default('3.11.7') }}"
 
 # Pick list for this OS
@@ -12,7 +12,7 @@
   set_fact:
     poetry_projects: >-
       {{ poetry_projects
-         | default((poetry_projects_macos | default([])) if ansible_system == 'Darwin'
+         | default((poetry_projects_macos | default([])) if ansible_facts['system'] == 'Darwin'
                    else (poetry_projects_linux | default([]))) }}
 
 # Nothing to do? bail on this host

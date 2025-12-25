@@ -1,7 +1,7 @@
 ---
 - name: Ensure ~/.config exists (safety)
   file:
-    path: "{{ ansible_env.HOME }}/.config"
+    path: "{{ ansible_facts['env']['HOME'] }}/.config"
     state: directory
 
 # DO NOT remove/copy config anymore; ~/.config is a worktree managed by git.
@@ -14,7 +14,7 @@
 
 - name: Ensure Vim undodir exists
   file:
-    path: "{{ ansible_env.HOME }}/.vim/undodir"
+    path: "{{ ansible_facts['env']['HOME'] }}/.vim/undodir"
     state: directory
     mode: "0755"
 
@@ -30,8 +30,8 @@
 - name: Build LuaSnip jsregexp (if plugin is present)
   when: not ansible_check_mode
   shell: |
-    [ -d "{{ ansible_env.HOME }}/.local/share/nvim/lazy/LuaSnip" ] && \
-    make -C "{{ ansible_env.HOME }}/.local/share/nvim/lazy/LuaSnip" install_jsregexp || true
+    [ -d "{{ ansible_facts['env']['HOME'] }}/.local/share/nvim/lazy/LuaSnip" ] && \
+    make -C "{{ ansible_facts['env']['HOME'] }}/.local/share/nvim/lazy/LuaSnip" install_jsregexp || true
   args: { executable: /bin/bash }
   changed_when: false
 
@@ -40,7 +40,7 @@
   set_fact:
     mason_packages_final: >-
       {{ (mason_packages_common | default([]))
-         + ((mason_packages_macos | default([])) if ansible_system == 'Darwin'
+         + ((mason_packages_macos | default([])) if ansible_facts['system'] == 'Darwin'
             else (mason_packages_linux | default([])))
          + (mason_packages_extra | default([])) }}
 

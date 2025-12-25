@@ -1,11 +1,11 @@
 ---
 - name: Only run on macOS
   meta: end_host
-  when: ansible_system != "Darwin"
+  when: ansible_facts['system'] != "Darwin"
 
 - name: Defaults
   set_fact:
-    scratch_root: "{{ scratch_root | default(ansible_env.HOME + '/Documents/Scratch') }}"
+    scratch_root: "{{ scratch_root | default(ansible_facts['env']['HOME'] + '/Documents/Scratch') }}"
     scratch_subfolders: "{{ scratch_subfolders | default(['screenshots','screen-recordings','scripts','notes','photos','tmp']) }}"
     scratch_screenshots_dir: "{{ scratch_root }}/screenshots"
     scratch_recordings_dir: "{{ scratch_root }}/screen-recordings"

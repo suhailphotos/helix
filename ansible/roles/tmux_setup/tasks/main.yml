@@ -11,19 +11,19 @@
       - xclip
     state: present
     update_cache: yes
-  when: ansible_system != "Darwin"
+  when: ansible_facts['system'] != "Darwin"
 
 # 2) Ensure XDG config dir exists
 - name: Ensure ~/.config/tmux dir exists
   file:
-    path: "{{ ansible_env.HOME }}/.config/tmux"
+    path: "{{ ansible_facts['env']['HOME'] }}/.config/tmux"
     state: directory
     mode: "0755"
 
 # 3) Expect the canonical XDG file: ~/.config/tmux/tmux.conf
 - name: Check for ~/.config/tmux/tmux.conf
   stat:
-    path: "{{ ansible_env.HOME }}/.config/tmux/tmux.conf"
+    path: "{{ ansible_facts['env']['HOME'] }}/.config/tmux/tmux.conf"
   register: xdg_tmux
   changed_when: false
 
@@ -35,14 +35,14 @@
 # 4) Backup legacy ~/.tmux.conf (if it exists from older setups)
 - name: Check for legacy ~/.tmux.conf
   stat:
-    path: "{{ ansible_env.HOME }}/.tmux.conf"
+    path: "{{ ansible_facts['env']['HOME'] }}/.tmux.conf"
   register: home_tmux
   changed_when: false
 
 - name: Backup existing ~/.tmux.conf
   copy:
-    src: "{{ ansible_env.HOME }}/.tmux.conf"
-    dest: "{{ ansible_env.HOME }}/.tmux.conf.bak"
+    src: "{{ ansible_facts['env']['HOME'] }}/.tmux.conf"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.tmux.conf.bak"
     remote_src: yes
     force: no
   when: home_tmux.stat.exists
@@ -50,14 +50,14 @@
 # 5) TPM (tmux plugin manager) at default location
 - name: Ensure ~/.tmux/plugins exists
   file:
-    path: "{{ ansible_env.HOME }}/.tmux/plugins"
+    path: "{{ ansible_facts['env']['HOME'] }}/.tmux/plugins"
     state: directory
     mode: "0755"
 
 - name: Install/Update tmux-plugins/tpm
   git:
     repo: "https://github.com/tmux-plugins/tpm"
-    dest: "{{ ansible_env.HOME }}/.tmux/plugins/tpm"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.tmux/plugins/tpm"
     depth: 1
     single_branch: yes
     update: yes

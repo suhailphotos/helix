@@ -15,7 +15,7 @@
 
 # ---- macOS: Homebrew
 - name: macOS | install via Homebrew
-  when: ansible_system == "Darwin" and zoxide_cmd.rc != 0
+  when: ansible_facts['system'] == "Darwin" and zoxide_cmd.rc != 0
   community.general.homebrew:
     name: zoxide
     state: present
@@ -42,7 +42,7 @@
 # ---- Fallback: official installer (per docs)
 - name: Linux | install via official script to ~/.local/bin (fallback)
   when: >
-    ansible_system != "Darwin"
+    ansible_facts['system'] != "Darwin"
     and zoxide_cmd_after_pm.rc != 0
     and zoxide_allow_install_script
   shell: |
