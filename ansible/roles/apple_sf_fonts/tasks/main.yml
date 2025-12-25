@@ -9,8 +9,8 @@
     state: directory
     mode: "0755"
   loop:
-    - "{{ ansible_env.TMPDIR | default('/tmp') }}/apple_sf_fonts"
-    - "{{ ansible_env.TMPDIR | default('/tmp') }}/apple_sf_fonts/mnt"
+    - "{{ ansible_facts['env']['TMPDIR'] | default('/tmp') }}/apple_sf_fonts"
+    - "{{ ansible_facts['env']['TMPDIR'] | default('/tmp') }}/apple_sf_fonts/mnt"
 
 # Loop per font by including a sub-task file
 - name: Process Apple SF font

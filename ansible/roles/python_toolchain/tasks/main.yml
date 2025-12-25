@@ -65,7 +65,7 @@
       args: { executable: /bin/zsh }
       environment:
         PYENV_ROOT: "{{ lookup('env','HOME') }}/.pyenv"
-        PATH: "{{ lookup('env','HOME') }}/.pyenv/bin:{{ lookup('env','HOME') }}/.pyenv/shims:/opt/homebrew/bin:/usr/local/bin:{{ ansible_env.PATH }}"
+        PATH: "{{ lookup('env','HOME') }}/.pyenv/bin:{{ lookup('env','HOME') }}/.pyenv/shims:/opt/homebrew/bin:/usr/local/bin:{{ ansible_facts['env']['PATH'] }}"
       loop: "{{ pyenv_versions | default([]) }}"
 
     - name: Set pyenv global version
@@ -75,7 +75,7 @@
       args: { executable: /bin/zsh }
       environment:
         PYENV_ROOT: "{{ lookup('env','HOME') }}/.pyenv"
-        PATH: "{{ lookup('env','HOME') }}/.pyenv/bin:{{ lookup('env','HOME') }}/.pyenv/shims:/opt/homebrew/bin:/usr/local/bin:{{ ansible_env.PATH }}"
+        PATH: "{{ lookup('env','HOME') }}/.pyenv/bin:{{ lookup('env','HOME') }}/.pyenv/shims:/opt/homebrew/bin:/usr/local/bin:{{ ansible_facts['env']['PATH'] }}"
       when: pyenv_global is defined
   when: enable_legacy_py | default(false)
 
@@ -89,7 +89,7 @@
 # Build PATH for uv (mac & linux)
 - name: Build PATH for uv (mac & linux)
   set_fact:
-    uv_path_env: "/opt/homebrew/bin:/usr/local/bin:{{ ansible_facts['env']['HOME'] }}/.local/bin:{{ ansible_env.PATH }}"
+    uv_path_env: "/opt/homebrew/bin:/usr/local/bin:{{ ansible_facts['env']['HOME'] }}/.local/bin:{{ ansible_facts['env']['PATH'] }}"
 
 # Decide minor + pin map first
 - name: Decide uv host interpreter minor & pin map for nvim

@@ -24,7 +24,7 @@
     nvim --headless "+Lazy! sync" "+qa"
   args: { executable: /bin/bash }
   environment:
-    PATH: "{{ ansible_env.PATH }}:/opt/homebrew/bin:/usr/local/bin"
+    PATH: "{{ ansible_facts['env']['PATH'] }}:/opt/homebrew/bin:/usr/local/bin"
   changed_when: false
 
 - name: Build LuaSnip jsregexp (if plugin is present)
@@ -51,7 +51,7 @@
     nvim --headless "+MasonUpdate" "+qa"
   args: { executable: /bin/bash }
   environment:
-    PATH: "{{ ansible_env.PATH }}:/opt/homebrew/bin:/usr/local/bin"
+    PATH: "{{ ansible_facts['env']['PATH'] }}:/opt/homebrew/bin:/usr/local/bin"
   changed_when: false
   failed_when: false
 
@@ -62,7 +62,7 @@
     nvim --headless "+MasonInstall {{ mason_packages_final | join(' ') }}" "+qa" || true
   args: { executable: /bin/bash }
   environment:
-    PATH: "{{ ansible_env.PATH }}:/opt/homebrew/bin:/usr/local/bin"
+    PATH: "{{ ansible_facts['env']['PATH'] }}:/opt/homebrew/bin:/usr/local/bin"
   changed_when: false
 
 # Precompile treesitter parsers so first open is fast
@@ -72,6 +72,6 @@
     nvim --headless "+TSUpdateSync {{ treesitter_parsers | join(' ') }}" "+qa" || true
   args: { executable: /bin/bash }
   environment:
-    PATH: "{{ ansible_env.PATH }}:/opt/homebrew/bin:/usr/local/bin"
+    PATH: "{{ ansible_facts['env']['PATH'] }}:/opt/homebrew/bin:/usr/local/bin"
   changed_when: false
   failed_when: false

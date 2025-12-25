@@ -5,7 +5,7 @@ helix_dotfiles_raw_base: "{{ helix_repo_raw_base }}/dotfiles"
 
 # On Linux, anchor matrix under the *remote* $HOME.
 # No controller MATRIX/DROPBOX, so macOS paths don't leak in.
-matrix_root: "{{ ansible_env.HOME + '/Dropbox/matrix' }}"
+matrix_root: "{{ ansible_facts['env']['HOME'] + '/Dropbox/matrix' }}"
 matrix_packages_dir: "{{ matrix_root }}/packages"
 
 houdini_python_patch: "3.11.7"

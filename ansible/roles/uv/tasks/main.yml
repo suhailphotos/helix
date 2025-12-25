@@ -25,7 +25,7 @@
   set_fact:
     uv_path_env: >-
       {{ ("/opt/homebrew/bin:/usr/local/bin:" if ansible_facts['system'] == 'Darwin' else "") ~
-         ansible_facts['env']['HOME'] ~ "/.local/bin:" ~ ansible_env.PATH }}
+         ansible_facts['env']['HOME'] ~ "/.local/bin:" ~ ansible_facts['env']['PATH'] }}
 
 # 4) Detect uv binary
 - name: Detect uv binary

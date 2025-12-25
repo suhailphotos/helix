@@ -4,7 +4,7 @@
   set_fact:
     matrix_root: "{{ matrix_root | default(lookup('env','MATRIX') | default(ansible_facts['env']['HOME'] + '/Library/CloudStorage/Dropbox/matrix', true)) }}"
     matrix_packages_dir: "{{ matrix_packages_dir | default(matrix_root + '/packages') }}"
-    poetry_path_env: "{{ ansible_facts['env']['HOME'] }}/.local/bin:/opt/homebrew/bin:/usr/local/bin:{{ ansible_facts['env']['HOME'] }}/.pyenv/bin:{{ ansible_facts['env']['HOME'] }}/.pyenv/shims:{{ ansible_env.PATH }}"
+    poetry_path_env: "{{ ansible_facts['env']['HOME'] }}/.local/bin:/opt/homebrew/bin:/usr/local/bin:{{ ansible_facts['env']['HOME'] }}/.pyenv/bin:{{ ansible_facts['env']['HOME'] }}/.pyenv/shims:{{ ansible_facts['env']['PATH'] }}"
     houdini_python_patch: "{{ houdini_python_patch | default('3.11.7') }}"
 
 # Pick list for this OS

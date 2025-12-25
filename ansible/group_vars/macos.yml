@@ -77,7 +77,7 @@ houdini_python_patch: "3.11.7"
 uv_enabled: true
 
 # Pixi defaults (can be left implicit)
-# pixi_hosts_dir: "{{ ansible_env.HOME }}/.config/pixi/hosts"
+# pixi_hosts_dir: "{{ ansible_facts['env']['HOME'] }}/.config/pixi/hosts"
 
 # ---- Python toolchain knobs ----
 pyenv_versions:
@@ -108,7 +108,7 @@ helix_config_branch: "config"
 
 
 # Prefer dev repo under Dropbox if present; else fallback to runtime clone
-helix_home: "{{ ansible_env.HOME }}/.helix"
+helix_home: "{{ ansible_facts['env']['HOME'] }}/.helix"
 helix_dev_home: "{{ matrix_root }}/helix"
 
 # --------------------------------------------------
@@ -166,7 +166,7 @@ apple_sf_fonts:
   - { name: "New York",   url: "https://devimages-cdn.apple.com/design/resources/download/NY.dmg" }
 
 
-matrix_root: "{{ lookup('env','MATRIX') | default(ansible_env.HOME + '/Library/CloudStorage/Dropbox/matrix', true) }}"
+matrix_root: "{{ lookup('env','MATRIX') | default(ansible_facts['env']['HOME'] + '/Library/CloudStorage/Dropbox/matrix', true) }}"
 matrix_packages_dir: "{{ matrix_root }}/packages"
 
 
@@ -223,7 +223,7 @@ eza_dot_italic_names:
   - "__pycache__"
 
 # Scratch defaults (macOS)
-scratch_root: "{{ ansible_env.HOME }}/Documents/Scratch"
+scratch_root: "{{ ansible_facts['env']['HOME'] }}/Documents/Scratch"
 scratch_subfolders:
   - screenshots
   - screen-recordings

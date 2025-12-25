@@ -30,7 +30,7 @@
   changed_when: false
   failed_when: false
   environment:
-    PATH: "{{ pixi_bin_dir }}:/opt/homebrew/bin:/usr/local/bin:{{ ansible_env.PATH }}"
+    PATH: "{{ pixi_bin_dir }}:/opt/homebrew/bin:/usr/local/bin:{{ ansible_facts['env']['PATH'] }}"
 
 - name: Install pixi (no PATH updates; your exact command)
   become: false
@@ -43,7 +43,7 @@
   environment:
     # Force installer to use the *real* user home (not /root)
     HOME: "{{ user_home }}"
-    PATH: "/opt/homebrew/bin:/usr/local/bin:{{ ansible_env.PATH }}"
+    PATH: "/opt/homebrew/bin:/usr/local/bin:{{ ansible_facts['env']['PATH'] }}"
 
 - name: Ensure ~/.pixi/manifests exists (for Stow target)
   become: false
