@@ -5,20 +5,12 @@
   gather_facts: yes
   serial: 1
 
-  # Defaults (override via extra-vars, inventory vars, etc.)
-  vars:
-    bindu_mode: "{{ bindu_mode | default('selective') }}"          # 'full' | 'selective'
-    apogee_install_method: "{{ apogee_install_method | default('brew') }}"  # 'brew' | 'cargo'
-    install_fish: "{{ install_fish | default(false) | bool }}"
-    install_powershell: "{{ install_powershell | default(false) | bool }}"
-    enable_sf_fonts: "{{ enable_sf_fonts | default(false) | bool }}"
-
   pre_tasks:
     - name: Skip other hosts when running locally
       meta: end_host
       when:
         - ansible_connection == 'local'
-        - (ansible_hostname | lower) != (inventory_hostname | lower)
+        - (ansible_facts['hostname'] | lower) != (inventory_hostname | lower)
 
   roles:
     - { role: macos_bootstrap,        tags: ['bootstrap'] }
@@ -27,11 +19,11 @@
     # -------------------------
     # Bindu (mode switch)
     # -------------------------
-    - { role: bindu_config_repo,      when: bindu_mode == 'full',      tags: ['config','bindu'] }
-    - { role: bindu_selective,        when: bindu_mode == 'selective', tags: ['config','bindu'] }
+    - { role: bindu_config_repo,      when: (bindu_mode | default('selective')) == 'full',      tags: ['config','bindu'] }
+    - { role: bindu_selective,        when: (bindu_mode | default('selective')) == 'selective', tags: ['config','bindu'] }
 
     # -------------------------
-    # Orbit (still fine to keep)
+    # Orbit
     # -------------------------
     - { role: orbit,                  tags: ['orbit'] }
     - { role: zsh_orbit,              tags: ['zsh','orbit'] }
@@ -39,13 +31,13 @@
     # -------------------------
     # Apogee install + shell init
     # -------------------------
-    - { role: apogee_homebrew,        when: apogee_install_method == 'brew',  tags: ['apogee','brew'] }
-    - { role: apogee_cargo,           when: apogee_install_method == 'cargo', tags: ['apogee','cargo'] }
+    - { role: apogee_homebrew,        when: (apogee_install_method | default('brew')) == 'brew',  tags: ['apogee','brew'] }
+    - { role: apogee_cargo,           when: (apogee_install_method | default('brew')) == 'cargo', tags: ['apogee','cargo'] }
     - { role: zsh_apogee,             tags: ['zsh','apogee'] }
 
     # dev-only shells (optional)
-    - { role: fish_shell,             when: install_fish,       tags: ['fish'] }
-    - { role: powershell,             when: install_powershell, tags: ['pwsh','powershell'] }
+    - { role: fish_shell,             when: (install_fish | default(false)) | bool,       tags: ['fish'] }
+    - { role: powershell,             when: (install_powershell | default(false)) | bool, tags: ['pwsh','powershell'] }
 
     # -------------------------
     # Prompt / terminal / tooling
@@ -63,10 +55,11 @@
     - { role: eza,                    tags: ['eza'] }
     - { role: yazi,                   tags: ['yazi'] }
 
-    - { role: apple_sf_fonts,         when: enable_sf_fonts, tags: ['fonts'] }
+    - { role: apple_sf_fonts,         when: (enable_sf_fonts | default(false)) | bool, tags: ['fonts'] }
 
     - { role: uv,                     tags: ['uv'] }
     - { role: cargo_crates,           tags: ['cargo'] }
 
     - { role: macos_scratch,          tags: ['scratch','screencapture'] }
     - { role: atrium_stow,            tags: ['atrium','stow'] }
+
