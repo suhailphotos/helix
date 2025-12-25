@@ -129,7 +129,8 @@ brew_packages_extra:
   - fish
 
 homebrew_casks_required:
-  # your normal casks here (iterm2, ghostty, etc.)
+  - iterm2
+  - 1Password
 
 homebrew_casks_optional:
   - font-sf-mono-nerd-font
