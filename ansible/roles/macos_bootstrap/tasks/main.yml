@@ -54,10 +54,34 @@
     update_homebrew: false
   tags: ['brew', 'brew_packages']
 
-- name: Install Homebrew casks (idempotent)
+# --- preflight: can we reach github?
+- name: Preflight | Check GitHub connectivity (for GitHub-hosted casks)
+  ansible.builtin.uri:
+    url: "https://github.com"
+    method: HEAD
+    timeout: 5
+    return_content: false
+    validate_certs: true
+  register: github_check
+  failed_when: false
+  changed_when: false
+  tags: ['brew', 'brew_casks']
+
+# --- install required casks (fail if these fail)
+- name: Install Homebrew casks (required)
   community.general.homebrew_cask:
-    name: "{{ (brew_casks | default([])) + (brew_casks_extra | default([])) }}"
+    name: "{{ item }}"
     state: present
-    path: "{{ brew_bin }}"
-    accept_external_apps: true
-  tags: ['brew', 'brew_casks', 'casks']
+  loop: "{{ homebrew_casks_required | default([]) }}"
+  tags: ['brew', 'brew_casks']
+
+# --- install optional casks (skip if github down; don't kill play)
+- name: Install Homebrew casks (optional)
+  community.general.homebrew_cask:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ homebrew_casks_optional | default([]) }}"
+  when: (github_check.status | default(0)) in [200, 301, 302]
+  register: optional_casks
+  failed_when: false
+  tags: ['brew', 'brew_casks', 'fonts']
