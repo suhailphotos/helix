@@ -38,13 +38,13 @@
 
 - name: Ensure PowerShell profile directory exists
   file:
-    path: "{{ ansible_facts['env']['HOME'] }}/Documents/PowerShell"
+    path: "{{ helix_user_home }}/Documents/PowerShell"
     state: directory
     mode: "0755"
 
 - name: Add Apogee init to PowerShell profile (CurrentUserAllHosts)
   copy:
-    dest: "{{ ansible_facts['env']['HOME'] }}/Documents/PowerShell/Microsoft.PowerShell_profile.ps1"
+    dest: "{{ helix_user_home }}/Documents/PowerShell/Microsoft.PowerShell_profile.ps1"
     mode: "0644"
     content: |
       # Apogee bootstrap

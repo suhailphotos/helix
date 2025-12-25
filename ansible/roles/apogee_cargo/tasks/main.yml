@@ -12,4 +12,4 @@
     cargo install --locked apogee
   args: { executable: /bin/bash }
   environment:
-    PATH: "{{ ansible_facts['env']['PATH'] }}:/opt/homebrew/bin:/usr/local/bin"
+    PATH: "{{ helix_task_path }}"

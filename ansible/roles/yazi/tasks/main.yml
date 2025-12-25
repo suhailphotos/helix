@@ -15,7 +15,7 @@
 - name: Determine login user
   set_fact:
     # prefer SUDO_USER if present; fall back to the connected user
-    yazi_login_user: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_user_id | default(ansible_user)) }}"
+    yazi_login_user: "{{ (ansible_facts.get('env', {})).get('SUDO_USER') | default(ansible_facts.get('user_id') | default(ansible_user)) }}"
 
 - name: Determine login user's HOME (portable)
   become: false
@@ -46,7 +46,7 @@
 
 - name: Set per-user paths (phase 2)
   set_fact:
-    yazi_user_path: "{{ yazi_user_bin }}:{{ yazi_user_cargo }}:{{ ansible_facts['env']['PATH'] }}"
+    yazi_user_path: "{{ yazi_user_bin }}:{{ yazi_user_cargo }}:{{ helix_task_path }}"
 
 # Quick presence check (both user + system prefixes on PATH)
 - name: Check for yazi
@@ -144,7 +144,7 @@
       become: false
       shell: |
         set -e
-        export PATH="{{ yazi_user_cargo }}:{{ ansible_facts['env']['PATH'] }}"
+        export PATH="{{ yazi_user_cargo }}:{{ helix_task_path }}"
         command -v cargo >/dev/null 2>&1 || \
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
       args: { executable: /bin/bash }
@@ -154,7 +154,7 @@
       become: false
       shell: |
         set -e
-        export PATH="{{ yazi_user_cargo }}:{{ ansible_facts['env']['PATH'] }}"
+        export PATH="{{ yazi_user_cargo }}:{{ helix_task_path }}"
         rustup update stable || true
       args: { executable: /bin/bash }
       changed_when: false
@@ -182,7 +182,7 @@
       become: false
       shell: |
         set -e
-        export PATH="{{ yazi_user_cargo }}:{{ yazi_user_bin }}:{{ ansible_facts['env']['PATH'] }}"
+        export PATH="{{ yazi_user_cargo }}:{{ yazi_user_bin }}:{{ helix_task_path }}"
         cargo build --release --locked
       args:
         executable: /bin/bash

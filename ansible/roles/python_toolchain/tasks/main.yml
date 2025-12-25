@@ -2,7 +2,7 @@
 # Keep PATH and nvim host venv if you want; they’re harmless.
 - name: Ensure ~/.local/bin is on PATH (pipx)
   lineinfile:
-    path: "{{ lookup('env','HOME') }}/.zprofile"
+    path: "{{ helix_user_home }}/.zprofile"
     create: yes
     line: 'export PATH="$HOME/.local/bin:$PATH"'
     state: present
@@ -18,7 +18,7 @@
 
     - name: Ensure pyenv init in .zprofile
       lineinfile:
-        path: "{{ lookup('env','HOME') }}/.zprofile"
+        path: "{{ helix_user_home }}/.zprofile"
         create: yes
         line: "{{ item }}"
         state: present
@@ -64,8 +64,8 @@
         pyenv install -s {{ item }}
       args: { executable: /bin/zsh }
       environment:
-        PYENV_ROOT: "{{ lookup('env','HOME') }}/.pyenv"
-        PATH: "{{ lookup('env','HOME') }}/.pyenv/bin:{{ lookup('env','HOME') }}/.pyenv/shims:/opt/homebrew/bin:/usr/local/bin:{{ ansible_facts['env']['PATH'] }}"
+        PYENV_ROOT: "{{ helix_user_home }}/.pyenv"
+        PATH: "{{ helix_task_path }}"
       loop: "{{ pyenv_versions | default([]) }}"
 
     - name: Set pyenv global version
@@ -74,22 +74,22 @@
         pyenv rehash
       args: { executable: /bin/zsh }
       environment:
-        PYENV_ROOT: "{{ lookup('env','HOME') }}/.pyenv"
-        PATH: "{{ lookup('env','HOME') }}/.pyenv/bin:{{ lookup('env','HOME') }}/.pyenv/shims:/opt/homebrew/bin:/usr/local/bin:{{ ansible_facts['env']['PATH'] }}"
+        PYENV_ROOT: "{{ helix_user_home }}/.pyenv"
+        PATH: "{{ helix_task_path }}"
       when: pyenv_global is defined
   when: enable_legacy_py | default(false)
 
 # --- Neovim Python host venv via uv (no plain pip) ---
 - name: Ensure ~/.venvs exists
   file:
-    path: "{{ lookup('env','HOME') }}/.venvs"
+    path: "{{ helix_user_home }}/.venvs"
     state: directory
     mode: "0755"
 
 # Build PATH for uv (mac & linux)
 - name: Build PATH for uv (mac & linux)
   set_fact:
-    uv_path_env: "/opt/homebrew/bin:/usr/local/bin:{{ ansible_facts['env']['HOME'] }}/.local/bin:{{ ansible_facts['env']['PATH'] }}"
+    uv_path_env: "{{ helix_task_path }}"
 
 # Decide minor + pin map first
 - name: Decide uv host interpreter minor & pin map for nvim

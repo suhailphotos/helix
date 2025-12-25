@@ -5,13 +5,13 @@
 
 - name: Ensure MesloLGS NF fonts directory exists
   file:
-    path: "{{ lookup('env','HOME') }}/Library/Fonts"
+    path: "{{ helix_user_home }}/Library/Fonts"
     state: directory
 
 - name: Install MesloLGS Nerd Fonts (4 styles)
   get_url:
     url: "{{ item.url }}"
-    dest: "{{ lookup('env','HOME') }}/Library/Fonts/{{ item.name }}"
+    dest: "{{ helix_user_home }}/Library/Fonts/{{ item.name }}"
     mode: "0644"
   loop:
     - { name: "MesloLGS NF Regular.ttf", url: "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Regular.ttf" }

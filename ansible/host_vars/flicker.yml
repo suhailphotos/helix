@@ -1,5 +1,5 @@
-ORBIT_HOME: "{{ lookup('env','HOME') }}/.orbit"
-ORBIT_DEV_HOME: "{{ lookup('env','HOME') }}/Dropbox/matrix/orbit"
+ORBIT_HOME: "{{ helix_user_home }}/.orbit"
+ORBIT_DEV_HOME: "{{ helix_user_home }}/Dropbox/matrix/orbit"
 ORBIT_REMOTE: "https://github.com/suhailphotos/orbit.git"
 ORBIT_BRANCH: "main"
 

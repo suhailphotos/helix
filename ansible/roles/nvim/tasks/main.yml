@@ -1,7 +1,7 @@
 ---
 - name: Ensure ~/.config exists (safety)
   file:
-    path: "{{ ansible_facts['env']['HOME'] }}/.config"
+    path: "{{ helix_user_home }}/.config"
     state: directory
 
 # DO NOT remove/copy config anymore; ~/.config is a worktree managed by git.
@@ -14,7 +14,7 @@
 
 - name: Ensure Vim undodir exists
   file:
-    path: "{{ ansible_facts['env']['HOME'] }}/.vim/undodir"
+    path: "{{ helix_user_home }}/.vim/undodir"
     state: directory
     mode: "0755"
 
@@ -24,14 +24,14 @@
     nvim --headless "+Lazy! sync" "+qa"
   args: { executable: /bin/bash }
   environment:
-    PATH: "{{ ansible_facts['env']['PATH'] }}:/opt/homebrew/bin:/usr/local/bin"
+    PATH: "{{ helix_task_path }}"
   changed_when: false
 
 - name: Build LuaSnip jsregexp (if plugin is present)
   when: not ansible_check_mode
   shell: |
-    [ -d "{{ ansible_facts['env']['HOME'] }}/.local/share/nvim/lazy/LuaSnip" ] && \
-    make -C "{{ ansible_facts['env']['HOME'] }}/.local/share/nvim/lazy/LuaSnip" install_jsregexp || true
+    [ -d "{{ helix_user_home }}/.local/share/nvim/lazy/LuaSnip" ] && \
+    make -C "{{ helix_user_home }}/.local/share/nvim/lazy/LuaSnip" install_jsregexp || true
   args: { executable: /bin/bash }
   changed_when: false
 
@@ -51,7 +51,7 @@
     nvim --headless "+MasonUpdate" "+qa"
   args: { executable: /bin/bash }
   environment:
-    PATH: "{{ ansible_facts['env']['PATH'] }}:/opt/homebrew/bin:/usr/local/bin"
+    PATH: "{{ helix_task_path }}"
   changed_when: false
   failed_when: false
 
@@ -62,7 +62,7 @@
     nvim --headless "+MasonInstall {{ mason_packages_final | join(' ') }}" "+qa" || true
   args: { executable: /bin/bash }
   environment:
-    PATH: "{{ ansible_facts['env']['PATH'] }}:/opt/homebrew/bin:/usr/local/bin"
+    PATH: "{{ helix_task_path }}"
   changed_when: false
 
 # Precompile treesitter parsers so first open is fast
@@ -72,6 +72,6 @@
     nvim --headless "+TSUpdateSync {{ treesitter_parsers | join(' ') }}" "+qa" || true
   args: { executable: /bin/bash }
   environment:
-    PATH: "{{ ansible_facts['env']['PATH'] }}:/opt/homebrew/bin:/usr/local/bin"
+    PATH: "{{ helix_task_path }}"
   changed_when: false
   failed_when: false

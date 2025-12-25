@@ -5,7 +5,7 @@
 - name: Ensure runtime Orbit (~/.orbit) exists (bootstrap only)
   git:
     repo: "{{ ORBIT_REMOTE }}"
-    dest: "{{ ORBIT_HOME | default(ansible_facts['env']['HOME'] + '/.orbit') }}"
+    dest: "{{ ORBIT_HOME | default(helix_user_home + '/.orbit') }}"
     version: "{{ ORBIT_BRANCH | default('main') }}"
     depth: 1
     single_branch: yes

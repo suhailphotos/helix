@@ -83,7 +83,7 @@
     - name: Copy raw font files to user Fonts
       copy:
         src: "{{ item.path }}"
-        dest: "{{ lookup('env','HOME') }}/Library/Fonts/{{ item.path | basename }}"
+        dest: "{{ helix_user_home }}/Library/Fonts/{{ item.path | basename }}"
         mode: "0644"
         remote_src: yes
       loop: "{{ sf_fonts.files | default([]) }}"

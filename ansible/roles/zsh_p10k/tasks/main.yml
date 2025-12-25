@@ -1,25 +1,25 @@
 - name: Clone Oh My Zsh (idempotent)
   git:
     repo: https://github.com/ohmyzsh/ohmyzsh.git
-    dest: "{{ lookup('env','HOME') }}/.oh-my-zsh"
+    dest: "{{ helix_user_home }}/.oh-my-zsh"
     depth: 1
     update: no
 
 - name: Ensure Powerlevel10k theme is present
   git:
     repo: https://github.com/romkatv/powerlevel10k.git
-    dest: "{{ lookup('env','HOME') }}/.oh-my-zsh/custom/themes/powerlevel10k"
+    dest: "{{ helix_user_home }}/.oh-my-zsh/custom/themes/powerlevel10k"
     depth: 1
     update: no
 
 - name: Fetch .p10k.zsh
   get_url:
     url: "{{ p10k_raw_url }}"
-    dest: "{{ lookup('env','HOME') }}/.p10k.zsh"
+    dest: "{{ helix_user_home }}/.p10k.zsh"
     mode: "0644"
 
 - name: Install templated .zshrc
   template:
     src: zshrc.mac.j2
-    dest: "{{ lookup('env','HOME') }}/.zshrc"
+    dest: "{{ helix_user_home }}/.zshrc"
     mode: "0644"

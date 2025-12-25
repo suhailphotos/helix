@@ -38,3 +38,24 @@ treesitter_parsers:
 mason_packages_macos: []
 mason_packages_linux: []
 mason_packages_extra: []
+
+# group_vars/all.yml
+
+# Stable remote user home from facts (works with inject_facts_as_vars=False)
+helix_user_home: "{{ ansible_facts['user_dir'] }}"
+
+# Base PATH (deterministic, not dependent on whatever PATH Ansible inherited)
+helix_path_base: >-
+  {{
+    "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+    if ansible_facts['system'] == 'Darwin'
+    else
+    "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  }}
+
+# User bins you commonly need during provisioning
+helix_path_user_bins: >-
+  {{ helix_user_home }}/.local/bin:{{ helix_user_home }}/.cargo/bin:{{ helix_user_home }}/.pyenv/bin:{{ helix_user_home }}/.pyenv/shims
+
+# Use this in roles for `environment: PATH: ...`
+helix_task_path: "{{ helix_path_user_bins }}:{{ helix_path_base }}"

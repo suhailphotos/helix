@@ -30,7 +30,7 @@
 
 - name: Ensure brew shellenv is in .zprofile
   lineinfile:
-    path: "{{ lookup('env','HOME') }}/.zprofile"
+    path: "{{ helix_user_home }}/.zprofile"
     create: yes
     line: "eval \"$( {{ brew_bin }} shellenv )\""
     state: present

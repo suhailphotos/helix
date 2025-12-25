@@ -12,13 +12,13 @@
 
 - name: Stat existing home dotfiles (per-item, skip .bashrc on macOS)
   stat:
-    path: "{{ ansible_facts['env']['HOME'] }}/{{ item }}"
+    path: "{{ helix_user_home }}/{{ item }}"
   loop: "{{ home_shims_backup_list }}"
   register: home_shims_stats
   changed_when: false
   when:
     - home_shims_backup | default(true) | bool
-    - item != '.bashrc' or ansible_facts.os_family != 'Darwin'
+    - item != '.bashrc' or ansible_facts['system'] != 'Darwin'
 
 # Build a clean list of paths that actually exist (ignore skipped items)
 - name: Build list of existing files for backup
@@ -47,27 +47,27 @@
   when: home_shims_install_tmux_shim | default(true) | bool
   template:
     src: tmux.conf.j2
-    dest: "{{ ansible_facts['env']['HOME'] }}/.tmux.conf"
+    dest: "{{ helix_user_home }}/.tmux.conf"
     mode: "0644"
 
 # Awk shim → points to ~/.config/awk/.awkrc
 - name: Install ~/.awkrc shim
   template:
     src: awkrc.j2
-    dest: "{{ ansible_facts['env']['HOME'] }}/.awkrc"
+    dest: "{{ helix_user_home }}/.awkrc"
     mode: "0644"
 
 # Curl shim → points to ~/.config/curl/.curlrc
 - name: Install ~/.curlrc shim
   template:
     src: curlrc.j2
-    dest: "{{ ansible_facts['env']['HOME'] }}/.curlrc"
+    dest: "{{ helix_user_home }}/.curlrc"
     mode: "0644"
 
 - name: Install ~/.bashrc (Linux only)
   template:
     src: bashrc.j2
-    dest: "{{ ansible_facts['env']['HOME'] }}/.bashrc"
+    dest: "{{ helix_user_home }}/.bashrc"
     mode: "0644"
   when:
     - ansible_facts.os_family != 'Darwin'

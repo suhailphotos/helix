@@ -14,7 +14,7 @@
 # 2) Store user_home as a separate fact
 - name: Set user_home fact for pixi
   set_fact:
-    user_home: "{{ pixi_home_raw.stdout | default(ansible_facts['env']['HOME']) }}"
+    user_home: "{{ pixi_home_raw.stdout | default(helix_user_home) }}"
 
 # 3) Now compute pixi paths using user_home
 - name: Compute user-scoped paths for pixi
@@ -30,7 +30,7 @@
   changed_when: false
   failed_when: false
   environment:
-    PATH: "{{ pixi_bin_dir }}:/opt/homebrew/bin:/usr/local/bin:{{ ansible_facts['env']['PATH'] }}"
+    PATH: "{{ pixi_bin_dir }}:{{ helix_task_path }}"
 
 - name: Install pixi (no PATH updates; your exact command)
   become: false
@@ -43,7 +43,7 @@
   environment:
     # Force installer to use the *real* user home (not /root)
     HOME: "{{ user_home }}"
-    PATH: "/opt/homebrew/bin:/usr/local/bin:{{ ansible_facts['env']['PATH'] }}"
+    PATH: "{{ helix_task_path }}"
 
 - name: Ensure ~/.pixi/manifests exists (for Stow target)
   become: false

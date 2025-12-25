@@ -36,7 +36,7 @@
     - name: uv sync (to ~/.venvs/<project>) — no activation
       shell: |
         set -e
-        UV_PROJECT_ENVIRONMENT="{{ ansible_facts['env']['HOME'] }}/.venvs/{{ project }}" \
+        UV_PROJECT_ENVIRONMENT="{{ helix_user_home }}/.venvs/{{ project }}" \
         uv sync --python "{{ uv_python_version }}"
       args:
         executable: /bin/bash

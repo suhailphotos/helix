@@ -1,5 +1,5 @@
 # Prefer existing vars if you’ve already set matrix_root in group_vars
-matrix_root: "{{ lookup('env','MATRIX') | default((ansible_facts['system'] == 'Darwin') | ternary(ansible_facts['env']['HOME'] + '/Library/CloudStorage/Dropbox/matrix', '/home/' + ansible_user + '/Dropbox/matrix'), true) }}"
+matrix_root: "{{ lookup('env','MATRIX') | default((ansible_facts['system'] == 'Darwin') | ternary(helix_user_home + '/Library/CloudStorage/Dropbox/matrix', '/home/' + ansible_user + '/Dropbox/matrix'), true) }}"
 atrium_root: "{{ matrix_root }}/atrium"
 
 # list of stow package folder names under {{ atrium_root }}

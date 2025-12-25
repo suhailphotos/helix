@@ -5,7 +5,7 @@
 
 - name: Defaults
   set_fact:
-    scratch_root: "{{ scratch_root | default(ansible_facts['env']['HOME'] + '/Documents/Scratch') }}"
+    scratch_root: "{{ scratch_root | default(helix_user_home + '/Documents/Scratch') }}"
     scratch_subfolders: "{{ scratch_subfolders | default(['screenshots','screen-recordings','scripts','notes','photos','tmp']) }}"
     scratch_screenshots_dir: "{{ scratch_root }}/screenshots"
     scratch_recordings_dir: "{{ scratch_root }}/screen-recordings"
