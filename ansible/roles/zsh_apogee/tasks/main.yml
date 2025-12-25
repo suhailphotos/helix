@@ -1,0 +1,7 @@
+---
+- name: Install ~/.zshrc that sources Apogee (macOS)
+  template:
+    src: zshrc.mac.j2
+    dest: "{{ ansible_env.HOME }}/.zshrc"
+    mode: "0644"
+    backup: yes

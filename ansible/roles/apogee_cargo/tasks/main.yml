@@ -1,0 +1,15 @@
+---
+- name: Check apogee presence
+  command: bash -lc 'command -v apogee'
+  register: apogee_cmd
+  changed_when: false
+  failed_when: false
+
+- name: Install apogee via cargo (dev machines)
+  when: apogee_cmd.rc != 0
+  shell: |
+    set -e
+    cargo install --locked apogee
+  args: { executable: /bin/bash }
+  environment:
+    PATH: "{{ ansible_env.PATH }}:/opt/homebrew/bin:/usr/local/bin"

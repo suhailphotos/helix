@@ -1,0 +1,59 @@
+---
+- name: Only run on macOS
+  meta: end_host
+  when: ansible_system != "Darwin"
+
+- name: Install PowerShell via Homebrew cask (deprecated, dev-only)
+  when: (powershell_install_method | default('brew_cask')) == 'brew_cask'
+  community.general.homebrew_cask:
+    name: powershell
+    state: present
+    path: "{{ brew_bin | default('/opt/homebrew/bin/brew') }}"
+  failed_when: false
+
+- name: Warn when using deprecated brew cask for PowerShell
+  when: (powershell_install_method | default('brew_cask')) == 'brew_cask'
+  debug:
+    msg: "PowerShell via Homebrew cask is deprecated. Consider switching powershell_install_method to 'pkg' later."
+
+# Optional pkg mode (you provide the URL in vars)
+- name: Install PowerShell via pkg (preferred long-term)
+  when: (powershell_install_method | default('brew_cask')) == 'pkg'
+  block:
+    - name: Require powershell_pkg_url
+      fail:
+        msg: "powershell_pkg_url must be set when powershell_install_method=pkg"
+      when: powershell_pkg_url is not defined
+
+    - name: Download PowerShell pkg
+      get_url:
+        url: "{{ powershell_pkg_url }}"
+        dest: "/tmp/powershell.pkg"
+        mode: "0644"
+
+    - name: Install PowerShell pkg
+      become: yes
+      command: /usr/sbin/installer -pkg /tmp/powershell.pkg -target /
+      changed_when: true
+
+- name: Ensure PowerShell profile directory exists
+  file:
+    path: "{{ ansible_env.HOME }}/Documents/PowerShell"
+    state: directory
+    mode: "0755"
+
+- name: Add Apogee init to PowerShell profile (CurrentUserAllHosts)
+  copy:
+    dest: "{{ ansible_env.HOME }}/Documents/PowerShell/Microsoft.PowerShell_profile.ps1"
+    mode: "0644"
+    content: |
+      # Apogee bootstrap
+      if (Get-Command apogee -ErrorAction SilentlyContinue) {
+        $env:APOGEE_SHELL = "pwsh"
+        Invoke-Expression (& apogee)
+      }
+
+      # Starship (optional)
+      if (Get-Command starship -ErrorAction SilentlyContinue) {
+        Invoke-Expression (&starship init powershell)
+      }

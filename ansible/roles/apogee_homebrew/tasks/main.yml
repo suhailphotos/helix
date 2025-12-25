@@ -1,0 +1,16 @@
+---
+- name: Only run on macOS
+  meta: end_host
+  when: ansible_system != "Darwin"
+
+- name: Ensure orbyts/tap is tapped
+  community.general.homebrew_tap:
+    name: "orbyts/tap"
+    state: present
+    path: "{{ brew_bin | default('/opt/homebrew/bin/brew') }}"
+
+- name: Install apogee from tap
+  community.general.homebrew:
+    name: "apogee"
+    state: present
+    path: "{{ brew_bin | default('/opt/homebrew/bin/brew') }}"

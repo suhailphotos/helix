@@ -1,8 +1,17 @@
+---
 - name: Bootstrap macOS locally
   hosts: macos
   connection: local
   gather_facts: yes
   serial: 1
+
+  # Defaults (override via extra-vars, inventory vars, etc.)
+  vars:
+    bindu_mode: "{{ bindu_mode | default('selective') }}"          # 'full' | 'selective'
+    apogee_install_method: "{{ apogee_install_method | default('brew') }}"  # 'brew' | 'cargo'
+    install_fish: "{{ install_fish | default(false) | bool }}"
+    install_powershell: "{{ install_powershell | default(false) | bool }}"
+    enable_sf_fonts: "{{ enable_sf_fonts | default(false) | bool }}"
 
   pre_tasks:
     - name: Skip other hosts when running locally
@@ -14,21 +23,50 @@
   roles:
     - { role: macos_bootstrap,        tags: ['bootstrap'] }
     - { role: zoxide,                 tags: ['zoxide'] }
-    - { role: bindu_config_repo,      tags: ['config','bindu'] }
+
+    # -------------------------
+    # Bindu (mode switch)
+    # -------------------------
+    - { role: bindu_config_repo,      when: bindu_mode == 'full',      tags: ['config','bindu'] }
+    - { role: bindu_selective,        when: bindu_mode == 'selective', tags: ['config','bindu'] }
+
+    # -------------------------
+    # Orbit (still fine to keep)
+    # -------------------------
     - { role: orbit,                  tags: ['orbit'] }
     - { role: zsh_orbit,              tags: ['zsh','orbit'] }
+
+    # -------------------------
+    # Apogee install + shell init
+    # -------------------------
+    - { role: apogee_homebrew,        when: apogee_install_method == 'brew',  tags: ['apogee','brew'] }
+    - { role: apogee_cargo,           when: apogee_install_method == 'cargo', tags: ['apogee','cargo'] }
+    - { role: zsh_apogee,             tags: ['zsh','apogee'] }
+
+    # dev-only shells (optional)
+    - { role: fish_shell,             when: install_fish,       tags: ['fish'] }
+    - { role: powershell,             when: install_powershell, tags: ['pwsh','powershell'] }
+
+    # -------------------------
+    # Prompt / terminal / tooling
+    # -------------------------
     - { role: starship,               tags: ['starship','prompt'] }
     - { role: ghostty,                tags: ['ghostty'] }
     - { role: iterm,                  tags: ['iterm'] }
+
     - { role: pixi,                   tags: ['pixi'] }
     - { role: python_toolchain,       tags: ['python'] }
     - { role: nvim,                   tags: ['nvim'] }
+
     - { role: home_shims,             tags: ['home','dotfiles'] }
     - { role: tmux_setup,             tags: ['tmux'] }
     - { role: eza,                    tags: ['eza'] }
     - { role: yazi,                   tags: ['yazi'] }
-    - { role: apple_sf_fonts,         when: (enable_sf_fonts | default(false)) | bool, tags: ['fonts'] }
+
+    - { role: apple_sf_fonts,         when: enable_sf_fonts, tags: ['fonts'] }
+
     - { role: uv,                     tags: ['uv'] }
     - { role: cargo_crates,           tags: ['cargo'] }
+
     - { role: macos_scratch,          tags: ['scratch','screencapture'] }
-    - { role: atrium_stow, tags: ['atrium','stow'] }
+    - { role: atrium_stow,            tags: ['atrium','stow'] }

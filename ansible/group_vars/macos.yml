@@ -93,6 +93,8 @@ brew_casks:
   - iterm2
   - 1password
 
+brew_taps_extra:
+  - orbyts/tap
 
 # --------------------------------------------------
 # Helix repo
@@ -113,6 +115,23 @@ helix_dev_home: "{{ matrix_root }}/helix"
 # Bindu
 # --------------------------------------------------
 bindu_raw_base: "https://raw.githubusercontent.com/suhailphotos/bindu/refs/heads/main"
+
+# mac_dev only
+bindu_mode: full
+apogee_install_method: cargo
+
+# dev shells
+install_fish: true
+install_powershell: true
+
+# fish package (only dev)
+brew_packages_extra:
+  - fish
+
+# PowerShell install method:
+# Option A (works today, but deprecating): brew_cask
+# Option B (preferred long-term): pkg (you provide URL/version)
+powershell_install_method: brew_cask
 
 # --------------------------------------------------
 # iTerm assets

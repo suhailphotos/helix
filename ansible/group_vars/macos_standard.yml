@@ -1,0 +1,5 @@
+bindu_mode: selective
+apogee_install_method: brew
+
+install_fish: false
+install_powershell: false
