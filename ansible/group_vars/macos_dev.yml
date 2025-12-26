@@ -49,3 +49,11 @@ atrium_stow_packages:
   - oauthmanager
   - parivaha
 atrium_use_adopt: true
+
+desktop_casks:
+  - inkscape
+  - discord
+  - jellyfin-media-player
+  - obsidian
+  - spotify
+  - blender

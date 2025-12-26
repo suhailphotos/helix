@@ -103,4 +103,10 @@ nvim_lazy_modules:
   - "suhail.lazy.undotree"
   - "suhail.lazy.fugitive"
 
-
+desktop_casks:
+  - inkscape
+  - discord
+  - jellyfin-media-player
+  - obsidian
+  - spotify
+  - blender
