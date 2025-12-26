@@ -315,10 +315,26 @@ fi
 # -----------------------------
 # Parse inventory -> rows of: group \t host \t ansible_host \t ansible_user \t identity_file
 # -----------------------------
-YQ_QUERY='.all.children | to_entries[] | . as $grp
-  | ($grp.value.hosts // {}) | to_entries[]
-  | [ $grp.key, .key, (.value.ansible_host // ""), (.value.ansible_user // ""), (.value.identity_file // "") ]
-  | @tsv'
+YQ_QUERY='
+  .all.children
+  | to_entries[]
+  | . as $top
+  | (
+      $top.value
+      | ..
+      | select(type == "object" and has("hosts"))
+      | .hosts
+      | to_entries[]
+    )
+  | [
+      $top.key,
+      .key,
+      (.value.ansible_host // ""),
+      (.value.ansible_user // ""),
+      (.value.identity_file // .value.ansible_ssh_private_key_file // "")
+    ]
+  | @tsv
+'
 
 # Iterate and create per-host snippets
 while IFS=$'\t' read -r group host ans_host ans_user ans_identity; do
