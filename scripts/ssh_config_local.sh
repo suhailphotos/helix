@@ -318,16 +318,14 @@ fi
 YQ_QUERY='
   .all.children
   | to_entries[]
-  | . as $top
-  | (
-      $top.value
-      | ..
-      | select(type == "object" and has("hosts"))
-      | .hosts
-      | to_entries[]
-    )
+  | .key as $top_group
+  | .value
+  | ..
+  | select(has("hosts"))
+  | .hosts
+  | to_entries[]
   | [
-      $top.key,
+      $top_group,
       .key,
       (.value.ansible_host // ""),
       (.value.ansible_user // ""),
