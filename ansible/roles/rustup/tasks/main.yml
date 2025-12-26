@@ -81,7 +81,7 @@
         PATH: "{{ helix_task_path_effective }}:{{ ansible_env.PATH }}"
 
   rescue:
-    - name: Fallback: install cargo/rustc via apt (Debian/Ubuntu)
+    - name: Fallback - install cargo/rustc via apt (Debian/Ubuntu)
       become: true
       apt:
         name:
