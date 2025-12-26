@@ -9,3 +9,12 @@ brew_packages_extra:
 yazi_enabled: true
 cargo_enabled: true
 rustup_enabled: true
+
+# --------------------------------------------------
+#         Crates
+# --------------------------------------------------
+cargo_crates_macos:
+  - { name: cargo-modules, bin: cargo-modules }
+  - { name: cargo-watch,   bin: cargo-watch }
+  # speed-ups: if you want binstall-first workflow, include it:
+  - { name: cargo-binstall, bin: cargo-binstall }
