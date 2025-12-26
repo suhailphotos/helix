@@ -29,6 +29,11 @@
     - { role: zsh_orbit,              tags: ['zsh','orbit'] }
 
     # -------------------------
+    # Rust toolchain (dev-only)
+    # -------------------------
+    - { role: rustup,                 when: (rustup_enabled | default(false)) | bool, tags: ['rust','rustup'] }
+
+    # -------------------------
     # Apogee install + shell init
     # -------------------------
     - { role: apogee_homebrew,        when: (apogee_install_method | default('brew')) == 'brew',  tags: ['apogee','brew'] }

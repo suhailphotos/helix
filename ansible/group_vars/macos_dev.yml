@@ -8,3 +8,4 @@ brew_packages_extra:
 
 yazi_enabled: true
 cargo_enabled: true
+rustup_enabled: true

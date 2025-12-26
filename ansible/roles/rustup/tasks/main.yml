@@ -1,0 +1,97 @@
+---
+# roles/rustup/tasks/main.yml
+# Goal: ensure a working cargo exists for the current effective user (helix_user_home).
+
+- name: Set toolchain paths
+  set_fact:
+    helix_cargo_bin: "{{ helix_user_home }}/.cargo/bin"
+    helix_rustup_bin: "{{ helix_user_home }}/.cargo/bin/rustup"
+    helix_task_path_effective: "{{ helix_task_path | default(helix_user_home ~ '/.local/bin:' ~ helix_user_home ~ '/.cargo/bin') }}"
+
+- name: Check for cargo (PATH-aware)
+  command: bash -lc "command -v cargo"
+  register: cargo_in_path
+  changed_when: false
+  failed_when: false
+  environment:
+    PATH: "{{ helix_task_path_effective }}:{{ ansible_env.PATH }}"
+
+- name: Check for cargo (direct path)
+  stat:
+    path: "{{ helix_cargo_bin }}/cargo"
+  register: cargo_direct
+
+# -----------------------------
+# macOS: install rustup via brew, then install stable toolchain
+# -----------------------------
+- block:
+    - name: Check for brew
+      command: bash -lc "command -v brew"
+      register: brew_check
+      changed_when: false
+      failed_when: brew_check.rc != 0
+
+    - name: Install rustup via Homebrew
+      homebrew:
+        name: rustup
+        state: present
+
+    # Ensure rustup is initialized + stable toolchain exists (provides cargo)
+    - name: Install stable toolchain and set default
+      command: rustup default stable
+      args:
+        creates: "{{ helix_cargo_bin }}/cargo"
+      environment:
+        PATH: "{{ helix_task_path_effective }}:{{ ansible_env.PATH }}"
+
+  when:
+    - ansible_facts['system'] == 'Darwin'
+    - cargo_in_path.rc != 0
+    - not cargo_direct.stat.exists
+
+# -----------------------------
+# Linux (Debian/Ubuntu): install rustup via official script (user install), then stable toolchain
+# Fallback to apt cargo/rustc if rustup install isn’t possible
+# -----------------------------
+- block:
+    - name: Ensure curl exists (Debian/Ubuntu)
+      become: true
+      apt:
+        name: curl
+        state: present
+        update_cache: yes
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Install rustup (non-interactive, user install)
+      shell: |
+        set -euo pipefail
+        curl -fsSL https://sh.rustup.rs | sh -s -- -y --no-modify-path
+      args:
+        executable: /bin/bash
+        creates: "{{ helix_rustup_bin }}"
+      environment:
+        HOME: "{{ helix_user_home }}"
+
+    - name: Install stable toolchain and set default
+      command: "{{ helix_rustup_bin }} default stable"
+      args:
+        creates: "{{ helix_cargo_bin }}/cargo"
+      environment:
+        HOME: "{{ helix_user_home }}"
+        PATH: "{{ helix_task_path_effective }}:{{ ansible_env.PATH }}"
+
+  rescue:
+    - name: Fallback: install cargo/rustc via apt (Debian/Ubuntu)
+      become: true
+      apt:
+        name:
+          - cargo
+          - rustc
+        state: present
+        update_cache: yes
+      when: ansible_facts['os_family'] == 'Debian'
+
+  when:
+    - ansible_facts['system'] != 'Darwin'
+    - cargo_in_path.rc != 0
+    - not cargo_direct.stat.exists

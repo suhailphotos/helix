@@ -1,80 +1,88 @@
 ---
-# Compose the final crate list for this OS
-- name: Build crate list
+# roles/cargo_crates/tasks/main.yml
+# Installs user cargo crates. Ensures cargo exists first.
+
+- name: Build cargo crate list
   set_fact:
-    crates_final: >-
-      {{ (cargo_crates_common | default([]))
-         + ((cargo_crates_macos | default([])) if ansible_facts['system'] == 'Darwin'
-            else (cargo_crates_linux | default([]))) }}
+    helix_task_path_effective: "{{ helix_task_path | default(helix_user_home ~ '/.local/bin:' ~ helix_user_home ~ '/.cargo/bin') }}"
+    cargo_crates_all: >-
+      {{
+        (cargo_crates_common | default([]))
+        + (
+          cargo_crates_macos | default([]) if ansible_facts['system'] == 'Darwin'
+          else cargo_crates_linux | default([])
+        )
+      }}
 
-# Require cargo to exist (you install rust via brew/apt elsewhere)
-- name: Check cargo presence
-  command: bash -lc 'command -v cargo'
-  register: cargo_cmd
-  changed_when: false
-  failed_when: cargo_cmd.rc != 0
+- name: Nothing to do if no cargo crates are listed
+  debug:
+    msg: "cargo_crates: no crates configured."
+  when: (cargo_crates_all | length) == 0
 
-# Detect cargo-binstall (only used if mode == auto or binstall)
-- name: Check cargo-binstall presence
-  command: bash -lc 'command -v cargo-binstall'
-  register: binstall_cmd
+- name: Check for cargo
+  command: bash -lc "command -v cargo"
+  register: cargo_check
   changed_when: false
   failed_when: false
+  environment:
+    PATH: "{{ helix_task_path_effective }}:{{ ansible_env.PATH }}"
 
-# Decide which installer we’ll use
-- name: Decide installer
-  set_fact:
-    use_binstall: >-
-      {{ (cargo_install_mode | default('auto')) == 'binstall'
-         or ((cargo_install_mode | default('auto')) == 'auto' and binstall_cmd.rc == 0) }}
+- name: Install rust toolchain if cargo is missing
+  include_role:
+    name: rustup
+  when:
+    - (cargo_crates_all | length) > 0
+    - cargo_check.rc != 0
 
-# Pre-check which crates are already installed (by bin)
-- name: Check each crate's binary
-  command: bash -lc 'command -v {{ (item.bin | default(item.name)) }}'
-  register: crate_bin_checks
+- name: Verify cargo is available
+  command: bash -lc "command -v cargo"
+  register: cargo_check2
   changed_when: false
-  failed_when: false
-  loop: "{{ crates_final }}"
+  failed_when: (cargo_crates_all | length) > 0 and cargo_check2.rc != 0
+  environment:
+    PATH: "{{ helix_task_path_effective }}:{{ ansible_env.PATH }}"
 
-# Install missing crates (no loop label; robust fallback if --locked fails)
-- name: Install missing crates
-  vars:
-    crate: "{{ item.item }}"
-    bin_name: "{{ crate.bin | default(crate.name) }}"
-    version_flag: "{{ ('--version ' ~ crate.version) if crate.version is defined else '' }}"
-    locked_flag: "--locked"
-    cargo_install_cmd: >-
-      {% if crate.git is defined -%}
-      cargo install {{ locked_flag }} --git {{ crate.git }}
-      {%- if crate.tag is defined %} --tag {{ crate.tag }}{% endif -%}
-      {%- if crate.rev is defined %} --rev {{ crate.rev }}{% endif -%}
-      {%- else -%}
-      cargo install {{ locked_flag }} {{ crate.name }} {{ version_flag }}
-      {%- endif -%}
-    cargo_install_cmd_unlock: >-
-      {% if crate.git is defined -%}
-      cargo install --git {{ crate.git }}
-      {%- if crate.tag is defined %} --tag {{ crate.tag }}{% endif -%}
-      {%- if crate.rev is defined %} --rev {{ crate.rev }}{% endif -%}
-      {%- else -%}
-      cargo install {{ crate.name }} {{ version_flag }}
-      {%- endif -%}
-    binstall_cmdline: >-
-      cargo binstall -y {{ crate.name }} {{ version_flag }}
+# -----------------------------
+# Install crates (idempotent-ish)
+# -----------------------------
+- name: Install configured cargo crates
   shell: |
-    set -e
-    if {{ use_binstall | bool }} && [ -z "{{ crate.git | default('') }}" ]; then
-      {{ binstall_cmdline }}
+    set -euo pipefail
+
+    name="{{ item.name }}"
+    bin="{{ item.bin | default(item.name) }}"
+
+    if command -v "$bin" >/dev/null 2>&1; then
+      exit 0
+    fi
+
+    # pick install strategy
+    mode="{{ cargo_install_mode | default('auto') }}"
+    if [ "$mode" = "binstall" ]; then
+      cargo binstall -y "$name"
+    elif [ "$mode" = "auto" ] && command -v cargo-binstall >/dev/null 2>&1; then
+      cargo binstall -y "$name"
     else
-      # Try --locked first; if it fails (e.g., yanked dep), retry without --locked.
-      set +e
-      {{ cargo_install_cmd }}
-      rc=$?
-      set -e
-      if [ $rc -ne 0 ]; then
-        {{ cargo_install_cmd_unlock }}
+      if [ -n "{{ item.version | default('') }}" ]; then
+        cargo install --locked --version "{{ item.version }}" "$name"
+      elif [ -n "{{ item.git | default('') }}" ]; then
+        # git install support (optional fields: tag, rev)
+        if [ -n "{{ item.rev | default('') }}" ]; then
+          cargo install --locked --git "{{ item.git }}" --rev "{{ item.rev }}" "$name"
+        elif [ -n "{{ item.tag | default('') }}" ]; then
+          cargo install --locked --git "{{ item.git }}" --tag "{{ item.tag }}" "$name"
+        else
+          cargo install --locked --git "{{ item.git }}" "$name"
+        fi
+      else
+        cargo install --locked "$name"
       fi
     fi
-  args: { executable: /bin/bash }
-  loop: "{{ crate_bin_checks.results }}"
-  when: item.rc != 0
+  args:
+    executable: /bin/bash
+  environment:
+    PATH: "{{ helix_task_path_effective }}:{{ ansible_env.PATH }}"
+  loop: "{{ cargo_crates_all }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: (cargo_crates_all | length) > 0
