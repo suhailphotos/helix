@@ -10,8 +10,8 @@
   set_fact:
     bindu_raw_base: "{{ bindu_raw_base | default('https://raw.githubusercontent.com/suhailphotos/bindu/refs/heads/main') }}"
     bindu_files: "{{ bindu_selective_files | default([]) }}"
-    bindu_owner: "{{ bindu_owner | default(ansible_user_id, true) | default(ansible_facts['user_id'], true) }}"
-    bindu_group: "{{ bindu_group | default(ansible_facts['user_gid'], true) }}"
+    bindu_owner: "{{ bindu_owner | default(ansible_facts['user_id']) }}"
+    bindu_group: "{{ bindu_group | default(ansible_facts['user_gid']) }}"
 
 - name: Nothing to do if no files are listed
   debug:
