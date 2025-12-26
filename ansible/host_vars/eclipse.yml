@@ -1,8 +1,3 @@
-ORBIT_HOME: "{{ helix_user_home }}/.orbit"  # runtime (sourced)
-ORBIT_DEV_HOME: "{{ helix_user_home }}/Library/CloudStorage/Dropbox/matrix/orbit"  # dev (Dropbox)
-ORBIT_REMOTE: "https://github.com/suhailphotos/orbit.git"
-ORBIT_BRANCH: "main"
-
 brew_taps_extra:
   - epk/epk
 

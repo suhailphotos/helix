@@ -24,6 +24,8 @@ dropbox_enabled: true
 dropbox_user: "root"
 dropbox_home: "/root"
 
+starship_profile: "starship_bash.toml"
+
 # Folders under ~/Dropbox to exclude from sync on this node
 dropbox_excludes:
   - movies

@@ -1,0 +1,15 @@
+# group_vars/linux_standard.yml
+use_selective_configs: true
+starship_profile: "starship.toml"
+
+bindu_selective_files:
+  - { src: "starship/starship_bash.toml", dest: "~/.config/starship/starship.toml" }
+  - { src: "bat/config",                  dest: "~/.config/bat/config" }
+  - { src: "eza/theme.yml",               dest: "~/.config/eza/theme.yml" }
+  - { src: "git/config",                  dest: "~/.config/git/config" }
+  - { src: "git/ignore",                  dest: "~/.config/git/ignore" }
+  - { src: "pip/pip.conf",                dest: "~/.config/pip/pip.conf" }
+  - { src: "htop/htoprc",                 dest: "~/.config/htop/htoprc" }
+  - { src: "tmux/tmux.conf",              dest: "~/.config/tmux/tmux.conf" }
+
+# reuse your existing nvim_selective_files + nvim_lazy_modules if desired

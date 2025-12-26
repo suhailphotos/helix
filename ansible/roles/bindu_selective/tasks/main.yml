@@ -1,40 +1,49 @@
 ---
 # roles/bindu_selective/tasks/main.yml
+#
+# Selective Bindu sync: FILES ONLY.
+# - Uses GitHub raw URLs (get_url)
+# - Expands "~" against helix_user_home (never controller HOME)
+# - Does not rely on ansible_user (often undefined on local mac runs)
 
 - name: Defaults
   set_fact:
-    # Allow override from group_vars; keep a safe default
     bindu_raw_base: "{{ bindu_raw_base | default('https://raw.githubusercontent.com/suhailphotos/bindu/refs/heads/main') }}"
     bindu_files: "{{ bindu_selective_files | default([]) }}"
+    bindu_owner: "{{ bindu_owner | default(ansible_user_id, true) | default(ansible_facts['user_id'], true) }}"
+    bindu_group: "{{ bindu_group | default(ansible_facts['user_gid'], true) }}"
 
 - name: Nothing to do if no files are listed
   debug:
     msg: "bindu_selective_files is empty — skipping Bindu selective download."
   when: (bindu_files | length) == 0
 
-# IMPORTANT:
-# Do NOT use `expanduser` here — that expands on the *controller*.
-# Resolve "~" to the *remote* HOME using helix_user_home.
+- name: Fail fast if any directory entries are present (src ends with '/')
+  fail:
+    msg: "bindu_selective is files-only. Remove directory entry: src='{{ item.src }}'"
+  loop: "{{ bindu_files }}"
+  when: item.src is match(".+/$")
+
 - name: Ensure parent dirs exist
-  file:
+  ansible.builtin.file:
     path: "{{ (item.dest | regex_replace('^~', helix_user_home)) | dirname }}"
     state: directory
     mode: "0755"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    owner: "{{ bindu_owner }}"
+    group: "{{ bindu_group }}"
   loop: "{{ bindu_files }}"
   loop_control:
     label: "{{ item.dest }}"
   when: (bindu_files | length) > 0
 
 - name: Download config files from Bindu (GitHub raw)
-  get_url:
+  ansible.builtin.get_url:
     url:  "{{ bindu_raw_base }}/{{ item.src }}"
     dest: "{{ item.dest | regex_replace('^~', helix_user_home) }}"
     mode: "0644"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    force: yes
+    owner: "{{ bindu_owner }}"
+    group: "{{ bindu_group }}"
+    force: true
   loop: "{{ bindu_files }}"
   loop_control:
     label: "{{ item.src }} → {{ item.dest | regex_replace('^~', helix_user_home) }}"

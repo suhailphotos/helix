@@ -39,9 +39,7 @@ starship_profile: "starship.toml"
 # - Prefer explicit helix_user_home for directories (more reliable than ~).
 # - Directory entries here assume your bindu_selective role supports folders.
 bindu_selective_files:
-  # --- Full folders (Apogee + Starship) ---
-  - { src: "apogee/",   dest: "{{ helix_user_home }}/.config/apogee/" }
-  - { src: "starship/", dest: "{{ helix_user_home }}/.config/starship/" }
+  - { src: "starship/starship_zsh.toml", dest: "~/.config/starship/starship.toml" }
 
   # --- Core CLI config files ---
   - { src: "bat/config",     dest: "~/.config/bat/config" }
