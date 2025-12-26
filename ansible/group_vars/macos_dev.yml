@@ -1,20 +1,51 @@
 bindu_mode: full
 apogee_install_method: cargo
+
 install_fish: true
 install_powershell: true
 
+# you said you want rustup on dev boxes
+rustup_enabled: true
+cargo_enabled: true
+
 brew_packages_extra:
   - fish
+  - rust-analyzer
+  - cmake
+  - ninja
+  - pkg-config
+  - autoconf
+  - automake
+  - libtool
+  - meson
 
-yazi_enabled: true
-cargo_enabled: true
-rustup_enabled: true
-
-# --------------------------------------------------
-#         Crates
-# --------------------------------------------------
 cargo_crates_macos:
-  - { name: cargo-modules, bin: cargo-modules }
-  - { name: cargo-watch,   bin: cargo-watch }
-  # speed-ups: if you want binstall-first workflow, include it:
-  - { name: cargo-binstall, bin: cargo-binstall }
+  - { name: cargo-modules,   bin: cargo-modules }
+  - { name: cargo-watch,     bin: cargo-watch }
+  - { name: cargo-binstall,  bin: cargo-binstall }
+
+# bring back your uv dev projects + pins
+uv_projects_macos:
+  - usdUtils
+  - oauthManager
+  - pythonKitchen
+  - ocioTools
+  - helperScripts
+  - Incept
+  - Lumiera
+  - Ledu
+  - hdrUtils
+
+uv_python_pin_map:
+  "3.11": "3.11.7"
+  "3.12": "3.12.4"
+
+houdini_python_patch: "3.11.7"
+
+# atrium dev packages (if still desired)
+atrium_stow_packages:
+  - incept
+  - notionmanager
+  - oauthmanager
+  - parivaha
+atrium_use_adopt: true

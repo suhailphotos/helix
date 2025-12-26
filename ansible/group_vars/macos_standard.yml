@@ -19,6 +19,10 @@ yazi_enabled: true
 
 # No Rust/cargo extras on standard machines
 cargo_enabled: false
+rustup_enabled: false
+
+cargo_crates_macos: []
+uv_projects_macos: []
 
 # Dev-only shells OFF
 install_fish: false
@@ -48,6 +52,12 @@ bindu_selective_files:
   - { src: "git/ignore",     dest: "~/.config/git/ignore" }
   - { src: "pip/pip.conf",   dest: "~/.config/pip/pip.conf" }
   - { src: "htop/htoprc",    dest: "~/.config/htop/htoprc" }
+
+  # --- copy Ghottty themes and config ---
+  - { src: "ghostty/config",                     dest: "~/.config/ghostty/config" }
+  - { src: "ghostty/themes/lilac-mistbloom",     dest: "~/.config/ghostty/themes/lilac-mistbloom" }
+  - { src: "ghostty/themes/lilac-pearlbloom",    dest: "~/.config/ghostty/themes/lilac-pearlbloom" }
+  - { src: "ghostty/themes/lilac-nightbloom",    dest: "~/.config/ghostty/themes/lilac-nightbloom" }
 
   # --- GitHub CLI (only if sanitized) ---
   - { src: "gh/config.yml",  dest: "~/.config/gh/config.yml" }
@@ -92,3 +102,5 @@ nvim_lazy_modules:
   - "suhail.lazy.clipboard"
   - "suhail.lazy.undotree"
   - "suhail.lazy.fugitive"
+
+
