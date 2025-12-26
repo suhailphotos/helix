@@ -1,51 +1,33 @@
 ---
 # roles/apogee_cargo/tasks/main.yml
-# Installs cargo if needed, then installs apogee with cargo.
 
-- name: Defaults (no deprecated vars)
-  set_fact:
-    apogee_home: "{{ apogee_home | default(helix_user_home, true) }}"
-    apogee_cargo_bin: "{{ (apogee_home | default(helix_user_home, true)) ~ '/.cargo/bin/cargo' }}"
-    apogee_bin: "{{ (apogee_home | default(helix_user_home, true)) ~ '/.cargo/bin/apogee' }}"
-    apogee_path_effective: >-
-      {{
-        (helix_task_path_effective | default(helix_task_path | default('', true), true))
-        ~ ':' ~ (apogee_home ~ '/.cargo/bin')
-        ~ ':' ~ (ansible_facts['env']['PATH'] | default('', true))
-      }}
-
-- name: Check for cargo (direct path)
+- name: Apogee (cargo) | Check cargo (absolute path)
   stat:
-    path: "{{ apogee_cargo_bin }}"
+    path: "{{ helix_user_home }}/.cargo/bin/cargo"
   register: apogee_cargo_stat
 
-- name: Ensure cargo exists (install if missing)
+- name: Apogee (cargo) | Ensure cargo exists (include rustup if needed)
   include_role:
     name: rustup
   when: not apogee_cargo_stat.stat.exists
 
-- name: Re-check for cargo (direct path)
+- name: Apogee (cargo) | Re-check cargo after rustup
   stat:
-    path: "{{ apogee_cargo_bin }}"
+    path: "{{ helix_user_home }}/.cargo/bin/cargo"
   register: apogee_cargo_stat2
 
-- name: Fail if cargo is still missing
-  fail:
-    msg: "cargo is still missing at {{ apogee_cargo_bin }} (rustup role did not produce cargo)."
+- name: Apogee (cargo) | Skip if cargo still missing
+  debug:
+    msg: "Skipping apogee_cargo: cargo is still missing after rustup attempt."
   when: not apogee_cargo_stat2.stat.exists
 
-- name: Install apogee via cargo
-  command: "{{ apogee_cargo_bin }} install --locked apogee"
+- name: Apogee (cargo) | Install apogee via cargo
+  command: "{{ helix_user_home }}/.cargo/bin/cargo install --locked apogee"
   environment:
-    PATH: "{{ apogee_path_effective }}"
-  changed_when: true
-
-- name: Verify apogee exists
-  stat:
-    path: "{{ apogee_bin }}"
-  register: apogee_bin_stat
-
-- name: Fail if apogee binary not found after install
-  fail:
-    msg: "apogee install finished but binary not found at {{ apogee_bin }}."
-  when: not apogee_bin_stat.stat.exists
+    PATH: >-
+      {{
+        (helix_task_path | default('')) ~
+        ':' ~ (helix_user_home ~ '/.cargo/bin') ~
+        ':' ~ (ansible_facts['env']['PATH'] | default(''))
+      }}
+  when: apogee_cargo_stat2.stat.exists

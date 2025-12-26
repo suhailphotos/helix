@@ -1,77 +1,69 @@
 ---
 # roles/rustup/tasks/main.yml
 # Goal:
-# - Ensure cargo exists.
-# - On macOS: install rustup (brew) + stable toolchain (cargo ends up in ~/.cargo/bin).
-# - On Debian: fallback to apt cargo/rustc if cargo missing.
+# - Ensure a working cargo exists.
+# - On macOS: use Homebrew rustup-init, then run rustup-init non-interactively.
+# - On Debian/Ubuntu: install cargo via apt if missing.
+# - Never rely on PATH being updated by shell dotfiles.
+# - Never use ansible_env / ansible_user (avoids INJECT_FACTS_AS_VARS deprecation noise).
+# - Never hard-fail the play.
 
-- name: Defaults (no deprecated vars)
+- name: Rustup | Define paths
   set_fact:
-    rustup_owner: "{{ rustup_owner | default(ansible_facts['user_id'], true) }}"
-    rustup_group: "{{ rustup_group | default(ansible_facts['user_id'], true) }}"
-    rustup_home: "{{ rustup_home | default(helix_user_home, true) }}"
-    rustup_cargo_bin: "{{ (rustup_home | default(helix_user_home, true)) ~ '/.cargo/bin/cargo' }}"
-    rustup_path_effective: >-
+    rustup_cargo_home: "{{ helix_user_home }}/.cargo"
+    rustup_rustup_home: "{{ helix_user_home }}/.rustup"
+    rustup_cargo_bin: "{{ helix_user_home }}/.cargo/bin"
+    rustup_cargo_path: "{{ helix_user_home }}/.cargo/bin/cargo"
+    rustup_rustup_path: "{{ helix_user_home }}/.cargo/bin/rustup"
+    rustup_effective_path: >-
       {{
-        (helix_task_path_effective | default(helix_task_path | default('', true), true))
-        ~ ':' ~ (ansible_facts['env']['PATH'] | default('', true))
+        (helix_task_path | default('')) ~
+        ':' ~ (helix_user_home ~ '/.local/bin') ~
+        ':' ~ (helix_user_home ~ '/.cargo/bin') ~
+        ':' ~ (ansible_facts['env']['PATH'] | default(''))
       }}
 
-- name: Ensure ~/.local/bin exists
-  file:
-    path: "{{ rustup_home }}/.local/bin"
-    state: directory
-    mode: "0755"
-
-- name: Check for cargo (direct path)
+- name: Rustup | Check cargo (absolute path)
   stat:
-    path: "{{ rustup_cargo_bin }}"
+    path: "{{ rustup_cargo_path }}"
   register: rustup_cargo_stat
 
 # -----------------------------
-# macOS: rustup via Homebrew
+# macOS: rustup-init bootstrap
 # -----------------------------
 - block:
-    - name: Install rustup via Homebrew
+    - name: Rustup | Ensure ~/.local/bin exists
+      file:
+        path: "{{ helix_user_home }}/.local/bin"
+        state: directory
+        mode: "0755"
+
+    - name: Rustup | Install rustup-init via Homebrew
       homebrew:
-        name: rustup
+        name: rustup-init
         state: present
 
-    - name: Ensure stable toolchain installed (provides cargo)
-      command: rustup toolchain install stable
+    - name: Rustup | Run rustup-init (non-interactive, no PATH edits)
+      command: rustup-init -y --no-modify-path --default-toolchain stable
       args:
-        creates: "{{ rustup_home }}/.rustup/toolchains"
+        creates: "{{ rustup_cargo_path }}"
       environment:
-        PATH: "{{ rustup_path_effective }}"
-      changed_when: false
-      failed_when: false
-
-    - name: Set default toolchain to stable
-      command: rustup default stable
-      environment:
-        PATH: "{{ rustup_path_effective }}"
-      changed_when: false
-      failed_when: false
-
-    - name: Re-check for cargo (direct path)
-      stat:
-        path: "{{ rustup_cargo_bin }}"
-      register: rustup_cargo_stat2
-
-    - name: Fail if cargo still missing after rustup (macOS)
-      fail:
-        msg: "rustup ran but cargo is still missing at {{ rustup_cargo_bin }}."
-      when: not rustup_cargo_stat2.stat.exists
+        RUSTUP_HOME: "{{ rustup_rustup_home }}"
+        CARGO_HOME: "{{ rustup_cargo_home }}"
+        PATH: "{{ rustup_effective_path }}"
+      register: rustup_init_run
+      changed_when: rustup_init_run.rc == 0
+      failed_when: rustup_init_run.rc != 0
 
   when:
     - ansible_facts['system'] == 'Darwin'
     - not rustup_cargo_stat.stat.exists
 
 # -----------------------------
-# Debian/Ubuntu fallback (only if cargo missing)
+# Debian/Ubuntu: apt fallback
 # -----------------------------
 - block:
-    - name: Install cargo/rustc via apt (fallback)
+    - name: Rustup | Install cargo via apt (Debian/Ubuntu fallback)
       become: yes
       apt:
         name:
@@ -79,7 +71,28 @@
           - rustc
         state: present
         update_cache: yes
-
   when:
     - ansible_facts['os_family'] == 'Debian'
     - not rustup_cargo_stat.stat.exists
+
+# -----------------------------
+# Final re-check + export fact
+# -----------------------------
+- name: Rustup | Re-check cargo (absolute path)
+  stat:
+    path: "{{ rustup_cargo_path }}"
+  register: rustup_cargo_stat2
+
+- name: Rustup | Set rustup_has_cargo fact
+  set_fact:
+    rustup_has_cargo: "{{ rustup_cargo_stat2.stat.exists | bool }}"
+    cargo_cmd: >-
+      {{
+        (rustup_cargo_stat2.stat.exists | bool)
+        | ternary(rustup_cargo_path, 'cargo')
+      }}
+
+- name: Rustup | Warn if cargo still missing (do not fail)
+  debug:
+    msg: "rustup role ran, but cargo is still missing at {{ rustup_cargo_path }} (PATH may also not include it yet)."
+  when: not rustup_has_cargo

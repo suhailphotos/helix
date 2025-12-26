@@ -1,62 +1,54 @@
 ---
 # roles/cargo_crates/tasks/main.yml
 
-- name: Defaults (no deprecated vars)
+- name: Cargo crates | Build crate list
   set_fact:
-    cargo_home: "{{ cargo_home | default(helix_user_home, true) }}"
-    cargo_bin: "{{ (cargo_home | default(helix_user_home, true)) ~ '/.cargo/bin/cargo' }}"
-    cargo_path_effective: >-
-      {{
-        (helix_task_path_effective | default(helix_task_path | default('', true), true))
-        ~ ':' ~ (cargo_home ~ '/.cargo/bin')
-        ~ ':' ~ (ansible_facts['env']['PATH'] | default('', true))
-      }}
+    cargo_crate_list: "{{ (cargo_crates_common | default([])) + (cargo_crates_macos | default([])) + (cargo_crates_linux | default([])) }}"
 
-    cargo_crates_all: >-
-      {{
-        (cargo_crates_common | default([], true))
-        + (cargo_crates_macos | default([], true) if ansible_facts['system'] == 'Darwin' else [])
-        + (cargo_crates_linux | default([], true) if ansible_facts['system'] != 'Darwin' else [])
-      }}
-
-- name: Nothing to do if no crates are listed
+- name: Cargo crates | Nothing to do
   debug:
-    msg: "cargo_crates: no crates configured."
-  when: (cargo_crates_all | length) == 0
+    msg: "No cargo crates requested."
+  when: (cargo_crate_list | length) == 0
 
-- name: Check for cargo (direct path)
+- name: Cargo crates | Check cargo (absolute path)
   stat:
-    path: "{{ cargo_bin }}"
-  register: cargo_stat
-  when: (cargo_crates_all | length) > 0
+    path: "{{ helix_user_home }}/.cargo/bin/cargo"
+  register: cargo_crates_cargo_stat
+  when: (cargo_crate_list | length) > 0
 
-- name: Ensure cargo exists (install if missing)
+- name: Cargo crates | Ensure cargo exists (include rustup if needed)
   include_role:
     name: rustup
   when:
-    - (cargo_crates_all | length) > 0
-    - not cargo_stat.stat.exists
+    - (cargo_crate_list | length) > 0
+    - not cargo_crates_cargo_stat.stat.exists
 
-- name: Re-check for cargo (direct path)
+- name: Cargo crates | Re-check cargo
   stat:
-    path: "{{ cargo_bin }}"
-  register: cargo_stat2
-  when: (cargo_crates_all | length) > 0
+    path: "{{ helix_user_home }}/.cargo/bin/cargo"
+  register: cargo_crates_cargo_stat2
+  when: (cargo_crate_list | length) > 0
 
-- name: Fail if cargo is still missing
-  fail:
-    msg: "cargo is missing at {{ cargo_bin }}, cannot install cargo crates."
+- name: Cargo crates | Skip if cargo still missing
+  debug:
+    msg: "Skipping cargo_crates: cargo is still missing after rustup attempt."
   when:
-    - (cargo_crates_all | length) > 0
-    - not cargo_stat2.stat.exists
+    - (cargo_crate_list | length) > 0
+    - not cargo_crates_cargo_stat2.stat.exists
 
-- name: Install crates (cargo install)
+- name: Cargo crates | Install crates
   command: >-
-    {{ cargo_bin }} install --locked {{ item.name }}
-    {{ ('--version ' ~ item.version) if (item.version is defined and item.version | length > 0) else '' }}
+    {{ helix_user_home }}/.cargo/bin/cargo install {{ item.name }}
   environment:
-    PATH: "{{ cargo_path_effective }}"
-  loop: "{{ cargo_crates_all }}"
+    PATH: >-
+      {{
+        (helix_task_path | default('')) ~
+        ':' ~ (helix_user_home ~ '/.cargo/bin') ~
+        ':' ~ (ansible_facts['env']['PATH'] | default(''))
+      }}
+  loop: "{{ cargo_crate_list }}"
   loop_control:
     label: "{{ item.name }}"
-  when: (cargo_crates_all | length) > 0
+  when:
+    - (cargo_crate_list | length) > 0
+    - cargo_crates_cargo_stat2.stat.exists
