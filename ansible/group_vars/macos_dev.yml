@@ -1,0 +1,10 @@
+bindu_mode: full
+apogee_install_method: cargo
+install_fish: true
+install_powershell: true
+
+brew_packages_extra:
+  - fish
+
+yazi_enabled: true
+cargo_enabled: true

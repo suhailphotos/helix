@@ -1,5 +1,9 @@
 bindu_mode: selective
 apogee_install_method: brew
 
+yazi_enabled: true
+cargo_enabled: false
+
+
 install_fish: false
 install_powershell: false

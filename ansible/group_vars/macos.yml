@@ -1,3 +1,9 @@
+# group_vars/macos.yml
+# Baseline for ALL macOS machines (standard + dev)
+
+# -----------------------------
+# Homebrew packages (baseline)
+# -----------------------------
 brew_packages:
   - git
   - neovim
@@ -13,82 +19,35 @@ brew_packages:
   - yq
   - wget
   - curl
+
+  # Python basics (light)
   - python
   - pipx
+  - uv
+
+  # Dotfiles + terminal quality-of-life
   - stow
-  - yazi
-  - resvg
   - 1password-cli
   - node
-  # pyevn removed python is now managed by uv
-  # - pyenv
-  - rust-analyzer
+
+  # mac-friendly extras
+  - yazi
+  - resvg
   - pngpaste
   - tree-sitter
   - tree-sitter-cli
-  # Build tools you asked for
-  - cmake
-  - ninja
-  - pkg-config
-  - autoconf
-  - automake
-  - libtool
-  - meson
-  - rust
-  - uv
 
-  # --- GNU userland (for consistent flags & color across macOS) ---
-  - coreutils    # installs gls/gdate/... (gnubin path available)
-  - findutils    # gfind/gxargs
-  - gnu-sed      # gsed
+  # --- GNU userland (consistency across macOS) ---
+  - coreutils
+  - findutils
+  - gnu-sed
   - eza
   - gawk
-  - grep         # ggrep (GNU), BSD /usr/bin/grep remains
+  - grep
 
-# ---- Optional: build deps to Python builds smoother on macOS ----
-#  - openssl@3
-#  - readline
-#  - xz
-#  - bzip2
-#  - sqlite
-#  - libffi
-#  - gdbm
-
-# uv project list (macOS)
-uv_projects_macos:
-  - usdUtils
-  - oauthManager
-  - pythonKitchen
-  - ocioTools
-  - helperScripts
-  - Incept
-  - Lumiera
-  - Ledu
-  - hdrUtils
-
-uv_python_pin_map:
-  "3.11": "3.11.7"
-  "3.12": "3.12.4"
-
-# Optional override for python if pyproject doesn't specify clearly:
-houdini_python_patch: "3.11.7"
-
-# Enable uv role on all macOS hosts
-uv_enabled: true
-
-# Pixi defaults (can be left implicit)
-# pixi_hosts_dir: "{{ helix_user_home }}/.config/pixi/hosts"
-
-# ---- Python toolchain knobs ----
-pyenv_versions:
-  - "3.11.7"     # matches Houdini’s current line, good to have locally
-  - "3.12.4"     # whatever you want as your “latest” dev version
-pyenv_global: "3.12.4"  # which one becomes `pyenv global`
-
-pipx_packages:
-  # poetry removed since now I am moving to uv
-  # - poetry
-
+# -----------------------------
+# Casks (baseline)
+# -----------------------------
 brew_casks:
   - iterm2
   - 1password
@@ -96,9 +55,24 @@ brew_casks:
 brew_taps_extra:
   - orbyts/tap
 
-# --------------------------------------------------
-# Helix repo
-# --------------------------------------------------
+# -----------------------------
+# Feature toggles (baseline)
+# -----------------------------
+yazi_enabled: true          # macs get yazi
+cargo_enabled: false        # only dev boxes install cargo crates
+
+# uv is available everywhere, but "dev projects" live in macos_dev.yml
+uv_enabled: true
+uv_projects_macos: []       # IMPORTANT: keep empty here
+
+# Keep these empty in baseline (dev fills them in)
+cargo_crates_macos: []
+poetry_projects_macos: []
+desktop_casks: []
+
+# -----------------------------
+# Helix / paths
+# -----------------------------
 helix_cache_path: "{{ helix_user_home }}/.cache/helix_checkout"
 helix_repo_url: "https://github.com/suhailphotos/helix.git"
 helix_repo_branch: "main"
@@ -106,43 +80,20 @@ helix_remote: "https://github.com/suhailphotos/helix.git"
 helix_main_branch: "main"
 helix_config_branch: "config"
 
-
-# Prefer dev repo under Dropbox if present; else fallback to runtime clone
 helix_home: "{{ helix_user_home }}/.helix"
 helix_dev_home: "{{ matrix_root }}/helix"
 
-# --------------------------------------------------
-# Bindu
-# --------------------------------------------------
+matrix_root: "{{ lookup('env','MATRIX') | default(helix_user_home + '/Library/CloudStorage/Dropbox/matrix', true) }}"
+matrix_packages_dir: "{{ matrix_root }}/packages"
+
+# -----------------------------
+# Bindu base (no policy here)
+# -----------------------------
 bindu_raw_base: "https://raw.githubusercontent.com/suhailphotos/bindu/refs/heads/main"
 
-# mac_dev only
-bindu_mode: full
-apogee_install_method: cargo
-
-# dev shells
-install_fish: true
-install_powershell: true
-
-# fish package (only dev)
-brew_packages_extra:
-  - fish
-
-homebrew_casks_required:
-  - iterm2
-  - 1Password
-
-homebrew_casks_optional:
-  - font-sf-mono-nerd-font
-
-# PowerShell install method:
-# Option A (works today, but deprecating): brew_cask
-# Option B (preferred long-term): pkg (you provide URL/version)
-powershell_install_method: brew_cask
-
-# --------------------------------------------------
+# -----------------------------
 # iTerm assets
-# --------------------------------------------------
+# -----------------------------
 iterm_download_dir: "{{ helix_user_home }}/Downloads"
 iterm_profile_json_url: "{{ helix_dotfiles_raw_base }}/iterm/suhail-iterm-profile.json"
 iterm_keymap_url: "{{ helix_dotfiles_raw_base }}/iterm/suhail-nvim-tmux.itermkeymap"
@@ -150,79 +101,21 @@ iterm_install_meslo: true
 iterm_copy_assets_to_downloads: false
 iterm_warn_missing_assets: true
 
-# Two color presets (light + dark)
 iterm_color_preset_urls:
   - "{{ helix_dotfiles_raw_base }}/iterm/catppuccin-latte-mocha.itermcolors"
   - "{{ helix_dotfiles_raw_base }}/iterm/catppuccin-mocha_dark.itermcolors"
 
-# --- nvim config file location
+# NVIM config file location
 nvim_src_rel: "config/.config/nvim"
 
-# Apple SF fonts to fetch/install
+# SF fonts list can stay here (it’s only used when enable_sf_fonts=true)
 apple_sf_fonts:
   - { name: "SF Pro",     url: "https://developer.apple.com/download/files/SF-Pro.dmg" }
   - { name: "SF Compact", url: "https://developer.apple.com/download/files/SF-Compact.dmg" }
   - { name: "SF Mono",    url: "https://devimages-cdn.apple.com/design/resources/download/SF-Mono.dmg" }
   - { name: "New York",   url: "https://devimages-cdn.apple.com/design/resources/download/NY.dmg" }
 
-
-matrix_root: "{{ lookup('env','MATRIX') | default(helix_user_home + '/Library/CloudStorage/Dropbox/matrix', true) }}"
-matrix_packages_dir: "{{ matrix_root }}/packages"
-
-
-# Only process what you list here (skip houdiniLab, etc.)
-poetry_projects_macos:
-  - hdrUtils
-  - helperScripts
-  - oauthManager
-  - ocioTools
-  - pythonKitchen
-  - Incept
-  - Ledu
-  - Lumiera
-  - notionManager
-  - nukeUtils
-  - pariVaha
-  - usdUtils
-  - webUtils
-
-# Desktop apps you usually want on macOS (baseline; host can extend/trim)
-desktop_casks:
-  - inkscape
-  - discord
-  - jellyfin-media-player
-  - obsidian
-  - spotify
-  - blender
-
-# --------------------------------------------------
-#         Crates
-# --------------------------------------------------
-cargo_crates_macos:
-  - { name: cargo-modules, bin: cargo-modules }
-  - { name: cargo-watch,   bin: cargo-watch }
-  # speed-ups: if you want binstall-first workflow, include it:
-  - { name: cargo-binstall, bin: cargo-binstall }
-
-
-# examples — all optional
-eza_dir_foreground: Cyan
-eza_build_underline: false
-eza_readmemd_bold: true
-eza_dot_italic_names:
-  - ".backups"
-  - ".git"
-  - ".github"
-  - ".config"
-  - ".cache"
-  - ".vscode"
-  - ".idea"
-  - ".venv"
-  - ".mypy_cache"
-  - ".pytest_cache"
-  - "__pycache__"
-
-# Scratch defaults (macOS)
+# Scratch defaults (fine as baseline)
 scratch_root: "{{ helix_user_home }}/Documents/Scratch"
 scratch_subfolders:
   - screenshots
@@ -231,15 +124,3 @@ scratch_subfolders:
   - notes
   - photos
   - tmp
-
-atrium_stow_packages:
-  - incept
-  - notionmanager
-  - oauthmanager
-  - parivaha
-
-# First run on a new Mac? set true once, then flip back to false
-atrium_use_adopt: true
-
-# p10 url
-p10k_raw_url: "{{ bindu_raw_base }}/p10k/.p10k.zsh"

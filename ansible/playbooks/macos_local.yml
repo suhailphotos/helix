@@ -53,12 +53,12 @@
     - { role: home_shims,             tags: ['home','dotfiles'] }
     - { role: tmux_setup,             tags: ['tmux'] }
     - { role: eza,                    tags: ['eza'] }
-    - { role: yazi,                   tags: ['yazi'] }
+    - { role: yazi,                   when: (yazi_enabled | default(true)) | bool, tags: ['yazi'] }
 
     - { role: apple_sf_fonts,         when: (enable_sf_fonts | default(false)) | bool, tags: ['fonts'] }
 
     - { role: uv,                     tags: ['uv'] }
-    - { role: cargo_crates,           tags: ['cargo'] }
+    - { role: cargo_crates,           when: (cargo_enabled | default(false)) | bool, tags: ['cargo'] }
 
     - { role: macos_scratch,          tags: ['scratch','screencapture'] }
     - { role: atrium_stow,            tags: ['atrium','stow'] }
