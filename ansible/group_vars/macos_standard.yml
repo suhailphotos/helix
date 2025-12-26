@@ -103,6 +103,10 @@ nvim_lazy_modules:
   - "suhail.lazy.undotree"
   - "suhail.lazy.fugitive"
 
+brew_casks:
+  - iterm2
+  - 1password
+
 desktop_casks:
   - inkscape
   - discord

@@ -396,24 +396,25 @@ done < <(yq -r "$YQ_QUERY" "$INVENTORY")
 # Add 1Password public key to GitHub (idempotent)
 if [[ $GITHUB_ADD_KEY -eq 1 ]]; then
   if command -v gh >/dev/null 2>&1 && command -v op >/dev/null 2>&1; then
-    pub="$(op read 'op://security/GitHub/public key' || true)"
-    if [[ -n "${pub:-}" ]]; then
-      set +e
-      gh api user/keys --jq '.[].key' 2>/dev/null | grep -Fqx "$pub"
-      already=$?
-      set -e
-      if [[ $already -ne 0 ]]; then
-        if [[ $DRY_RUN -eq 1 ]]; then
-          echo "---- would add GitHub public key from 1Password ----"
+    if ! gh auth status >/dev/null 2>&1; then
+      echo "⚠ Skipping --github-add-key (gh is not authenticated). Run: gh auth login"
+    else
+      pub="$(op read 'op://security/GitHub/public key' || true)"
+      if [[ -n "${pub:-}" ]]; then
+        # Check if key already exists
+        if gh api user/keys --jq '.[].key' 2>/dev/null | grep -Fqx "$pub"; then
+          echo "✔ GitHub already has this 1Password public key"
         else
-          printf "%s\n" "$pub" | gh ssh-key add -t "1Password SSH (shared)" -
-          echo "==> Added public key to GitHub"
+          if [[ $DRY_RUN -eq 1 ]]; then
+            echo "---- would add GitHub public key from 1Password ----"
+          else
+            printf "%s\n" "$pub" | gh ssh-key add -t "1Password SSH (shared)" -
+            echo "==> Added public key to GitHub"
+          fi
         fi
       else
-        echo "✔ GitHub already has this 1Password public key"
+        echo "⚠ Could not read 'op://security/GitHub/public key'"
       fi
-    else
-      echo "⚠ Could not read 'op://security/GitHub/public key'"
     fi
   else
     echo "⚠ Skipping --github-add-key (gh and/or op not found)"

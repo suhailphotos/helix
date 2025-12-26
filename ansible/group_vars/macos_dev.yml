@@ -8,6 +8,10 @@ install_powershell: true
 rustup_enabled: true
 cargo_enabled: true
 
+brew_casks:
+  - iterm2
+  - 1password
+
 brew_packages_extra:
   - fish
   - rust-analyzer
