@@ -1,37 +1,51 @@
 ---
 # roles/apogee_cargo/tasks/main.yml
-# Goal: ensure cargo exists, then `cargo install apogee`.
+# Installs cargo if needed, then installs apogee with cargo.
 
-- name: Set PATH for cargo commands
+- name: Defaults (no deprecated vars)
   set_fact:
-    helix_task_path_effective: "{{ helix_task_path | default(helix_user_home ~ '/.local/bin:' ~ helix_user_home ~ '/.cargo/bin') }}"
+    apogee_home: "{{ apogee_home | default(helix_user_home, true) }}"
+    apogee_cargo_bin: "{{ (apogee_home | default(helix_user_home, true)) ~ '/.cargo/bin/cargo' }}"
+    apogee_bin: "{{ (apogee_home | default(helix_user_home, true)) ~ '/.cargo/bin/apogee' }}"
+    apogee_path_effective: >-
+      {{
+        (helix_task_path_effective | default(helix_task_path | default('', true), true))
+        ~ ':' ~ (apogee_home ~ '/.cargo/bin')
+        ~ ':' ~ (ansible_facts['env']['PATH'] | default('', true))
+      }}
 
-- name: Check for cargo
-  command: bash -lc "command -v cargo"
-  register: cargo_check
-  changed_when: false
-  failed_when: false
-  environment:
-    PATH: "{{ helix_task_path_effective }}:{{ ansible_env.PATH }}"
+- name: Check for cargo (direct path)
+  stat:
+    path: "{{ apogee_cargo_bin }}"
+  register: apogee_cargo_stat
 
-- name: Install rust toolchain if cargo is missing
+- name: Ensure cargo exists (install if missing)
   include_role:
     name: rustup
-  when: cargo_check.rc != 0
+  when: not apogee_cargo_stat.stat.exists
 
-- name: Re-check for cargo after rustup
-  command: bash -lc "command -v cargo"
-  register: cargo_check2
-  changed_when: false
-  failed_when: cargo_check2.rc != 0
-  environment:
-    PATH: "{{ helix_task_path_effective }}:{{ ansible_env.PATH }}"
+- name: Re-check for cargo (direct path)
+  stat:
+    path: "{{ apogee_cargo_bin }}"
+  register: apogee_cargo_stat2
+
+- name: Fail if cargo is still missing
+  fail:
+    msg: "cargo is still missing at {{ apogee_cargo_bin }} (rustup role did not produce cargo)."
+  when: not apogee_cargo_stat2.stat.exists
 
 - name: Install apogee via cargo
-  shell: |
-    set -euo pipefail
-    cargo install --locked apogee
-  args:
-    executable: /bin/bash
+  command: "{{ apogee_cargo_bin }} install --locked apogee"
   environment:
-    PATH: "{{ helix_task_path_effective }}:{{ ansible_env.PATH }}"
+    PATH: "{{ apogee_path_effective }}"
+  changed_when: true
+
+- name: Verify apogee exists
+  stat:
+    path: "{{ apogee_bin }}"
+  register: apogee_bin_stat
+
+- name: Fail if apogee binary not found after install
+  fail:
+    msg: "apogee install finished but binary not found at {{ apogee_bin }}."
+  when: not apogee_bin_stat.stat.exists
