@@ -1,9 +1,96 @@
+# group_vars/macos_standard.yml
+# ------------------------------------------------------------
+# macOS Standard profile
+# Goal: light browsing + basic CLI comfort.
+# - Use Bindu "selective" mode (copy only what we need)
+# - Apogee installed via Homebrew
+# - No dev shells (fish/pwsh) and no cargo crates
+# - NVIM config is copied selectively (minimal)
+# ------------------------------------------------------------
+
+# -----------------------------
+# Profile switches
+# -----------------------------
 bindu_mode: selective
 apogee_install_method: brew
 
+# Standard macs still get yazi (easy via brew)
 yazi_enabled: true
+
+# No Rust/cargo extras on standard machines
 cargo_enabled: false
 
-
+# Dev-only shells OFF
 install_fish: false
 install_powershell: false
+
+# -----------------------------
+# Compatibility / legacy knobs
+# -----------------------------
+# Apogee now sets STARSHIP_CONFIG dynamically (starship_{shell}.toml),
+# but keep this variable so nothing else breaks if a role still references it.
+# Pick a file you *know* exists inside ~/.config/starship/.
+starship_profile: "starship.toml"
+
+# -----------------------------
+# Bindu selective copies
+# -----------------------------
+# Notes:
+# - Prefer explicit helix_user_home for directories (more reliable than ~).
+# - Directory entries here assume your bindu_selective role supports folders.
+bindu_selective_files:
+  # --- Full folders (Apogee + Starship) ---
+  - { src: "apogee/",   dest: "{{ helix_user_home }}/.config/apogee/" }
+  - { src: "starship/", dest: "{{ helix_user_home }}/.config/starship/" }
+
+  # --- Core CLI config files ---
+  - { src: "bat/config",     dest: "~/.config/bat/config" }
+  - { src: "eza/theme.yml",  dest: "~/.config/eza/theme.yml" }
+  - { src: "git/config",     dest: "~/.config/git/config" }
+  - { src: "git/ignore",     dest: "~/.config/git/ignore" }
+  - { src: "pip/pip.conf",   dest: "~/.config/pip/pip.conf" }
+  - { src: "htop/htoprc",    dest: "~/.config/htop/htoprc" }
+
+  # --- GitHub CLI (only if sanitized) ---
+  - { src: "gh/config.yml",  dest: "~/.config/gh/config.yml" }
+  - { src: "gh/hosts.yml",   dest: "~/.config/gh/hosts.yml" }
+
+  # --- tmux ---
+  - { src: "tmux/tmux.conf", dest: "~/.config/tmux/tmux.conf" }
+
+# -----------------------------
+# NVIM selective config
+# -----------------------------
+# This requires macos_local.yml to call nvim_selective when bindu_mode=selective.
+nvim_raw_base: "{{ bindu_raw_base }}/nvim"
+
+nvim_selective_files:
+  # plugin specs
+  - { src: "lua/suhail/lazy/telescope.lua",      dest: "~/.config/nvim/lua/suhail/lazy/telescope.lua" }
+  - { src: "lua/suhail/lazy/treesitter.lua",     dest: "~/.config/nvim/lua/suhail/lazy/treesitter.lua" }
+  - { src: "lua/suhail/lazy/devicons.lua",       dest: "~/.config/nvim/lua/suhail/lazy/devicons.lua" }
+  - { src: "lua/suhail/lazy/undotree.lua",       dest: "~/.config/nvim/lua/suhail/lazy/undotree.lua" }
+  - { src: "lua/suhail/lazy/fugitive.lua",       dest: "~/.config/nvim/lua/suhail/lazy/fugitive.lua" }
+  - { src: "lua/suhail/lazy/tmux_nav.lua",       dest: "~/.config/nvim/lua/suhail/lazy/tmux_nav.lua" }
+  - { src: "lua/suhail/lazy/clipboard.lua",      dest: "~/.config/nvim/lua/suhail/lazy/clipboard.lua" }
+  - { src: "lua/suhail/lazy/iris.lua",           dest: "~/.config/nvim/lua/suhail/lazy/iris.lua" }
+
+  # bootstrap + helpers
+  - { src: "lua/suhail/lazy_init.lua",           dest: "~/.config/nvim/lua/suhail/lazy_init.lua" }
+  - { src: "lua/suhail/ui/telescope_nvchad.lua", dest: "~/.config/nvim/lua/suhail/ui/telescope_nvchad.lua" }
+
+  # core keymaps/options
+  - { src: "lua/suhail/remap.lua",               dest: "~/.config/nvim/lua/suhail/remap.lua" }
+  - { src: "lua/suhail/set.lua",                 dest: "~/.config/nvim/lua/suhail/set.lua" }
+  - { src: "lua/suhail/keys/theme.lua",          dest: "~/.config/nvim/lua/suhail/keys/theme.lua" }
+
+# This list is used by your templating/bootstrap logic
+nvim_lazy_modules:
+  - "suhail.lazy.iris"
+  - "suhail.lazy.devicons"
+  - "suhail.lazy.telescope"
+  - "suhail.lazy.treesitter"
+  - "suhail.lazy.tmux_nav"
+  - "suhail.lazy.clipboard"
+  - "suhail.lazy.undotree"
+  - "suhail.lazy.fugitive"

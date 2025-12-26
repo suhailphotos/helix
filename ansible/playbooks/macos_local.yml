@@ -48,7 +48,8 @@
 
     - { role: pixi,                   tags: ['pixi'] }
     - { role: python_toolchain,       tags: ['python'] }
-    - { role: nvim,                   tags: ['nvim'] }
+    - { role: nvim,                   when: (bindu_mode | default('selective')) == 'full',      tags: ['nvim'] }
+    - { role: nvim_selective,         when: (bindu_mode | default('selective')) == 'selective', tags: ['nvim'] }
 
     - { role: home_shims,             tags: ['home','dotfiles'] }
     - { role: tmux_setup,             tags: ['tmux'] }
