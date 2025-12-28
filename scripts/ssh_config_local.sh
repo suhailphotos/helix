@@ -329,13 +329,14 @@ YQ_QUERY='
       .key,
       (.value.ansible_host // ""),
       (.value.ansible_user // ""),
-      (.value.identity_file // .value.ansible_ssh_private_key_file // "")
+      (.value.identity_file // .value.ansible_ssh_private_key_file // ""),
+      (.value.ansible_port // "")
     ]
   | @tsv
 '
 
 # Iterate and create per-host snippets
-while IFS=$'\t' read -r group host ans_host ans_user ans_identity; do
+while IFS=$'\t' read -r group host ans_host ans_user ans_identity ans_port; do
   [[ -z "${host:-}" ]] && continue
 
   # skip macOS unless explicitly requested
@@ -368,6 +369,10 @@ while IFS=$'\t' read -r group host ans_host ans_user ans_identity; do
   HostName ${host_name}
   User ${user}
 "
+  if [[ -n "${ans_port:-}" ]]; then
+    CONTENT+="  Port ${ans_port}\n"
+  fi
+
   if [[ $USE_1PASSWORD -eq 0 ]]; then
     CONTENT+="  IdentityFile ${ident}\n"
   fi

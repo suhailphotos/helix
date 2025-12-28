@@ -30,6 +30,12 @@ all:
           ansible_host: flicker.suhail.ink
         nimbus:
           ansible_host: nimbus.suhail.ink
+        vortex:
+          ansible_host: "2603:8001:a000:100::d00d"
+          ansible_user: suhail
+          identity_file: "~/.ssh/id_rsa"
+          ansible_port: 22
+
         nexus:
           ansible_host: nexus.suhail.ink
 
