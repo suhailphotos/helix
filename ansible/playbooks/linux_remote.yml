@@ -32,10 +32,15 @@
         when: not (use_selective_configs | default(false)) | bool,
         tags: ['bindu','config'] }
 
-    # Selective files for lightweight machines (zion / atlas / anchor)
+    # Selective files for lightweight machines
     - { role: bindu_selective,
         when: (use_selective_configs | default(false)) | bool,
         tags: ['bindu','config'] }
+
+    # Pixi (needs bindu pixi hosts files present if you want stow)
+    - { role: pixi,
+        when: (pixi_enabled | default(false)) | bool,
+        tags: ['pixi'] }
 
     # ZSH / Orbit only on dev boxes
     - role: zsh_orbit

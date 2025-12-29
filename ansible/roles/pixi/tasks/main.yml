@@ -1,76 +1,96 @@
-# roles/pixi/tasks/main.yml
 ---
-- name: Only macOS/Linux
+# roles/pixi/tasks/main.yml
+
+- name: Pixi | Only macOS/Linux
   meta: end_host
   when: ansible_facts['system'] not in ["Darwin", "Linux"]
 
-# 1) Detect the real user HOME (non-root), independent of become
-- name: Detect real user home for pixi
-  become: false
-  shell: 'printf %s "$HOME"'
-  register: pixi_home_raw
-  changed_when: false
+# Compute user/home in a way that works for root hosts too
+- name: Pixi | Determine target user/home
+  ansible.builtin.set_fact:
+    pixi_user: "{{ helix_user | default(ansible_user_id) }}"
+    pixi_home: >-
+      {{
+        helix_user_home
+        | default(
+            ( (helix_user | default(ansible_user_id)) == 'root' )
+            | ternary('/root', '/home/' ~ (helix_user | default(ansible_user_id)))
+          )
+      }}
 
-# 2) Store user_home as a separate fact
-- name: Set user_home fact for pixi
-  set_fact:
-    user_home: "{{ pixi_home_raw.stdout | default(helix_user_home) }}"
+- name: Pixi | Compute paths
+  ansible.builtin.set_fact:
+    pixi_bin_dir: "{{ pixi_home }}/.pixi/bin"
+    pixi_bin_path: "{{ pixi_home }}/.pixi/bin/pixi"
+    pixi_hosts_dir: "{{ pixi_hosts_dir | default(pixi_home + '/.config/pixi/hosts') }}"
 
-# 3) Now compute pixi paths using user_home
-- name: Compute user-scoped paths for pixi
-  set_fact:
-    pixi_hosts_dir: "{{ pixi_hosts_dir | default(user_home + '/.config/pixi/hosts') }}"
-    pixi_bin_dir: "{{ user_home }}/.pixi/bin"
+- name: Pixi | Check if pixi is installed (direct path)
+  ansible.builtin.stat:
+    path: "{{ pixi_bin_path }}"
+  register: pixi_bin_stat
 
-# We purposely do NOT touch shell rc files; Orbit owns PATH.
-- name: Check for pixi
-  become: false
-  shell: command -v pixi
-  register: pixi_cmd
-  changed_when: false
-  failed_when: false
-  environment:
-    PATH: "{{ pixi_bin_dir }}:{{ helix_task_path }}"
-
-- name: Install pixi (no PATH updates; your exact command)
-  become: false
-  when: pixi_cmd.rc != 0
-  shell: |
-    set -e
-    curl -fsSL https://pixi.sh/install.sh | env PIXI_NO_PATH_UPDATE=1 zsh
+# Install pixi without touching PATH, using sh per docs (works on Linux + macOS)
+- name: Pixi | Install (no PATH update)
+  become: yes
+  become_user: "{{ pixi_user }}"
+  ansible.builtin.shell: |
+    set -euo pipefail
+    curl -fsSL https://pixi.sh/install.sh | env PIXI_NO_PATH_UPDATE=1 sh
   args:
     executable: /bin/bash
   environment:
-    # Force installer to use the *real* user home (not /root)
-    HOME: "{{ user_home }}"
-    PATH: "{{ helix_task_path }}"
+    HOME: "{{ pixi_home }}"
+  register: pixi_install
+  retries: 5
+  delay: 10
+  until: pixi_install.rc == 0
+  when: not pixi_bin_stat.stat.exists
 
-- name: Ensure ~/.pixi/manifests exists (for Stow target)
-  become: false
-  file:
-    path: "{{ user_home }}/.pixi/manifests"
+- name: Pixi | Re-check pixi after install
+  ansible.builtin.stat:
+    path: "{{ pixi_bin_path }}"
+  register: pixi_bin_stat2
+
+- name: Pixi | Fail if pixi still missing
+  ansible.builtin.fail:
+    msg: "pixi install did not produce {{ pixi_bin_path }}"
+  when: not pixi_bin_stat2.stat.exists
+
+# Make sure the stow targets exist
+- name: Pixi | Ensure ~/.pixi/manifests exists (Stow target)
+  become: yes
+  become_user: "{{ pixi_user }}"
+  ansible.builtin.file:
+    path: "{{ pixi_home }}/.pixi/manifests"
     state: directory
     mode: "0755"
 
-- name: Ensure pixi hosts dir exists (so Stow doesn't fail)
-  become: false
-  file:
+- name: Pixi | Ensure pixi hosts base exists
+  become: yes
+  become_user: "{{ pixi_user }}"
+  ansible.builtin.file:
     path: "{{ pixi_hosts_dir }}"
     state: directory
     mode: "0755"
 
-# This will symlink whatever is under ~/.config/pixi/hosts/<host>/ into $HOME.
-# Example: manifests, config snippets, etc.
-- name: Stow host-specific pixi files
-  become: false
-  shell: |
-    set -e
-    stow -d "{{ pixi_hosts_dir }}" -t "{{ user_home }}" -R "{{ inventory_hostname_short | default(inventory_hostname) }}"
+- name: Pixi | Check if host pixi config exists in bindu repo
+  ansible.builtin.stat:
+    path: "{{ pixi_hosts_dir }}/{{ inventory_hostname_short | default(inventory_hostname) }}"
+  register: pixi_host_cfg
+
+# Stow host-specific pixi files (only if host dir exists)
+- name: Pixi | Stow host-specific pixi files
+  become: yes
+  become_user: "{{ pixi_user }}"
+  ansible.builtin.shell: |
+    set -euo pipefail
+    stow -d "{{ pixi_hosts_dir }}" -t "{{ pixi_home }}" -R "{{ inventory_hostname_short | default(inventory_hostname) }}"
   args:
     executable: /bin/bash
   changed_when: false
   failed_when: false
+  when: pixi_host_cfg.stat.exists
 
-- name: Reminder (intentional)
-  debug:
-    msg: "pixi setup complete. Run 'pixi global sync' AFTER the play finishes."
+- name: Pixi | Reminder
+  ansible.builtin.debug:
+    msg: "pixi setup complete. Run '{{ pixi_bin_path }} global sync' after the play finishes."

@@ -22,8 +22,8 @@ uv_projects_linux:
   - Ledu
   - hdrUtils
 
-# Pixi still off on host (you’ll use it in containers)
-pixi_enabled: false
+# Turn on pixi
+pixi_enabled: true
 
 # Dropbox daemon if you want it on vortex
 dropbox_enabled: true
