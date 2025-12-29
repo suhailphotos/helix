@@ -1,0 +1,5 @@
+---
+rust_toolchain_enabled: true
+rust_toolchain_channel: "stable"
+
+rust_toolchain_user: "{{ helix_user | default(ansible_facts['user_id']) }}"

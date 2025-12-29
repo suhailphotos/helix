@@ -1,0 +1,120 @@
+---
+- name: Rust toolchain | Determine target user/home
+  ansible.builtin.set_fact:
+    rust_user: "{{ rust_toolchain_user | default(helix_user | default(ansible_facts['user_id'])) }}"
+    rust_home: >-
+      {{
+        rust_toolchain_home
+        | default(
+            ( (rust_toolchain_user | default(helix_user | default(ansible_facts['user_id']))) == 'root' )
+            | ternary('/root', '/home/' ~ (rust_toolchain_user | default(helix_user | default(ansible_facts['user_id']))))
+          )
+      }}
+
+# Linux prereqs for rustup (safe to run repeatedly)
+- name: Rust toolchain | Install rustup prerequisites (Debian)
+  become: yes
+  ansible.builtin.apt:
+    name:
+      - curl
+      - ca-certificates
+      - build-essential
+      - pkg-config
+    state: present
+    update_cache: yes
+  when: ansible_facts.os_family == "Debian"
+
+- name: Rust toolchain | Check rustup
+  ansible.builtin.stat:
+    path: "{{ rust_home }}/.cargo/bin/rustup"
+  register: rustup_stat
+
+# Install rustup per-user (NOT root unless rust_user=root)
+- name: Rust toolchain | Install rustup (per-user) with retries
+  become: yes
+  become_user: "{{ rust_user }}"
+  ansible.builtin.shell: |
+    set -euo pipefail
+    curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile default
+  args:
+    executable: /bin/bash
+    creates: "{{ rust_home }}/.cargo/bin/rustup"
+  register: rustup_install
+  retries: 5
+  delay: 12
+  until: rustup_install.rc == 0
+  when: not rustup_stat.stat.exists
+
+# If install failed even after retries, clean partial downloads (helps future runs)
+- name: Rust toolchain | Cleanup partial rustup downloads after failed install
+  become: yes
+  become_user: "{{ rust_user }}"
+  ansible.builtin.shell: |
+    set -euo pipefail
+    rm -f "{{ rust_home }}/.rustup/downloads/"*.partial || true
+  args:
+    executable: /bin/bash
+  when:
+    - rustup_install is defined
+    - rustup_install is failed
+
+# Ensure rustup exists before running update/default
+- name: Rust toolchain | Re-check rustup after install attempt
+  ansible.builtin.stat:
+    path: "{{ rust_home }}/.cargo/bin/rustup"
+  register: rustup_stat2
+
+- name: Rust toolchain | Fail clearly if rustup missing
+  ansible.builtin.fail:
+    msg: "rustup is still missing at {{ rust_home }}/.cargo/bin/rustup after install attempts."
+  when: not rustup_stat2.stat.exists
+
+# Update channel (retry + cleanup on failure)
+- name: Rust toolchain | Update channel (retry)
+  become: yes
+  become_user: "{{ rust_user }}"
+  ansible.builtin.command: "{{ rust_home }}/.cargo/bin/rustup update {{ rust_toolchain_channel }}"
+  environment:
+    PATH: "{{ rust_home }}/.cargo/bin:{{ helix_task_path | default(ansible_facts.env.PATH | default('')) }}"
+  register: rustup_update
+  retries: 5
+  delay: 12
+  until: rustup_update.rc == 0
+
+- name: Rust toolchain | Cleanup partial downloads after failed update
+  become: yes
+  become_user: "{{ rust_user }}"
+  ansible.builtin.shell: |
+    set -euo pipefail
+    rm -f "{{ rust_home }}/.rustup/downloads/"*.partial || true
+  args:
+    executable: /bin/bash
+  when: rustup_update is failed
+
+- name: Rust toolchain | Set default channel (retry)
+  become: yes
+  become_user: "{{ rust_user }}"
+  ansible.builtin.command: "{{ rust_home }}/.cargo/bin/rustup default {{ rust_toolchain_channel }}"
+  environment:
+    PATH: "{{ rust_home }}/.cargo/bin:{{ helix_task_path | default(ansible_facts.env.PATH | default('')) }}"
+  register: rustup_default
+  retries: 3
+  delay: 5
+  until: rustup_default.rc == 0
+
+# Helpful: set canonical cargo path for downstream roles
+- name: Rust toolchain | Set canonical cargo/rustup bin facts
+  ansible.builtin.set_fact:
+    helix_cargo_bin: "{{ rust_home }}/.cargo/bin/cargo"
+    helix_rustup_bin: "{{ rust_home }}/.cargo/bin/rustup"
+
+- name: Rust toolchain | Debug versions
+  become: yes
+  become_user: "{{ rust_user }}"
+  ansible.builtin.shell: |
+    set -euo pipefail
+    "{{ rust_home }}/.cargo/bin/rustc" --version
+    "{{ rust_home }}/.cargo/bin/cargo" --version
+  args:
+    executable: /bin/bash
+  changed_when: false

@@ -1,0 +1,41 @@
+---
+# roles/bash_apogee/tasks/main.yml
+
+- name: Bash (apogee) | Determine target user/home
+  ansible.builtin.set_fact:
+    bash_apogee_user: "{{ helix_user | default(ansible_facts['user_id']) }}"
+    bash_apogee_home: >-
+      {{
+        helix_user_home
+        | default(
+            ( (helix_user | default(ansible_facts['user_id'])) == 'root' )
+            | ternary('/root', '/home/' ~ (helix_user | default(ansible_facts['user_id'])))
+          )
+      }}
+  when: (linux_bash_apogee_enabled | default(false)) | bool
+
+- name: Bash (apogee) | Install Apogee-aware .bashrc
+  become: yes
+  ansible.builtin.template:
+    src: "bashrc_apogee.j2"
+    dest: "{{ bash_apogee_home }}/.bashrc"
+    owner: "{{ bash_apogee_user }}"
+    group: "{{ bash_apogee_user }}"
+    mode: "0644"
+  when: (linux_bash_apogee_enabled | default(false)) | bool
+
+- name: Bash (apogee) | Ensure .bash_profile sources .bashrc (SSH login shells)
+  become: yes
+  ansible.builtin.blockinfile:
+    path: "{{ bash_apogee_home }}/.bash_profile"
+    create: yes
+    owner: "{{ bash_apogee_user }}"
+    group: "{{ bash_apogee_user }}"
+    mode: "0644"
+    marker: "# {mark} helix bash init"
+    block: |
+      # Source ~/.bashrc for interactive shells (SSH login)
+      if [ -f "$HOME/.bashrc" ]; then
+        . "$HOME/.bashrc"
+      fi
+  when: (linux_bash_apogee_enabled | default(false)) | bool

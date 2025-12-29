@@ -7,15 +7,25 @@
   roles:
     - { role: linux_bootstrap,   tags: ['linux_bootstrap','bootstrap'] }
 
+    # always before any cargo-using role
+    - { role: rust_toolchain, when: (rust_toolchain_enabled | default(true)) | bool, tags: ['rust','toolchain'] }
+
+    - { role: onepassword_cli, tags: ['op','1password'] }
+
     # Dropbox daemon (only when enabled per-host)
     - { role: dropbox_daemon,
         when: (dropbox_enabled | default(false)) | bool,
         tags: ['dropbox'] }
 
-    # Optional: upstream Neovim for hosts that need >=0.10.x
+    # Neovim: upstream tarball from GitHub or PPA depending on host vars
     - { role: nvim_upstream,
         when: (nvim_use_upstream | default(false)) | bool,
         tags: ['nvim','nvim_upstream'] }
+
+    - { role: nvim_ppa,
+        when: (nvim_install_via_ppa | default(false)) | bool,
+        tags: ['nvim','nvim_ppa'] }
+
 
     # Full config (Bindu repo) for normal machines
     - { role: bindu_config_repo,
@@ -28,16 +38,34 @@
         tags: ['bindu','config'] }
 
     # ZSH / Orbit only on dev boxes
-    - { role: zsh_orbit,
-        when: (use_zsh_shell | default(false)) | bool,
-        vars: { install_zsh: true },
-        tags: ['zsh','orbit'] }
+    - role: zsh_orbit
+      when:
+        - (use_zsh_shell | default(false)) | bool
+        - (orbit_enabled | default(false)) | bool
+      vars:
+        install_zsh: true
+      tags: ['zsh','orbit']
 
     # Shell-agnostic bits (OK on bash or zsh)
     - { role: zoxide,            tags: ['zoxide'] }
     - { role: starship,          tags: ['starship','prompt'] }
     - { role: home_shims,        tags: ['home','dotfiles'] }
-    - { role: bash_starship,     tags: ['starship','bash'] }
+
+    # OLD PATH: bash + starship .bashrc (guarded)
+    - { role: bash_starship,
+        when: (bash_starship_enabled | default(false)) | bool,
+        tags: ['starship','bash'] }
+
+    # NEW PATH: bash + apogee-driven config
+    - { role: bash_apogee,
+        when: (linux_bash_apogee_enabled | default(false)) | bool,
+        tags: ['bash','apogee'] }
+
+    # Install Apogee via existing cargo role (cross-platform safe)
+    - { role: apogee_cargo,
+        when: (apogee_enabled | default(false)) | bool,
+        tags: ['apogee','cargo'] }
+
     - { role: eza,               tags: ['eza'] }
 
     # Only install Yazi when explicitly enabled (default true for old hosts)
@@ -68,10 +96,11 @@
 
     - { role: atrium_stow,       tags: ['atrium','stow'] }
 
-    # NEW: UniFi controller via APT, only where unifi_controller: true
+    # UniFi controller via APT, only where unifi_controller: true
     - { role: unifi_controller,
         when: (unifi_controller | default(false)) | bool,
         tags: ['unifi'] }
+
     - { role: docker_engine,
         when: (docker_enabled | default(false)) | bool,
         tags: ['docker'] }

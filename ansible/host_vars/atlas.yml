@@ -2,3 +2,6 @@ home_shims_install_bashrc: true
 use_selective_configs: true
 starship_profile: "starship_pve.toml"
 yazi_enabled: false
+
+# Keep old bash + starship behavior
+bash_starship_enabled: true

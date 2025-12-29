@@ -1,0 +1,31 @@
+---
+# roles/nvim_ppa/tasks/main.yml
+# Install latest stable Neovim via the official PPA (Ubuntu/Debian).
+
+- name: Neovim PPA | Ensure add-apt-repository prerequisites
+  ansible.builtin.apt:
+    name:
+      - software-properties-common
+      - gnupg
+    state: present
+    update_cache: yes
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Neovim PPA | Add ppa:neovim-ppa/stable
+  ansible.builtin.apt_repository:
+    repo: "ppa:neovim-ppa/stable"
+    state: present
+    filename: "neovim-ppa-stable"
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Neovim PPA | Update apt cache
+  ansible.builtin.apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Neovim PPA | Install neovim
+  ansible.builtin.apt:
+    name: neovim
+    state: present
+  when: ansible_facts['os_family'] == "Debian"

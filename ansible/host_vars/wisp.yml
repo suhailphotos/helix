@@ -19,3 +19,6 @@ yazi_enabled: false
 # Only copy seletive starship config file
 use_selective_configs: true
 starship_profile: "starship_rpi.toml"
+
+# Keep old bash + starship behavior
+bash_starship_enabled: true

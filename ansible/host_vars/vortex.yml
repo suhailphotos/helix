@@ -1,0 +1,52 @@
+# host_vars/vortex.yml
+# Vortex = GPU Linux VM with full dotfiles, CLI stack, uv, Docker+IPv6, CUDA Docker
+
+helix_user: "suhail"
+helix_user_home: "/home/suhail"
+
+# Bindu: full repo, not selective file mode
+bindu_mode: full
+
+# Use full Bindu and not the linux_standard selective profile
+use_selective_configs: false
+
+# uv: projects you actually want envs for on vortex
+uv_projects_linux:
+  - usdUtils
+  - oauthManager
+  - pythonKitchen
+  - ocioTools
+  - helperScripts
+  - Incept
+  - Lumiera
+  - Ledu
+  - hdrUtils
+
+# Pixi still off on host (you’ll use it in containers)
+pixi_enabled: false
+
+# Dropbox daemon if you want it on vortex
+dropbox_enabled: true
+dropbox_user: suhail
+
+# Docker: enable & enable IPv6
+docker_enabled: true
+docker_ipv6_enabled: true
+docker_fixed_cidr_v6: "fd00:dead:beef::/64"   # adjust if you want a different ULA prefix
+
+# GPU support
+nvidia_gpu_host: true
+nvidia_driver_packages:
+  - "nvidia-driver-555-open"      # adjust to the exact driver you want
+nvidia_container_packages:
+  - "nvidia-container-toolkit"
+
+# Shell: keep bash as default, but opt in to bash+apogee+starship
+linux_bash_apogee_enabled: true
+
+# Neovim setup for vortex
+nvim_use_upstream: true
+nvim_install_via_ppa: false
+apogee_enabled: true
+
+

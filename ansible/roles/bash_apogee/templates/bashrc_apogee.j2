@@ -1,0 +1,43 @@
+# ~/.bashrc
+# Managed by Ansible (bash_apogee)
+
+# Only run for interactive shells
+case $- in
+  *i*) ;;
+  *) return ;;
+esac
+
+# -------------------------------------------------------------
+# Basics
+# -------------------------------------------------------------
+export HISTCONTROL=ignoreboth
+shopt -s histappend
+export HISTSIZE=10000
+export HISTFILESIZE=20000
+shopt -s checkwinsize
+
+# Optional: your personal aliases live here (not managed)
+if [ -f "$HOME/.bash_aliases" ]; then
+  . "$HOME/.bash_aliases"
+fi
+
+# Optional: a drop-in directory for per-host tweaks (not managed)
+if [ -d "$HOME/.bashrc.d" ]; then
+  for f in "$HOME/.bashrc.d/"*.sh; do
+    [ -r "$f" ] && . "$f"
+  done
+fi
+
+# -------------------------------------------------------------
+# Ensure cargo env before apogee check (fixes SSH login order issue)
+# -------------------------------------------------------------
+if [ -f "$HOME/.cargo/env" ]; then
+  . "$HOME/.cargo/env"
+fi
+
+# -------------------------------------------------------------
+# Apogee: emit shell config (env, aliases, starship, etc.)
+# -------------------------------------------------------------
+if command -v apogee >/dev/null 2>&1; then
+  eval "$(apogee)"
+fi

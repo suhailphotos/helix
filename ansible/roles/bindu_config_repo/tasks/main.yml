@@ -10,7 +10,9 @@
   set_fact:
     bindu_remote: "{{ bindu_remote | default('https://github.com/suhailphotos/bindu.git') }}"
     bindu_branch: "{{ bindu_branch | default('main') }}"
-    bindu_config_dir: "{{ bindu_config_dir | default(helix_user_home + '/.config') }}"
+    bindu_user: "{{ helix_user | default(ansible_facts['user_id']) }}"
+    bindu_home: "{{ helix_user_home | default(ansible_facts['env'].HOME) }}"
+    bindu_config_dir: "{{ bindu_config_dir | default((helix_user_home | default(ansible_facts['env'].HOME)) + '/.config') }}"
 
 - name: Stat ~/.config
   stat:
@@ -93,8 +95,21 @@
     state: directory
     mode: "0755"
 
+
+- name: Ensure ~/.config parent exists and is owned by user
+  become: yes
+  file:
+    path: "{{ bindu_config_dir | dirname }}"
+    state: directory
+    owner: "{{ bindu_user }}"
+    group: "{{ bindu_user }}"
+    mode: "0755"
+
+
 # Clone/update Bindu into ~/.config (force fast-forward to desired branch)
-- name: Clone/update Bindu into ~/.config
+- name: Clone/update Bindu into ~/.config (as user)
+  become: yes
+  become_user: "{{ bindu_user }}"
   git:
     repo: "{{ bindu_remote }}"
     dest: "{{ bindu_config_dir }}"
@@ -107,11 +122,24 @@
 
 # Ensure we track origin
 - name: Ensure we track origin/{{ bindu_branch }}
+  become: yes
+  become_user: "{{ bindu_user }}"
   shell: |
     set -e
     git -C "{{ bindu_config_dir }}" checkout -q "{{ bindu_branch }}"
     git -C "{{ bindu_config_dir }}" branch --set-upstream-to "origin/{{ bindu_branch }}" "{{ bindu_branch }}" || true
   args: { executable: /bin/bash }
+
+
+- name: Ensure ~/.config repo is owned by user
+  become: yes
+  file:
+    path: "{{ bindu_config_dir }}"
+    state: directory
+    owner: "{{ bindu_user }}"
+    group: "{{ bindu_user }}"
+    recurse: yes
+
 
 # Ignore macOS metadata
 - name: Ignore macOS metadata

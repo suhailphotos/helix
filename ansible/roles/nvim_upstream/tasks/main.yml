@@ -1,8 +1,10 @@
 ---
 # roles/nvim_upstream/tasks/main.yml
+# Install latest stable Neovim from GitHub tarball into /opt/nvim-linux-<arch>
+# and symlink /usr/local/bin/nvim.
 
-# 1) Map Ansible arch to Neovim's archive label, without extra spaces
-- name: Set Neovim arch label
+# 1) Map Ansible arch to Neovim's archive label
+- name: Neovim upstream | Determine architecture label
   set_fact:
     nvim_arch_label: >-
       {{ 'x86_64'
@@ -12,45 +14,105 @@
          else 'x86_64'
       }}
 
-# 2) Ensure /opt exists (parent dir)
-- name: Ensure /opt exists
+# 2) Derive archive name, path, and install dir
+- name: Neovim upstream | Set archive and install paths
+  set_fact:
+    nvim_archive_name: "nvim-linux-{{ nvim_arch_label }}.tar.gz"
+    nvim_archive_path: "/tmp/nvim-linux-{{ nvim_arch_label }}.tar.gz"
+    nvim_install_dir: "/opt/nvim-linux-{{ nvim_arch_label }}"
+
+# 3) Ensure /opt exists (safe in check mode; Ansible just "plans" the change)
+- name: Neovim upstream | Ensure /opt exists
   become: yes
   file:
     path: /opt
     state: directory
-    mode: "0755"
+    mode: '0755'
 
-# 3) Ensure target dir exists
-- name: Ensure /opt/nvim-linux-{{ nvim_arch_label }} exists
+# 4) In check mode, just say what we would do and stop
+- name: Neovim upstream | Check-mode summary
+  debug:
+    msg: >-
+      Would download {{ nvim_archive_name }} to {{ nvim_archive_path }},
+      extract into {{ nvim_install_dir }},
+      and symlink /usr/local/bin/nvim to {{ nvim_install_dir }}/bin/nvim.
+  when: ansible_check_mode | default(false) | bool
+
+# All tasks below only run in real (non-check) runs
+# ---------------------------------------------------------------------------
+
+# 5) Download latest Neovim tarball into /tmp
+- name: Neovim upstream | Download latest Neovim for {{ nvim_arch_label }}
+  when: not ansible_check_mode | default(false) | bool
+  get_url:
+    url: "https://github.com/neovim/neovim/releases/latest/download/{{ nvim_archive_name }}"
+    dest: "{{ nvim_archive_path }}"
+    mode: '0644'
+    force: yes
+  register: nvim_download
+
+# 6) Stat downloaded archive
+- name: Neovim upstream | Stat downloaded archive
+  when: not ansible_check_mode | default(false) | bool
+  stat:
+    path: "{{ nvim_download.dest | default(nvim_archive_path) }}"
+  register: nvim_archive_stat
+
+- name: Neovim upstream | Fail if archive missing
+  when:
+    - not ansible_check_mode | default(false) | bool
+    - not nvim_archive_stat.stat.exists
+  fail:
+    msg: >-
+      Neovim tarball not found at {{ nvim_download.dest | default(nvim_archive_path) }};
+      download may have failed or been blocked.
+
+# 7) Check existing install path
+- name: Neovim upstream | Stat install dir path
+  when: not ansible_check_mode | default(false) | bool
+  become: yes
+  stat:
+    path: "{{ nvim_install_dir }}"
+  register: nvim_install_stat
+
+- name: Neovim upstream | Fail if install path is not a directory
+  when:
+    - not ansible_check_mode | default(false) | bool
+    - nvim_install_stat.stat.exists
+    - not nvim_install_stat.stat.isdir
+  become: yes
+  fail:
+    msg: >-
+      {{ nvim_install_dir }} exists but is not a directory.
+      Please remove or rename it and rerun the playbook.
+
+# 8) Ensure install directory exists
+- name: Neovim upstream | Ensure install dir exists
+  when: not ansible_check_mode | default(false) | bool
   become: yes
   file:
-    path: "/opt/nvim-linux-{{ nvim_arch_label }}"
+    path: "{{ nvim_install_dir }}"
     state: directory
-    mode: "0755"
+    mode: '0755'
 
-# 4) Download latest Neovim tarball
-- name: Download latest Neovim for {{ nvim_arch_label }}
-  become: yes
-  get_url:
-    url: "https://github.com/neovim/neovim/releases/latest/download/nvim-linux-{{ nvim_arch_label }}.tar.gz"
-    dest: "/opt/nvim-linux-{{ nvim_arch_label }}.tar.gz"
-    mode: "0644"
-
-# 5) Extract into /opt/nvim-linux-ARCH (overwrite = upgrade on rerun)
-- name: Extract Neovim archive into /opt/nvim-linux-{{ nvim_arch_label }}
+# 9) Extract into install dir, stripping top-level folder
+- name: Neovim upstream | Extract Neovim archive into install dir
+  when: not ansible_check_mode | default(false) | bool
   become: yes
   unarchive:
-    src: "/opt/nvim-linux-{{ nvim_arch_label }}.tar.gz"
-    dest: "/opt/nvim-linux-{{ nvim_arch_label }}"
+    src: "{{ nvim_download.dest | default(nvim_archive_path) }}"
+    dest: "{{ nvim_install_dir }}"
     remote_src: yes
     extra_opts:
       - "--strip-components=1"
+    creates: "{{ nvim_install_dir }}/bin/nvim"
 
-# 6) Symlink /usr/local/bin/nvim to upstream Neovim
-- name: Symlink /usr/local/bin/nvim to upstream Neovim
+# 10) Symlink /usr/local/bin/nvim to upstream Neovim
+- name: Neovim upstream | Symlink /usr/local/bin/nvim
+  when: not ansible_check_mode | default(false) | bool
   become: yes
   file:
-    src: "/opt/nvim-linux-{{ nvim_arch_label }}/bin/nvim"
+    src: "{{ nvim_install_dir }}/bin/nvim"
     dest: /usr/local/bin/nvim
     state: link
     force: yes

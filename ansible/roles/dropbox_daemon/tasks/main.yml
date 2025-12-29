@@ -48,12 +48,21 @@
   systemd:
     daemon_reload: yes
 
+
+- name: Dropbox | Check if dropbox.service unit exists
+  stat:
+    path: /etc/systemd/system/dropbox.service
+  register: dropbox_unit
+
+
 - name: Enable and start Dropbox service
   become: yes
   systemd:
     name: dropbox.service
     enabled: yes
     state: started
+    daemon_reload: yes
+  when: dropbox_unit.stat.exists
 
 # Optional exclude list – best-effort (don’t fail play if Dropbox isn’t linked yet)
 - name: Configure Dropbox exclude list (best-effort)

@@ -1,33 +1,102 @@
 ---
 # roles/apogee_cargo/tasks/main.yml
+# Cross-platform: ensure rustup stable + install apogee with rustup cargo (not system cargo)
 
-- name: Apogee (cargo) | Check cargo (absolute path)
+- name: Apogee (cargo) | Determine target user/home
+  set_fact:
+    apogee_user: "{{ helix_user | default(ansible_facts['user_id']) }}"
+    apogee_home: "{{ helix_user_home | default(ansible_facts['env'].HOME) }}"
+
+- name: Apogee (cargo) | Stat rustup + cargo (user install)
   stat:
-    path: "{{ helix_user_home }}/.cargo/bin/cargo"
-  register: apogee_cargo_stat
+    path: "{{ apogee_home }}/.cargo/bin/{{ item }}"
+  loop:
+    - rustup
+    - cargo
+  register: apogee_user_rust_bins
 
-- name: Apogee (cargo) | Ensure cargo exists (include rustup if needed)
+- name: Apogee (cargo) | Set flags for rustup/cargo presence
+  set_fact:
+    apogee_has_rustup: "{{ (apogee_user_rust_bins.results | selectattr('item','equalto','rustup') | map(attribute='stat.exists') | first) | default(false) }}"
+    apogee_has_cargo:  "{{ (apogee_user_rust_bins.results | selectattr('item','equalto','cargo')  | map(attribute='stat.exists') | first) | default(false) }}"
+
+# Install rustup for the *user* if missing
+- name: Apogee (cargo) | Ensure rustup exists for user
   include_role:
     name: rustup
-  when: not apogee_cargo_stat.stat.exists
+    apply:
+      become: yes
+      become_user: "{{ apogee_user }}"
+  when: not apogee_has_rustup
 
-- name: Apogee (cargo) | Re-check cargo after rustup
+
+# Re-check after rustup role
+- name: Apogee (cargo) | Re-stat rustup + cargo after rustup role
   stat:
-    path: "{{ helix_user_home }}/.cargo/bin/cargo"
-  register: apogee_cargo_stat2
+    path: "{{ apogee_home }}/.cargo/bin/{{ item }}"
+  loop:
+    - rustup
+    - cargo
+  register: apogee_user_rust_bins2
 
-- name: Apogee (cargo) | Skip if cargo still missing
+- name: Apogee (cargo) | Fail softly if still missing
   debug:
-    msg: "Skipping apogee_cargo: cargo is still missing after rustup attempt."
-  when: not apogee_cargo_stat2.stat.exists
+    msg: "Skipping apogee_cargo: rustup/cargo not found at {{ apogee_home }}/.cargo/bin after rustup role."
+  when: >
+    not (
+      (apogee_user_rust_bins2.results | selectattr('item','equalto','rustup') | map(attribute='stat.exists') | first | default(false))
+      and
+      (apogee_user_rust_bins2.results | selectattr('item','equalto','cargo')  | map(attribute='stat.exists') | first | default(false))
+    )
 
-- name: Apogee (cargo) | Install apogee via cargo
-  command: "{{ helix_user_home }}/.cargo/bin/cargo install --locked apogee"
+# Update stable + set default stable
+- name: Apogee (cargo) | Update stable toolchain (rustup)
+  become: yes
+  become_user: "{{ apogee_user }}"
+  command: "{{ apogee_home }}/.cargo/bin/rustup update stable"
   environment:
-    PATH: >-
-      {{
-        (helix_task_path | default('')) ~
-        ':' ~ (helix_user_home ~ '/.cargo/bin') ~
-        ':' ~ (ansible_facts['env']['PATH'] | default(''))
-      }}
-  when: apogee_cargo_stat2.stat.exists
+    PATH: "{{ apogee_home }}/.cargo/bin:{{ ansible_facts.env.PATH | default('') }}"
+  when: >
+    (apogee_user_rust_bins2.results | selectattr('item','equalto','rustup') | map(attribute='stat.exists') | first | default(false))
+
+- name: Apogee (cargo) | Set default toolchain to stable
+  become: yes
+  become_user: "{{ apogee_user }}"
+  command: "{{ apogee_home }}/.cargo/bin/rustup default stable"
+  environment:
+    PATH: "{{ apogee_home }}/.cargo/bin:{{ ansible_facts.env.PATH | default('') }}"
+  when: >
+    (apogee_user_rust_bins2.results | selectattr('item','equalto','rustup') | map(attribute='stat.exists') | first | default(false))
+
+# (Optional) sanity check
+- name: Apogee (cargo) | Show cargo version (debug)
+  become: yes
+  become_user: "{{ apogee_user }}"
+  command: "{{ apogee_home }}/.cargo/bin/cargo --version"
+  register: apogee_cargo_version
+  changed_when: false
+  when: >
+    (apogee_user_rust_bins2.results | selectattr('item','equalto','cargo') | map(attribute='stat.exists') | first | default(false))
+
+- debug:
+    var: apogee_cargo_version.stdout
+  when: apogee_cargo_version is defined
+
+- name: Apogee (cargo) | Ensure cargo target dir exists
+  become: yes
+  become_user: "{{ apogee_user }}"
+  file:
+    path: "{{ apogee_home }}/.cache/cargo/targets"
+    state: directory
+    mode: "0755"
+
+# Install / upgrade apogee using rustup cargo
+- name: Apogee (cargo) | Install/upgrade apogee (rustup cargo)
+  become: yes
+  become_user: "{{ apogee_user }}"
+  command: "{{ apogee_home }}/.cargo/bin/cargo install --locked --force apogee"
+  environment:
+    PATH: "{{ apogee_home }}/.cargo/bin:{{ helix_task_path | default(ansible_facts.env.PATH | default('')) }}"
+    CARGO_TARGET_DIR: "{{ apogee_home }}/.cache/cargo/targets"
+  when: >
+    (apogee_user_rust_bins2.results | selectattr('item','equalto','cargo') | map(attribute='stat.exists') | first | default(false))

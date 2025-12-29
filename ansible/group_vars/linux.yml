@@ -1,36 +1,47 @@
 # group_vars/linux.yml
 
+# Orbit OFF globally on Linux, opt-in only
+orbit_enabled: false
+
+# Bindu & matrix roots (already fine)
 helix_repo_raw_base: "https://raw.githubusercontent.com/suhailphotos/helix/refs/heads/main"
 helix_dotfiles_raw_base: "{{ helix_repo_raw_base }}/dotfiles"
 
-# On Linux, anchor matrix under the *remote* $HOME.
-# No controller MATRIX/DROPBOX, so macOS paths don't leak in.
 matrix_root: "{{ helix_user_home + '/Dropbox/matrix' }}"
 matrix_packages_dir: "{{ matrix_root }}/packages"
 
+# -----------------------------
+# Python / uv defaults
+# -----------------------------
 houdini_python_patch: "3.11.7"
 nvim_src_rel: "nvim/.config/nvim"
 
 poetry_projects_linux: []
 
-# uv on Linux only if/when you’re ready
-uv_projects_linux: []
+# Turn uv on by default for Linux
+uv_enabled: true          # <— NEW / flipped from implicit-off
+uv_projects_linux: []     # hosts opt in with a list in host_vars
 
-
+# -----------------------------
+# Shell / tool toggles
+# -----------------------------
 zoxide_allow_install_script: false
 
-# pixi: on by default for normal Linux boxes
-pixi_enabled: true
+# Pixi: OFF by default on hosts, we’ll only use it in dev containers
+pixi_enabled: false       # <— CHANGED from true
 
 # Use upstream Neovim tarball (GitHub releases) on all Linux nodes
 nvim_use_upstream: true
 
+# -----------------------------
+# Apt baseline (“Linux standard” CLI stack)
+# -----------------------------
 apt_packages:
   - stow
- #- neovim         # <— missing before
-  - nodejs         # typescript-language-server runtime
-  - unzip          # Mason extracts zips on Linux
+  - nodejs
+  - unzip
   - git
+  - gh
   - curl
   - locales
   - tree
@@ -60,8 +71,6 @@ apt_packages:
   - automake
   - libtool
   - meson
-  - rustc
-  - cargo
 
 yazi_install_scope: system
 
