@@ -101,8 +101,23 @@ latest_semver_tag() {
   git ls-remote --tags --refs https://github.com/suhailphotos/helix.git \
     | awk '{print $2}' \
     | sed 's#refs/tags/##' \
-    | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$' \
-    | sort -V | tail -1
+    | awk '
+        # Only stable tags: v?X.Y.Z (no -alpha/-beta/etc)
+        $0 ~ /^v?[0-9]+\.[0-9]+\.[0-9]+$/ {
+          tag=$0
+          ver=tag
+          sub(/^v/, "", ver)
+
+          # Prefer v-prefixed tags when same version exists
+          pref = (tag ~ /^v/) ? 1 : 0
+
+          # Print: version<TAB>pref<TAB>tag
+          printf "%s\t%d\t%s\n", ver, pref, tag
+        }
+      ' \
+    | sort -t $'\t' -k1,1V -k2,2n \
+    | tail -1 \
+    | cut -f3
 }
 ref_exists_remote() { git ls-remote --heads --tags https://github.com/suhailphotos/helix.git "$1" | grep -q .; }
 auto_limit_host() {
@@ -144,7 +159,11 @@ if   [[ -n "$DEV_BRANCH"   ]]; then HELIX_REF="$DEV_BRANCH"
 elif [[ -n "$EXPL_REF"     ]]; then HELIX_REF="$EXPL_REF"
 elif [[ -n "$EXPL_VERSION" ]]; then HELIX_REF="$(normalize_tag "$EXPL_VERSION")"
 else
-  HELIX_REF="$(latest_semver_tag || true)"; [[ -n "$HELIX_REF" ]] || HELIX_REF="v0.1.10"
+  HELIX_REF="$(latest_semver_tag || true)"
+  if [[ -z "$HELIX_REF" ]]; then
+    echo "Warning: No stable release tags found. Falling back to 'main' branch." >&2
+    HELIX_REF="main"
+  fi
 fi
 ref_exists_remote "$HELIX_REF" || echo "Warning: ref '$HELIX_REF' not found remotely; trying as commit SHA…" >&2
 
