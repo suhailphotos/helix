@@ -1,4 +1,7 @@
 ---
+# roles/uv/tasks/per_project.yml
+
+# 1) Only run on real Python projects
 - name: Check pyproject.toml
   stat:
     path: "{{ pkg_dir }}/pyproject.toml"
@@ -10,30 +13,37 @@
     msg: "Skipping {{ project }} (no pyproject.toml)"
   when: not pyproj.stat.exists
 
+# 2) Best-effort per-project setup (never fail the whole play because Dropbox is mid-sync)
 - block:
     - name: Choose interpreter (force pinned default)
       set_fact:
         uv_python_minor: "{{ uv_default_minor }}"
         uv_python_version: "{{ uv_pin_map[uv_default_minor] | default(uv_default_minor) }}"
 
-    - name: Ensure chosen interpreter is installed in UV store
+    - name: Ensure chosen interpreter is installed in UV store (best-effort)
       shell: |
         set -e
         uv python find "{{ uv_python_version }}" >/dev/null 2>&1 || uv python install "{{ uv_python_version }}"
-      args: { executable: /bin/bash }
-      environment: { PATH: "{{ uv_path_env }}" }
+      args:
+        executable: /bin/bash
+      environment:
+        PATH: "{{ uv_path_env }}"
+      changed_when: false
+      failed_when: false
 
-    # Optional: create/refresh lock file (safe to skip if you prefer)
+    # Optional: create/refresh lock file (best-effort)
     - name: uv lock (best-effort)
       shell: uv lock
       args:
         executable: /bin/bash
         chdir: "{{ pkg_dir }}"
-      environment: { PATH: "{{ uv_path_env }}" }
+      environment:
+        PATH: "{{ uv_path_env }}"
       changed_when: false
       failed_when: false
 
-    - name: uv sync (to ~/.venvs/<project>) — no activation
+    # Sync env into ~/.venvs/<project> (best-effort, safe if Dropbox isn't ready yet)
+    - name: uv sync (to ~/.venvs/<project>) — best-effort
       shell: |
         set -e
         UV_PROJECT_ENVIRONMENT="{{ helix_user_home }}/.venvs/{{ project }}" \
@@ -41,5 +51,9 @@
       args:
         executable: /bin/bash
         chdir: "{{ pkg_dir }}"
-      environment: { PATH: "{{ uv_path_env }}" }
+      environment:
+        PATH: "{{ uv_path_env }}"
+      changed_when: false
+      failed_when: false
+
   when: pyproj.stat.exists

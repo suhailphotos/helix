@@ -3,30 +3,42 @@
 - name: uv disabled on this host - skipping uv role
   debug:
     msg: "uv is not enabled on this host (uv_enabled != true); skipping uv role."
-  when: not (uv_enabled | default(false))
+  when: not (uv_enabled | default(false) | bool)
 
 - meta: end_host
-  when: not (uv_enabled | default(false))
+  when: not (uv_enabled | default(false) | bool)
+
+# NEW: define uv_user + uv_home early (so become_user / HOME works)
+- name: uv | Determine target user/home
+  set_fact:
+    uv_user: "{{ helix_user | default(ansible_facts['user_id']) }}"
+    uv_home: >-
+      {{
+        helix_user_home
+        | default(ansible_facts['user_dir'])
+        | default(
+            ((helix_user | default(ansible_facts['user_id'])) == 'root')
+            | ternary('/root', '/home/' ~ (helix_user | default(ansible_facts['user_id'])))
+          )
+      }}
 
 # 2) Compute paths and project list (macOS vs Linux)
 - name: Compute paths and project list
   set_fact:
-    # matrix_root comes from group_vars/macos.yml or group_vars/linux.yml
     matrix_packages_dir: "{{ matrix_packages_dir | default(matrix_root + '/packages') }}"
     uv_projects: >-
       {{ uv_projects | default((uv_projects_macos | default([])) if ansible_facts['system'] == 'Darwin'
                                else (uv_projects_linux | default([]))) }}
-    # Map minors → pinned micros (default 3.11 → 3.11.7)
     uv_pin_map: "{{ uv_python_pin_map | default({'3.11': (houdini_python_patch | default('3.11.7'))}) }}"
     uv_default_minor: "{{ uv_default_minor | default('3.11') }}"
 
-# 3) Build PATH for uv (mac vs linux)
-- name: Build PATH for uv
+# 3) Build PATH used for checks/installs
+- name: uv | Build PATH
   set_fact:
-    uv_path_env: "{{ helix_task_path }}"
+    uv_path_env: "{{ helix_task_path | default(ansible_facts['env']['PATH'] | default('')) }}"
 
-# 4) Detect uv binary
-- name: Detect uv binary
+# 4) Detect uv
+- name: uv | Detect uv
   command: "command -v uv"
   register: uv_cmd
   changed_when: false
@@ -34,52 +46,43 @@
   environment:
     PATH: "{{ uv_path_env }}"
 
-- name: uv not installed - skipping uv role on this host
-  debug:
-    msg: "uv binary not found in PATH; skipping uv role on this host."
-  when: uv_cmd.rc != 0
+# 5) If missing on macOS, tell yourself to fix brew (don’t curl-install on mac)
+- name: uv | Missing on macOS (brew should provide it)
+  fail:
+    msg: "uv not found. On macOS, install via Homebrew: brew install uv"
+  when:
+    - uv_cmd.rc != 0
+    - ansible_facts['system'] == 'Darwin'
 
-- meta: end_host
-  when: uv_cmd.rc != 0
-
-# 5) Check Dropbox/matrix (matrix_root/packages) is available
-- name: Check if matrix_packages_dir exists
-  stat:
-    path: "{{ matrix_packages_dir }}"
-  register: matrix_pkgs_stat
-
-- name: Dropbox/matrix not available - skipping uv on this host
-  debug:
-    msg: "matrix_packages_dir {{ matrix_packages_dir }} does not exist; Dropbox/matrix not ready, skipping uv."
-  when: not matrix_pkgs_stat.stat.exists
-
-- meta: end_host
-  when: not matrix_pkgs_stat.stat.exists
-
-# 6) Ensure default interpreter exists in UV store
-- name: Ensure default interpreter exists in UV store
+# 6) If missing on Linux, install per-user
+- name: uv | Install uv (Linux, per-user)
+  become: yes
+  become_user: "{{ uv_user }}"
   shell: |
-    set -e
-    ver="{{ uv_pin_map[uv_default_minor] | default(uv_default_minor) }}"
-    uv python find "$ver" >/dev/null 2>&1 || uv python install "$ver"
+    set -euo pipefail
+    curl -LsSf https://astral.sh/uv/install.sh | sh
   args:
     executable: /bin/bash
   environment:
+    HOME: "{{ uv_home }}"
+    PATH: "{{ uv_path_env }}"
+  when:
+    - uv_cmd.rc != 0
+    - ansible_facts['system'] == 'Linux'
+
+# 7) Re-detect after install
+- name: uv | Re-detect uv after install
+  command: "command -v uv"
+  register: uv_cmd2
+  changed_when: false
+  failed_when: false
+  environment:
     PATH: "{{ uv_path_env }}"
 
-# 7) Ensure ~/.venvs exists
-- name: Ensure ~/.venvs exists
-  file:
-    path: "{{ helix_user_home }}/.venvs"
-    state: directory
-    mode: "0755"
+- name: uv still missing - skipping uv role
+  debug:
+    msg: "uv still not found after install attempt; skipping uv."
+  when: uv_cmd2.rc != 0
 
-# 8) Iterate per-project (only when uv + Dropbox/matrix are available)
-- name: Iterate projects
-  include_tasks: per_project.yml
-  loop: "{{ uv_projects }}"
-  loop_control:
-    loop_var: project
-    label: "{{ project }}"
-  vars:
-    pkg_dir: "{{ matrix_packages_dir }}/{{ project }}"
+- meta: end_host
+  when: uv_cmd2.rc != 0
