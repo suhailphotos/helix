@@ -74,6 +74,74 @@
       - docker-compose-plugin
     state: present
 
+# -----------------------------
+# NEW: Allow non-root user to run docker (docker group)
+# -----------------------------
+- name: Docker | ensure docker group exists
+  become: yes
+  ansible.builtin.group:
+    name: docker
+    state: present
+
+- name: Docker | add user to docker group (so docker.sock is accessible)
+  become: yes
+  ansible.builtin.user:
+    name: "{{ docker_user | default(ansible_user_id) }}"
+    groups: docker
+    append: true
+  register: docker_user_group
+
+- name: Docker | reminder re-login required for docker group to take effect
+  ansible.builtin.debug:
+    msg: >
+      Added {{ docker_user | default(ansible_user_id) }} to docker group.
+      You must log out and back in (or run: newgrp docker) for it to take effect.
+  when: docker_user_group is changed
+
+
+# -----------------------------
+# NEW: Base /etc/docker/daemon.json (IPv4/IPv6 + pools)
+# -----------------------------
+- name: Ensure /etc/docker exists
+  become: yes
+  file:
+    path: /etc/docker
+    state: directory
+    mode: "0755"
+
+- name: Build docker daemon base config (no NVIDIA runtime here)
+  ansible.builtin.set_fact:
+    docker_daemon_base: >-
+      {{
+        {
+          "bip": (docker_bip | default("10.29.22.1/24")),
+          "ipv6": (docker_ipv6_enabled | default(false)) | bool,
+          "fixed-cidr-v6": (docker_fixed_cidr_v6 | default("") | trim),
+          "ip6tables": (docker_ip6tables | default(true)) | bool,
+          "default-address-pools": (docker_default_address_pools | default([]))
+        }
+      }}
+
+- name: Remove fixed-cidr-v6 key when ipv6 disabled or value empty
+  ansible.builtin.set_fact:
+    docker_daemon_base: >-
+      {{
+        docker_daemon_base
+        | combine(
+            ({} if ((docker_daemon_base["ipv6"] | bool) and ((docker_daemon_base["fixed-cidr-v6"] | string | trim) != ""))
+             else {"fixed-cidr-v6": omit}),
+            recursive=True
+          )
+      }}
+
+- name: Write /etc/docker/daemon.json (base)
+  become: yes
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    mode: "0644"
+    content: "{{ docker_daemon_base | to_nice_json }}"
+  notify: restart docker
+
 # 7) Ensure Docker is enabled and running
 - name: Ensure Docker service is enabled and running
   become: yes

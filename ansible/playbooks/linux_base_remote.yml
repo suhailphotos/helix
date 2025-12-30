@@ -1,0 +1,107 @@
+# playbooks/linux_remote.yml
+- name: Bootstrap Linux basics (Ubuntu/Debian) remotely
+  hosts: linux
+  gather_facts: yes
+  become: yes
+
+  roles:
+    - { role: linux_bootstrap,   tags: ['linux_bootstrap','bootstrap'] }
+
+    # always before any cargo-using role
+    - { role: rust_toolchain, when: (rust_toolchain_enabled | default(true)) | bool, tags: ['rust','toolchain'] }
+
+    - { role: onepassword_cli, tags: ['op','1password'] }
+
+    # Dropbox daemon (only when enabled per-host)
+    - { role: dropbox_daemon,
+        when: (dropbox_enabled | default(false)) | bool,
+        tags: ['dropbox'] }
+
+    # Neovim: upstream tarball from GitHub or PPA depending on host vars
+    - { role: nvim_upstream,
+        when: (nvim_use_upstream | default(false)) | bool,
+        tags: ['nvim','nvim_upstream'] }
+
+    - { role: nvim_ppa,
+        when: (nvim_install_via_ppa | default(false)) | bool,
+        tags: ['nvim','nvim_ppa'] }
+
+
+    # Full config (Bindu repo) for normal machines
+    - { role: bindu_config_repo,
+        when: not (use_selective_configs | default(false)) | bool,
+        tags: ['bindu','config'] }
+
+    # Selective files for lightweight machines
+    - { role: bindu_selective,
+        when: (use_selective_configs | default(false)) | bool,
+        tags: ['bindu','config'] }
+
+    # Pixi (needs bindu pixi hosts files present if you want stow)
+    - { role: pixi,
+        when: (pixi_enabled | default(false)) | bool,
+        tags: ['pixi'] }
+
+    # ZSH / Orbit only on dev boxes
+    - role: zsh_orbit
+      when:
+        - (use_zsh_shell | default(false)) | bool
+        - (orbit_enabled | default(false)) | bool
+      vars:
+        install_zsh: true
+      tags: ['zsh','orbit']
+
+    # Shell-agnostic bits (OK on bash or zsh)
+    - { role: zoxide,            tags: ['zoxide'] }
+    - { role: starship,          tags: ['starship','prompt'] }
+    - { role: home_shims,        tags: ['home','dotfiles'] }
+
+    # OLD PATH: bash + starship .bashrc (guarded)
+    - { role: bash_starship,
+        when: (bash_starship_enabled | default(false)) | bool,
+        tags: ['starship','bash'] }
+
+    # NEW PATH: bash + apogee-driven config
+    - { role: bash_apogee,
+        when: (linux_bash_apogee_enabled | default(false)) | bool,
+        tags: ['bash','apogee'] }
+
+    # Install Apogee via existing cargo role (cross-platform safe)
+    - { role: apogee_cargo,
+        when: (apogee_enabled | default(false)) | bool,
+        tags: ['apogee','cargo'] }
+
+    - { role: eza,               tags: ['eza'] }
+
+    # Only install Yazi when explicitly enabled (default true for old hosts)
+    - { role: yazi,
+        when: (yazi_enabled | default(true)) | bool,
+        tags: ['yazi'] }
+
+    - { role: tmux_setup,        tags: ['tmux'] }
+    - { role: pixi,
+        when: (pixi_enabled | default(true)) | bool,
+        tags: ['pixi'] }
+
+    # UV only when enabled (anchor keeps this false)
+    - { role: uv,
+        when: (uv_enabled | default(false)) | bool,
+        tags: ['uv'] }
+
+    - { role: cargo_crates,      tags: ['cargo'] }
+
+    # NVIM: full on normal boxes, selective on lightweight
+    - { role: nvim,
+        when: not (use_selective_configs | default(false)) | bool,
+        tags: ['nvim'] }
+
+    - { role: nvim_selective,
+        when: (use_selective_configs | default(false)) | bool,
+        tags: ['nvim'] }
+
+    - { role: atrium_stow,       tags: ['atrium','stow'] }
+
+    # UniFi controller via APT, only where unifi_controller: true
+    - { role: unifi_controller,
+        when: (unifi_controller | default(false)) | bool,
+        tags: ['unifi'] }

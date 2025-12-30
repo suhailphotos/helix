@@ -25,21 +25,29 @@ uv_projects_linux:
 # Turn on pixi
 pixi_enabled: true
 
-# Dropbox daemon if you want it on vortex
-dropbox_enabled: true
-dropbox_user: suhail
-
-# Docker: enable & enable IPv6
+# Docker base daemon.json (Role 1: docker_engine)
 docker_enabled: true
+docker_user: suhail
+
 docker_ipv6_enabled: true
-docker_fixed_cidr_v6: "fd00:dead:beef::/64"   # adjust if you want a different ULA prefix
+docker_bip: "10.29.22.1/24"
+docker_fixed_cidr_v6: "2603:8001:a000:140::/64"
+docker_ip6tables: true
 
-# GPU support
-# host_vars/vortex.yml
+docker_default_address_pools:
+  - { base: "10.74.0.0/16",           size: 24 }
+  - { base: "2603:8001:a000:140::/60", size: 64 }
 
+# Optional (Role 3: docker_nvidia_runtime)
+docker_max_concurrent_uploads: 1
+
+# leave this unset or false unless you want default-runtime=nvidia
+docker_nvidia_set_default_runtime: false
+
+# GPU
 nvidia_gpu_host: true
 
-# Optional: if you want to force a specific one:
+
 # nvidia_driver_package_pin: "nvidia-driver-580-open"
 nvidia_driver_package_pin: ""
 

@@ -1,0 +1,132 @@
+---
+# roles/docker_nvidia_runtime/tasks/main.yml
+
+- name: Docker NVIDIA runtime | gather installed packages
+  ansible.builtin.package_facts:
+    manager: auto
+
+- name: Docker NVIDIA runtime | check docker installed (docker-ce)
+  ansible.builtin.set_fact:
+    docker_is_installed: "{{ 'docker-ce' in (ansible_facts.packages | default({})) }}"
+
+- name: Docker NVIDIA runtime | check nvidia container toolkit installed
+  ansible.builtin.set_fact:
+    nvidia_toolkit_is_installed: "{{ 'nvidia-container-toolkit' in (ansible_facts.packages | default({})) }}"
+
+- name: Docker NVIDIA runtime | check nvidia-container-runtime binary exists
+  ansible.builtin.stat:
+    path: /usr/bin/nvidia-container-runtime
+  register: nvidia_runtime_bin
+
+- name: Docker NVIDIA runtime | skip if docker is not installed
+  ansible.builtin.debug:
+    msg: "Skipping docker_nvidia_runtime: Docker Engine not installed (docker-ce missing)."
+  when: not docker_is_installed
+
+- name: Docker NVIDIA runtime | skip if nvidia container toolkit/runtime not installed
+  ansible.builtin.debug:
+    msg: "Skipping docker_nvidia_runtime: NVIDIA container toolkit/runtime not installed yet."
+  when: docker_is_installed and (not nvidia_toolkit_is_installed) and (not nvidia_runtime_bin.stat.exists)
+
+- name: Docker NVIDIA runtime | end host when prerequisites missing
+  ansible.builtin.meta: end_host
+  when: (not docker_is_installed) or ((not nvidia_toolkit_is_installed) and (not nvidia_runtime_bin.stat.exists))
+
+- name: Docker NVIDIA runtime | ensure /etc/docker exists
+  ansible.builtin.file:
+    path: /etc/docker
+    state: directory
+    mode: "0755"
+
+- name: Docker NVIDIA runtime | stat daemon.json
+  ansible.builtin.stat:
+    path: /etc/docker/daemon.json
+  register: daemon_stat
+
+- name: Docker NVIDIA runtime | slurp daemon.json if present
+  ansible.builtin.slurp:
+    src: /etc/docker/daemon.json
+  register: daemon_slurp
+  when: daemon_stat.stat.exists
+
+# Parse daemon.json safely (handles empty/invalid json)
+- block:
+    - name: Docker NVIDIA runtime | parse existing daemon.json
+      ansible.builtin.set_fact:
+        docker_daemon_current: "{{ (daemon_slurp.content | b64decode | from_json) }}"
+      when: daemon_stat.stat.exists
+
+  rescue:
+    - name: Docker NVIDIA runtime | warn invalid daemon.json and start fresh
+      ansible.builtin.debug:
+        msg: "WARNING: /etc/docker/daemon.json was not valid JSON. Replacing with a merged config from scratch."
+    - ansible.builtin.set_fact:
+        docker_daemon_current: {}
+
+- name: Docker NVIDIA runtime | default daemon config when missing
+  ansible.builtin.set_fact:
+    docker_daemon_current: {}
+  when: not daemon_stat.stat.exists
+
+- name: Docker NVIDIA runtime | build NVIDIA runtime patch
+  ansible.builtin.set_fact:
+    docker_daemon_patch: >-
+      {{
+        {
+          "runtimes": {
+            "nvidia": {
+              "path": "nvidia-container-runtime",
+              "runtimeArgs": []
+            }
+          }
+        }
+      }}
+
+- name: Docker NVIDIA runtime | optionally add max-concurrent-uploads
+  ansible.builtin.set_fact:
+    docker_daemon_patch: >-
+      {{
+        docker_daemon_patch
+        | combine(
+            ({"max-concurrent-uploads": (docker_max_concurrent_uploads | int)}
+             if (docker_max_concurrent_uploads is defined and (docker_max_concurrent_uploads | string | trim) != "")
+             else {}),
+            recursive=True
+          )
+      }}
+
+# Optional: if you ever want NVIDIA runtime as default (I’d keep this false)
+- name: Docker NVIDIA runtime | optionally set default-runtime=nvidia
+  ansible.builtin.set_fact:
+    docker_daemon_patch: >-
+      {{
+        docker_daemon_patch
+        | combine(
+            ({"default-runtime": "nvidia"} if (docker_nvidia_set_default_runtime | default(false)) | bool else {}),
+            recursive=True
+          )
+      }}
+
+- name: Docker NVIDIA runtime | merge + write daemon.json
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    mode: "0644"
+    content: "{{ (docker_daemon_current | combine(docker_daemon_patch, recursive=True)) | to_nice_json }}"
+  notify: restart docker
+
+- name: Docker NVIDIA runtime | flush handlers (restart docker now)
+  ansible.builtin.meta: flush_handlers
+
+- name: Docker NVIDIA runtime | verify docker sees nvidia runtime (quick)
+  ansible.builtin.command: docker info
+  register: docker_info
+  changed_when: false
+
+- name: Docker NVIDIA runtime | assert nvidia runtime present
+  ansible.builtin.assert:
+    that:
+      - "'nvidia' in docker_info.stdout"
+    fail_msg: |
+      Docker did not report the NVIDIA runtime after configuring daemon.json.
+      docker info output:
+      {{ docker_info.stdout }}

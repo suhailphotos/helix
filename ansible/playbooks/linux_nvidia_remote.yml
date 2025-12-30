@@ -1,9 +1,9 @@
 ---
 # playbooks/linux_nvidia_remote.yml
 
-- import_playbook: linux_remote.yml
+- import_playbook: linux_base_remote.yml
 
-- name: NVIDIA GPU provisioning (drivers only, for now)
+- name: NVIDIA GPU provisioning (drivers + container toolkit + docker runtime)
   hosts: linux
   gather_facts: yes
   become: yes
@@ -12,3 +12,18 @@
     - role: nvidia_drivers
       when: (nvidia_gpu_host | default(false)) | bool
       tags: ['nvidia','drivers']
+
+    # install docker AFTER drivers (and any reboot you do there)
+    - role: docker_engine
+      when:
+        - (nvidia_gpu_host | default(false)) | bool
+        - (docker_enabled | default(false)) | bool
+      tags: ['docker']
+
+    - role: nvidia_container_toolkit
+      when: (nvidia_gpu_host | default(false)) | bool
+      tags: ['nvidia','toolkit']
+
+    - role: docker_nvidia_runtime
+      when: (nvidia_gpu_host | default(false)) | bool
+      tags: ['nvidia','docker_runtime']
