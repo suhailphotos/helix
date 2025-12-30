@@ -1,0 +1,7 @@
+---
+# roles/nvidia_drivers/handlers/main.yml
+
+- name: reboot host
+  ansible.builtin.reboot:
+    msg: "Rebooting to activate NVIDIA driver/kernel module updates"
+    reboot_timeout: 900

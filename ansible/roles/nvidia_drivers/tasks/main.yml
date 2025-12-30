@@ -1,0 +1,177 @@
+---
+# roles/nvidia_drivers/tasks/main.yml
+
+- name: NVIDIA drivers | gated off for non-GPU hosts
+  debug:
+    msg: "nvidia_gpu_host is false; skipping NVIDIA driver install."
+  when: not (nvidia_gpu_host | default(false)) | bool
+
+- meta: end_host
+  when: not (nvidia_gpu_host | default(false)) | bool
+
+# Keep this role Ubuntu-focused for now to avoid silently doing the wrong thing.
+- name: NVIDIA drivers | assert Ubuntu
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == 'Ubuntu'
+    fail_msg: "nvidia_drivers role currently supports Ubuntu only. Detected: {{ ansible_facts['distribution'] }}"
+
+- name: NVIDIA drivers | prerequisites
+  ansible.builtin.apt:
+    name:
+      - ubuntu-drivers-common
+      - software-properties-common
+      - pciutils
+    state: present
+    update_cache: yes
+
+# Kernel headers (best effort; useful if DKMS path is needed)
+- name: NVIDIA drivers | install running kernel headers (best effort)
+  ansible.builtin.apt:
+    name: "linux-headers-{{ ansible_facts['kernel'] }}"
+    state: present
+  register: hdrs
+  failed_when: false
+
+- name: NVIDIA drivers | add graphics-drivers PPA (optional)
+  ansible.builtin.apt_repository:
+    repo: "ppa:graphics-drivers/ppa"
+    state: present
+  when: (nvidia_add_graphics_drivers_ppa | default(false)) | bool
+
+- name: NVIDIA drivers | apt update (if PPA enabled)
+  ansible.builtin.apt:
+    update_cache: yes
+  when: (nvidia_add_graphics_drivers_ppa | default(false)) | bool
+
+# Optional purge (do NOT default this on)
+- block:
+    - name: NVIDIA drivers | purge old NVIDIA/CUDA packages (optional)
+      ansible.builtin.shell: |
+        set -e
+        apt-get -y purge 'nvidia*' || true
+        apt-get -y purge 'cuda*'   || true
+        apt-get -y autoremove --purge
+      args:
+        executable: /bin/bash
+      changed_when: true
+  when: (nvidia_purge_existing | default(false)) | bool
+
+# Detect recommended driver package from ubuntu-drivers devices output
+# Detect recommended driver package from ubuntu-drivers devices output
+- name: NVIDIA drivers | ubuntu-drivers devices
+  ansible.builtin.command: ubuntu-drivers devices
+  register: ubdrv
+  changed_when: false
+
+# --- Recommended NVIDIA driver detection + install (drop-in replacement) ---
+
+- name: NVIDIA drivers | ubuntu-drivers devices
+  ansible.builtin.command: ubuntu-drivers devices
+  register: ubdrv
+  changed_when: false
+
+- name: NVIDIA drivers | pick recommended driver line
+  ansible.builtin.set_fact:
+    nvidia_driver_recommended_line: >-
+      {{
+        (ubdrv.stdout_lines
+          | select('search', 'recommended')
+          | select('search', 'nvidia-driver-')
+          | list
+          | first) | default('')
+      }}
+
+- name: NVIDIA drivers | parse recommended driver package token (no regex)
+  ansible.builtin.set_fact:
+    nvidia_driver_recommended_pkg: >-
+      {{
+        (
+          (nvidia_driver_recommended_line | split(':', 1) | last | trim)
+          | split()
+          | first
+        ) | default('')
+      }}
+
+- name: NVIDIA drivers | choose driver package (pin overrides recommended)
+  ansible.builtin.set_fact:
+    nvidia_driver_pkg: >-
+      {{
+        (nvidia_driver_package_pin | default('') | trim)
+        if (nvidia_driver_package_pin | default('') | trim) != ''
+        else (nvidia_driver_recommended_pkg | default('') | trim)
+      }}
+
+- name: NVIDIA drivers | assert driver package is valid
+  ansible.builtin.assert:
+    that:
+      - (nvidia_driver_pkg | trim) != ''
+      - (' ' not in nvidia_driver_pkg)
+      - (nvidia_driver_pkg is match('^nvidia-driver-[0-9]+'))
+    fail_msg: |
+      Failed to determine a valid NVIDIA driver package.
+      recommended line: {{ nvidia_driver_recommended_line }}
+      recommended pkg:  {{ nvidia_driver_recommended_pkg }}
+      chosen pkg:       {{ nvidia_driver_pkg }}
+      full ubuntu-drivers output:
+      {{ ubdrv.stdout }}
+
+- name: NVIDIA drivers | install driver package
+  ansible.builtin.apt:
+    name: "{{ nvidia_driver_pkg }}"
+    state: present
+  register: nvidia_driver_install
+  notify: reboot host
+
+
+# Optional nouveau handling (Ubuntu docs recommend blacklist+initramfs if nouveau is loaded)  [oai_citation:1‡Ubuntu Documentation](https://documentation.ubuntu.com/server/how-to/graphics/install-nvidia-drivers/)
+- name: NVIDIA drivers | check if nouveau is loaded
+  ansible.builtin.shell: "lsmod | grep -q '^nouveau'"
+  args:
+    executable: /bin/bash
+  register: nouveau_loaded
+  changed_when: false
+  failed_when: false
+
+- block:
+    - name: NVIDIA drivers | blacklist nouveau
+      ansible.builtin.copy:
+        dest: /etc/modprobe.d/disable-nouveau.conf
+        mode: "0644"
+        content: |
+          blacklist nouveau
+          options nouveau modeset=0
+
+    - name: NVIDIA drivers | rebuild initramfs
+      ansible.builtin.command: update-initramfs -u
+      register: initramfs
+      changed_when: true
+
+  when:
+    - (nvidia_blacklist_nouveau | default(true)) | bool
+    - nouveau_loaded.rc == 0
+
+# Reboot if driver install changed, or initramfs rebuilt
+- name: NVIDIA drivers | reboot if needed
+  ansible.builtin.meta: flush_handlers
+
+- name: NVIDIA drivers | trigger reboot when changes occurred
+  ansible.builtin.debug:
+    msg: "NVIDIA install/initramfs changed; reboot handler will run."
+  notify: reboot host
+  changed_when: true
+  when: >
+    (nvidia_reboot | default(true)) | bool and
+    (
+      (nvidia_driver_install is changed) or
+      ((initramfs is defined) and (initramfs is changed))
+    )
+
+- name: NVIDIA drivers | verify nvidia-smi
+  ansible.builtin.command: nvidia-smi
+  register: smi
+  changed_when: false
+
+- name: NVIDIA drivers | show nvidia-smi (debug)
+  ansible.builtin.debug:
+    var: smi.stdout_lines

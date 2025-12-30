@@ -35,11 +35,18 @@ docker_ipv6_enabled: true
 docker_fixed_cidr_v6: "fd00:dead:beef::/64"   # adjust if you want a different ULA prefix
 
 # GPU support
+# host_vars/vortex.yml
+
 nvidia_gpu_host: true
-nvidia_driver_packages:
-  - "nvidia-driver-555-open"      # adjust to the exact driver you want
-nvidia_container_packages:
-  - "nvidia-container-toolkit"
+
+# Optional: if you want to force a specific one:
+# nvidia_driver_package_pin: "nvidia-driver-580-open"
+nvidia_driver_package_pin: ""
+
+# Optional:
+nvidia_add_graphics_drivers_ppa: false
+nvidia_blacklist_nouveau: true
+nvidia_purge_existing: false
 
 # Shell: keep bash as default, but opt in to bash+apogee+starship
 linux_bash_apogee_enabled: true

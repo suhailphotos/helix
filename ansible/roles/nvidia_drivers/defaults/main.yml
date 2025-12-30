@@ -1,0 +1,26 @@
+---
+# roles/nvidia_drivers/defaults/main.yml
+
+# Host gate (set true in host_vars for GPU machines)
+nvidia_gpu_host: false
+
+# Optional: add graphics-drivers PPA (Ubuntu only)
+nvidia_add_graphics_drivers_ppa: false
+
+# Optional: purge previous installs (dangerous if you rely on host CUDA)
+nvidia_purge_existing: false
+
+# If nouveau is loaded, optionally blacklist + rebuild initramfs
+nvidia_blacklist_nouveau: true
+
+# Install recommended package detected from ubuntu-drivers devices
+# If set non-empty, we install this exact package instead.
+# Examples:
+#   nvidia-driver-580-open
+#   nvidia-driver-580
+#   nvidia-driver-580-server
+#   nvidia-driver-580-server-open
+nvidia_driver_package_pin: ""
+
+# Reboot if needed
+nvidia_reboot: true

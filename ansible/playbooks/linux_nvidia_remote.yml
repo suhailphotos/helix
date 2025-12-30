@@ -1,0 +1,14 @@
+---
+# playbooks/linux_nvidia_remote.yml
+
+- import_playbook: linux_remote.yml
+
+- name: NVIDIA GPU provisioning (drivers only, for now)
+  hosts: linux
+  gather_facts: yes
+  become: yes
+
+  roles:
+    - role: nvidia_drivers
+      when: (nvidia_gpu_host | default(false)) | bool
+      tags: ['nvidia','drivers']
