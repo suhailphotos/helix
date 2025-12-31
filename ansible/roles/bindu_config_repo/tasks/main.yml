@@ -18,14 +18,14 @@
     bindu_remote: "{{ bindu_remote | default('https://github.com/suhailphotos/bindu.git') }}"
     bindu_branch: "{{ bindu_branch | default('main') }}"
     # Who should own ~/.config on THIS host?
-    bindu_user: "{{ helix_user | default(ansible_user_id) }}"
+    bindu_user: "{{ helix_user | default(ansible_facts['user_id']) }}"
 
 - name: Defaults - home + config dir
   set_fact:
     # Prefer explicit helix_user_home (you already set this in group_vars/all.yml),
     # otherwise fall back to facts/env. Avoid referencing bindu_user here.
-    bindu_home: "{{ helix_user_home | default(ansible_facts['user_dir'] | default(ansible_env.HOME | default(''))) }}"
-    bindu_config_dir: "{{ bindu_config_dir | default((helix_user_home | default(ansible_facts['user_dir'] | default(ansible_env.HOME | default('')))) + '/.config') }}"
+    bindu_home: "{{ helix_user_home | default(ansible_facts['user_dir'] | default(ansible_facts['env']['HOME'] | default(''))) }}"
+    bindu_config_dir: "{{ bindu_config_dir | default((helix_user_home | default(ansible_facts['user_dir'] | default(ansible_facts['env']['HOME'] | default('')))) + '/.config') }}"
 
 - name: Defaults - determine primary group name for bindu_user
   command: "id -gn {{ bindu_user }}"
