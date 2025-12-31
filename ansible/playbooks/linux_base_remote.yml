@@ -1,4 +1,4 @@
-# playbooks/linux_remote.yml
+# playbooks/linux_base_remote.yml
 - name: Bootstrap Linux basics (Ubuntu/Debian) remotely
   hosts: linux
   gather_facts: yes

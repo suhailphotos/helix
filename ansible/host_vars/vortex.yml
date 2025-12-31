@@ -25,6 +25,10 @@ uv_projects_linux:
 # Turn on pixi
 pixi_enabled: true
 
+# Enable Dropbox
+dropbox_enabled: true
+
+
 # Docker base daemon.json (Role 1: docker_engine)
 docker_enabled: true
 docker_user: suhail
