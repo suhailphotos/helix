@@ -6,40 +6,36 @@
 #   bindu_branch: main
 #   bindu_config_dir: ~/.config
 
-- name: Defaults (portable user/home/group)
+# -----------------------------
+# Defaults (portable across macOS/Linux; root + non-root)
+# -----------------------------
+- name: Defaults (portable user/home/group) - step 1
   set_fact:
     bindu_remote: "{{ bindu_remote | default('https://github.com/suhailphotos/bindu.git') }}"
     bindu_branch: "{{ bindu_branch | default('main') }}"
 
-    # Who should own ~/.config on THIS host?
-    # - if you connect as root (zion/atlas/etc), bindu_user becomes root
-    # - otherwise becomes helix_user (if you set it) or the current remote user
+    # who should own ~/.config on THIS host?
     bindu_user: "{{ helix_user | default(ansible_user_id) }}"
 
-    # Home dir for that user
+    # home for that user (prefer explicit vars, then facts; final fallback based on user)
     bindu_home: >-
       {{
         helix_user_home
         | default(ansible_facts['user_dir'])
         | default(ansible_facts['env']['HOME'])
+        | default( (bindu_user == 'root') | ternary('/root', '/home/' ~ bindu_user) )
       }}
 
-    # Primary group for the connected user on this host
-    # macOS will usually be "staff"; Linux is typically the username.
+    # primary group (macOS typically "staff"; linux typically matches username; root often "wheel"/"root")
     bindu_group: "{{ ansible_facts['user_gid'] | default(bindu_user) }}"
 
-    # Where to clone
+- name: Defaults (portable user/home/group) - step 2
+  set_fact:
     bindu_config_dir: "{{ bindu_config_dir | default(bindu_home + '/.config') }}"
 
-
-- name: Defaults
-  set_fact:
-    bindu_remote: "{{ bindu_remote | default('https://github.com/suhailphotos/bindu.git') }}"
-    bindu_branch: "{{ bindu_branch | default('main') }}"
-    bindu_user: "{{ helix_user | default(ansible_facts['user_id']) }}"
-    bindu_home: "{{ helix_user_home | default(ansible_facts['env'].HOME) }}"
-    bindu_config_dir: "{{ bindu_config_dir | default((helix_user_home | default(ansible_facts['env'].HOME)) + '/.config') }}"
-
+# -----------------------------
+# Detect existing ~/.config
+# -----------------------------
 - name: Stat ~/.config
   stat:
     path: "{{ bindu_config_dir }}"
@@ -71,7 +67,8 @@
     set -e
     mv "{{ bindu_config_dir }}" "{{ bindu_config_dir }}.pre-bindu.{{ ansible_date_time.iso8601_basic }}"
     mkdir -p "{{ bindu_config_dir | dirname }}"
-  args: { executable: /bin/bash }
+  args:
+    executable: /bin/bash
 
 # For existing repo, check its origin; otherwise this will be skipped
 - name: Read origin for existing repo
@@ -81,7 +78,7 @@
   failed_when: false
   when: cfg_is_repo
 
-# 🔧 Normalize both URLs (strip tokens, .git, and unify SSH → https) before comparing
+# Normalize both URLs (strip tokens, .git, and unify SSH → https) before comparing
 - name: Normalize origin/remote URLs
   set_fact:
     bindu_origin_norm: >-
@@ -90,7 +87,7 @@
         | regex_replace('^ssh://', '')
         | regex_replace('^git@github.com:', 'https://github.com/')
         | regex_replace('^https?://[^@]+@', 'https://')
-        | regex_replace('\.git$', '')
+        | regex_replace('\\.git$', '')
         | lower
       }}
     bindu_remote_norm: >-
@@ -99,7 +96,7 @@
         | regex_replace('^ssh://', '')
         | regex_replace('^git@github.com:', 'https://github.com/')
         | regex_replace('^https?://[^@]+@', 'https://')
-        | regex_replace('\.git$', '')
+        | regex_replace('\\.git$', '')
         | lower
       }}
   when: cfg_is_repo
@@ -112,17 +109,13 @@
   shell: |
     set -e
     mv "{{ bindu_config_dir }}" "{{ bindu_config_dir }}.pre-bindu.{{ ansible_date_time.iso8601_basic }}"
-  args: { executable: /bin/bash }
+  args:
+    executable: /bin/bash
 
-# Ensure parent exists before (re)cloning
-- name: Ensure parent exists
-  file:
-    path: "{{ bindu_config_dir | dirname }}"
-    state: directory
-    mode: "0755"
-
-
-- name: Ensure ~/.config parent exists and is owned by user
+# -----------------------------
+# Ensure parent + clone/update
+# -----------------------------
+- name: Ensure ~/.config parent exists and is owned by target user
   become: yes
   file:
     path: "{{ bindu_config_dir | dirname }}"
@@ -131,9 +124,7 @@
     group: "{{ bindu_group }}"
     mode: "0755"
 
-
-# Clone/update Bindu into ~/.config (force fast-forward to desired branch)
-- name: Clone/update Bindu into ~/.config (as user)
+- name: Clone/update Bindu into ~/.config (as target user)
   become: yes
   become_user: "{{ bindu_user }}"
   git:
@@ -146,7 +137,6 @@
     accept_hostkey: yes
     force: yes
 
-# Ensure we track origin
 - name: Ensure we track origin/{{ bindu_branch }}
   become: yes
   become_user: "{{ bindu_user }}"
@@ -154,10 +144,10 @@
     set -e
     git -C "{{ bindu_config_dir }}" checkout -q "{{ bindu_branch }}"
     git -C "{{ bindu_config_dir }}" branch --set-upstream-to "origin/{{ bindu_branch }}" "{{ bindu_branch }}" || true
-  args: { executable: /bin/bash }
+  args:
+    executable: /bin/bash
 
-
-- name: Ensure ~/.config repo is owned by user
+- name: Ensure ~/.config repo is owned by target user
   become: yes
   file:
     path: "{{ bindu_config_dir }}"
@@ -166,7 +156,6 @@
     group: "{{ bindu_group }}"
     recurse: yes
 
-
 # Ignore macOS metadata
 - name: Ignore macOS metadata
   lineinfile:
@@ -174,3 +163,4 @@
     create: yes
     line: "**/.DS_Store"
     state: present
+
