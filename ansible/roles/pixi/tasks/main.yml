@@ -8,13 +8,13 @@
 # Compute user/home in a way that works for root hosts too
 - name: Pixi | Determine target user/home
   ansible.builtin.set_fact:
-    pixi_user: "{{ helix_user | default(ansible_user_id) }}"
+    pixi_user: "{{ helix_user | default(ansible_facts['user_id']) }}"
     pixi_home: >-
       {{
         helix_user_home
         | default(
-            ( (helix_user | default(ansible_user_id)) == 'root' )
-            | ternary('/root', '/home/' ~ (helix_user | default(ansible_user_id)))
+            ( (helix_user | default(ansible_facts['user_id'])) == 'root' )
+            | ternary('/root', '/home/' ~ (helix_user | default(ansible_facts['user_id'])))
           )
       }}
 
