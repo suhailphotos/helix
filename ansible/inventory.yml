@@ -4,13 +4,9 @@ all:
       children:
         macos_standard:
           hosts:
-            eclipse:
-              ansible_connection: local
-              ansible_python_interpreter: /usr/bin/python3
             breeze:
               ansible_connection: local
               ansible_python_interpreter: /usr/bin/python3
-
         macos_dev:
           hosts:
             quasar:
@@ -19,11 +15,12 @@ all:
               ansible_host: "2603:8001:a000:101::20"
               ansible_user: suhail
               identity_file: "~/.ssh/id_quasar"
-
+            eclipse:
+              ansible_connection: local
+              ansible_python_interpreter: /usr/bin/python3
             feather:
               ansible_connection: local
               ansible_python_interpreter: /usr/bin/python3
-
     linux:
       hosts:
         flicker:
