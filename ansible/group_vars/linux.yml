@@ -27,8 +27,8 @@ uv_projects_linux: []     # hosts opt in with a list in host_vars
 # -----------------------------
 zoxide_allow_install_script: false
 
-# Pixi: OFF by default on hosts, we’ll only use it in dev containers
-pixi_enabled: false       # <— CHANGED from true
+# Pixi: on by default on hosts, we’ll only use it in dev containers
+pixi_enabled: true
 
 # Use upstream Neovim tarball (GitHub releases) on all Linux nodes
 nvim_use_upstream: true
@@ -56,10 +56,6 @@ apt_packages:
   - ripgrep
   - fzf
   - jq
-  - ffmpeg
-  - poppler-utils
-  - p7zip-full
-  - imagemagick
   - xclip
   # Build essentials
   - build-essential

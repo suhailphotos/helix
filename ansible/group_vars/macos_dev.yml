@@ -23,6 +23,7 @@ cargo_crates_macos:
   - { name: cargo-modules,   bin: cargo-modules }
   - { name: cargo-watch,     bin: cargo-watch }
   - { name: cargo-binstall,  bin: cargo-binstall }
+  - { name: cargo-dist,      bin: cargo-dist }
 
 # bring back your uv dev projects + pins
 uv_projects_macos:

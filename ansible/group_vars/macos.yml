@@ -36,6 +36,8 @@ brew_packages:
   - pngpaste
   - tree-sitter
   - tree-sitter-cli
+  - htop
+  - mpv
 
   # --- GNU userland (consistency across macOS) ---
   - coreutils
