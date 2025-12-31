@@ -6,6 +6,32 @@
 #   bindu_branch: main
 #   bindu_config_dir: ~/.config
 
+- name: Defaults (portable user/home/group)
+  set_fact:
+    bindu_remote: "{{ bindu_remote | default('https://github.com/suhailphotos/bindu.git') }}"
+    bindu_branch: "{{ bindu_branch | default('main') }}"
+
+    # Who should own ~/.config on THIS host?
+    # - if you connect as root (zion/atlas/etc), bindu_user becomes root
+    # - otherwise becomes helix_user (if you set it) or the current remote user
+    bindu_user: "{{ helix_user | default(ansible_user_id) }}"
+
+    # Home dir for that user
+    bindu_home: >-
+      {{
+        helix_user_home
+        | default(ansible_facts['user_dir'])
+        | default(ansible_facts['env']['HOME'])
+      }}
+
+    # Primary group for the connected user on this host
+    # macOS will usually be "staff"; Linux is typically the username.
+    bindu_group: "{{ ansible_facts['user_gid'] | default(bindu_user) }}"
+
+    # Where to clone
+    bindu_config_dir: "{{ bindu_config_dir | default(bindu_home + '/.config') }}"
+
+
 - name: Defaults
   set_fact:
     bindu_remote: "{{ bindu_remote | default('https://github.com/suhailphotos/bindu.git') }}"
@@ -102,7 +128,7 @@
     path: "{{ bindu_config_dir | dirname }}"
     state: directory
     owner: "{{ bindu_user }}"
-    group: "{{ bindu_user }}"
+    group: "{{ bindu_group }}"
     mode: "0755"
 
 
@@ -137,7 +163,7 @@
     path: "{{ bindu_config_dir }}"
     state: directory
     owner: "{{ bindu_user }}"
-    group: "{{ bindu_user }}"
+    group: "{{ bindu_group }}"
     recurse: yes
 
 
