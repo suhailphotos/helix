@@ -1,40 +1,45 @@
 ---
 # roles/bindu_config_repo/tasks/main.yml
 # Ensure ~/.config is a git clone of your Bindu repo on the branch you choose.
-# Defaults can be overridden in group_vars/host_vars:
+# Works on macOS + Linux, and for root + non-root.
+#
+# Optional overrides (group_vars/host_vars):
 #   bindu_remote: git@github.com:suhailphotos/bindu.git (or https://...)
 #   bindu_branch: main
-#   bindu_config_dir: ~/.config
+#   bindu_config_dir: /path/to/.config
+#   helix_user: suhail (if you want to force ownership)
+#   helix_user_home: /home/suhail (if you want to force home)
 
 # -----------------------------
-# Defaults (portable across macOS/Linux; root + non-root)
+# Defaults (must be split across tasks; set_fact does not allow intra-task references)
 # -----------------------------
-- name: Defaults (portable user/home/group) - step 1
+- name: Defaults - remote/branch/user
   set_fact:
     bindu_remote: "{{ bindu_remote | default('https://github.com/suhailphotos/bindu.git') }}"
     bindu_branch: "{{ bindu_branch | default('main') }}"
-
-    # who should own ~/.config on THIS host?
+    # Who should own ~/.config on THIS host?
     bindu_user: "{{ helix_user | default(ansible_user_id) }}"
 
-    # home for that user (prefer explicit vars, then facts; final fallback based on user)
-    bindu_home: >-
-      {{
-        helix_user_home
-        | default(ansible_facts['user_dir'])
-        | default(ansible_facts['env']['HOME'])
-        | default( (bindu_user == 'root') | ternary('/root', '/home/' ~ bindu_user) )
-      }}
-
-    # primary group (macOS typically "staff"; linux typically matches username; root often "wheel"/"root")
-    bindu_group: "{{ ansible_facts['user_gid'] | default(bindu_user) }}"
-
-- name: Defaults (portable user/home/group) - step 2
+- name: Defaults - home + config dir
   set_fact:
-    bindu_config_dir: "{{ bindu_config_dir | default(bindu_home + '/.config') }}"
+    # Prefer explicit helix_user_home (you already set this in group_vars/all.yml),
+    # otherwise fall back to facts/env. Avoid referencing bindu_user here.
+    bindu_home: "{{ helix_user_home | default(ansible_facts['user_dir'] | default(ansible_env.HOME | default(''))) }}"
+    bindu_config_dir: "{{ bindu_config_dir | default((helix_user_home | default(ansible_facts['user_dir'] | default(ansible_env.HOME | default('')))) + '/.config') }}"
+
+- name: Defaults - determine primary group name for bindu_user
+  command: "id -gn {{ bindu_user }}"
+  register: bindu_group_cmd
+  changed_when: false
+  failed_when: false
+
+- name: Defaults - set bindu_group
+  set_fact:
+    # macOS users commonly have group 'staff' (not the username), so we must use the name from `id -gn`.
+    bindu_group: "{{ (bindu_group_cmd.stdout | default('') | trim) | default(bindu_user) }}"
 
 # -----------------------------
-# Detect existing ~/.config
+# Existing ~/.config handling
 # -----------------------------
 - name: Stat ~/.config
   stat:
@@ -47,7 +52,6 @@
   register: cfg_git
   when: cfg.stat.exists
 
-# Normalize: derive "is repo" flag safely
 - name: Assume not a repo when cfg_git undefined
   set_fact:
     cfg_is_repo: false
@@ -58,7 +62,6 @@
     cfg_is_repo: "{{ cfg_git.stat.exists | default(false) }}"
   when: cfg_git is defined
 
-# If ~/.config exists but is NOT a repo, move it aside
 - name: Move aside pre-existing non-repo ~/.config
   when:
     - cfg.stat.exists
@@ -70,7 +73,6 @@
   args:
     executable: /bin/bash
 
-# For existing repo, check its origin; otherwise this will be skipped
 - name: Read origin for existing repo
   command: git -C "{{ bindu_config_dir }}" remote get-url origin
   register: existing_origin
@@ -78,8 +80,7 @@
   failed_when: false
   when: cfg_is_repo
 
-# Normalize both URLs (strip tokens, .git, and unify SSH → https) before comparing
-- name: Normalize origin/remote URLs
+- name: Normalize origin/remote URLs (for comparison)
   set_fact:
     bindu_origin_norm: >-
       {{
@@ -87,7 +88,7 @@
         | regex_replace('^ssh://', '')
         | regex_replace('^git@github.com:', 'https://github.com/')
         | regex_replace('^https?://[^@]+@', 'https://')
-        | regex_replace('\\.git$', '')
+        | regex_replace('\.git$', '')
         | lower
       }}
     bindu_remote_norm: >-
@@ -96,12 +97,11 @@
         | regex_replace('^ssh://', '')
         | regex_replace('^git@github.com:', 'https://github.com/')
         | regex_replace('^https?://[^@]+@', 'https://')
-        | regex_replace('\\.git$', '')
+        | regex_replace('\.git$', '')
         | lower
       }}
   when: cfg_is_repo
 
-# If it’s some other repo, move it aside (now using normalized comparison)
 - name: If repo is not Bindu, move it aside
   when:
     - cfg_is_repo
@@ -113,9 +113,15 @@
     executable: /bin/bash
 
 # -----------------------------
-# Ensure parent + clone/update
+# Ensure parent + clone
 # -----------------------------
-- name: Ensure ~/.config parent exists and is owned by target user
+- name: Ensure parent exists (permissions only)
+  file:
+    path: "{{ bindu_config_dir | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: Ensure ~/.config parent exists and is owned by bindu_user
   become: yes
   file:
     path: "{{ bindu_config_dir | dirname }}"
@@ -124,7 +130,7 @@
     group: "{{ bindu_group }}"
     mode: "0755"
 
-- name: Clone/update Bindu into ~/.config (as target user)
+- name: Clone/update Bindu into ~/.config (as bindu_user)
   become: yes
   become_user: "{{ bindu_user }}"
   git:
@@ -147,7 +153,7 @@
   args:
     executable: /bin/bash
 
-- name: Ensure ~/.config repo is owned by target user
+- name: Ensure ~/.config repo is owned by bindu_user
   become: yes
   file:
     path: "{{ bindu_config_dir }}"
@@ -156,7 +162,6 @@
     group: "{{ bindu_group }}"
     recurse: yes
 
-# Ignore macOS metadata
 - name: Ignore macOS metadata
   lineinfile:
     path: "{{ bindu_config_dir }}/.gitignore"
