@@ -72,14 +72,15 @@
   community.general.homebrew_cask:
     name: "{{ item }}"
     state: present
+    path: "{{ brew_bin }}"
   loop: "{{ homebrew_casks_required | default([]) }}"
   tags: ['brew', 'brew_casks']
 
-# --- install optional casks (skip if github down; don't kill play)
 - name: Install Homebrew casks (optional)
   community.general.homebrew_cask:
     name: "{{ item }}"
     state: present
+    path: "{{ brew_bin }}"
   loop: "{{ homebrew_casks_optional | default([]) }}"
   when: (github_check.status | default(0)) in [200, 301, 302]
   register: optional_casks

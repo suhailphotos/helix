@@ -55,12 +55,22 @@ brew_packages:
 brew_casks:
   - iterm2
   - 1password
+  # --- Open source fonts (required) ---
+  - font-roboto
+  - font-open-sans
+  - font-lato
+  - font-montserrat
+  - font-lora
 
 brew_taps_extra:
   - orbyts/tap
+  - homebrew/cask-fonts
+
+font_casks_optional:
+  - font-eb-garamond
 
 homebrew_casks_required: "{{ brew_casks | default([]) }}"
-homebrew_casks_optional: "{{ desktop_casks | default([]) }}"
+homebrew_casks_optional: "{{ (desktop_casks | default([])) + (font_casks_optional | default([])) }}"
 
 # -----------------------------
 # Feature toggles (baseline)
