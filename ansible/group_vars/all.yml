@@ -55,7 +55,7 @@ helix_path_base: >-
 
 # User bins you commonly need during provisioning
 helix_path_user_bins: >-
-  {{ helix_user_home }}/.local/bin:{{ helix_user_home }}/.cargo/bin:{{ helix_user_home }}/.pyenv/bin:{{ helix_user_home }}/.pyenv/shims
+  {{ helix_user_home }}/.local/share/uv/bin:{{ helix_user_home }}/.local/bin:{{ helix_user_home }}/.cargo/bin:{{ helix_user_home }}/.pyenv/bin:{{ helix_user_home }}/.pyenv/shims
 
 # Use this in roles for `environment: PATH: ...`
 helix_task_path: "{{ helix_path_user_bins }}:{{ helix_path_base }}"

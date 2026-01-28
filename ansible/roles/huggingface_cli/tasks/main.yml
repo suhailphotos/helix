@@ -1,0 +1,82 @@
+---
+- name: Hugging Face CLI | Gate (enabled)
+  ansible.builtin.meta: end_host
+  when: not (hf_cli_enabled | default(false) | bool)
+
+- name: Hugging Face CLI | Gate (macOS only)
+  ansible.builtin.meta: end_host
+  when: ansible_facts['system'] != 'Darwin'
+
+- name: Hugging Face CLI | Build PATH
+  ansible.builtin.set_fact:
+    hf_path_env: "{{ helix_task_path | default(ansible_facts['env']['PATH'] | default('')) }}"
+
+- name: Hugging Face CLI | Ensure uv is available
+  ansible.builtin.command: "command -v uv"
+  register: hf_uv_cmd
+  changed_when: false
+  failed_when: hf_uv_cmd.rc != 0
+  environment:
+    PATH: "{{ hf_path_env }}"
+
+- name: Hugging Face CLI | List installed uv tools
+  ansible.builtin.command: uv tool list
+  register: hf_uv_tool_list
+  changed_when: false
+  failed_when: false
+  environment:
+    PATH: "{{ hf_path_env }}"
+
+- name: Hugging Face CLI | Install hf tool (uv) if missing
+  ansible.builtin.command: "uv tool install {{ hf_cli_package | default('hf') }}@{{ hf_cli_version | default('latest') }}"
+  when: (hf_uv_tool_list.stdout | default('')) is not search('(?m)^' ~ (hf_cli_package | default('hf')) ~ '\\b')
+  register: hf_cli_install
+  environment:
+    PATH: "{{ hf_path_env }}"
+
+- name: Hugging Face CLI | Upgrade hf tool (uv)
+  ansible.builtin.command: "uv tool upgrade {{ hf_cli_package | default('hf') }}"
+  when: (hf_cli_upgrade | default(true)) | bool
+  register: hf_cli_upgrade_result
+  changed_when: >
+    (hf_cli_upgrade_result.stdout | default('') | lower) is search('upgraded|updated')
+  failed_when: false
+  environment:
+    PATH: "{{ hf_path_env }}"
+
+# --- Verify: prefer PATH, fallback to uv tool dir absolute path ---
+
+- name: Hugging Face CLI | Detect hf on PATH
+  ansible.builtin.command: "command -v hf"
+  register: hf_cmd
+  changed_when: false
+  failed_when: false
+  environment:
+    PATH: "{{ hf_path_env }}"
+
+- name: Hugging Face CLI | Get uv tool dir (fallback)
+  ansible.builtin.command: "uv tool dir"
+  register: hf_uv_tool_dir
+  changed_when: false
+  when: hf_cmd.rc != 0
+  environment:
+    PATH: "{{ hf_path_env }}"
+
+- name: Hugging Face CLI | Set hf absolute path (fallback)
+  ansible.builtin.set_fact:
+    hf_abs: "{{ (hf_uv_tool_dir.stdout | trim) ~ '/bin/hf' }}"
+  when: hf_cmd.rc != 0
+
+- name: Hugging Face CLI | Verify hf works (PATH)
+  ansible.builtin.command: "hf --help"
+  register: hf_help
+  changed_when: false
+  when: hf_cmd.rc == 0
+  environment:
+    PATH: "{{ hf_path_env }}"
+
+- name: Hugging Face CLI | Verify hf works (absolute path fallback)
+  ansible.builtin.command: "{{ hf_abs }} --help"
+  register: hf_help_fallback
+  changed_when: false
+  when: hf_cmd.rc != 0

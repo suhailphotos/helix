@@ -64,6 +64,7 @@
     - { role: apple_sf_fonts,         when: (enable_sf_fonts | default(false)) | bool, tags: ['fonts'] }
 
     - { role: uv,                     tags: ['uv'] }
+    - { role: huggingface_cli,        when: (hf_cli_enabled | default(false)) | bool, tags: ['hf','huggingface'] }
     - { role: cargo_crates,           when: (cargo_enabled | default(false)) | bool, tags: ['cargo'] }
 
     - { role: macos_scratch,          tags: ['scratch','screencapture'] }

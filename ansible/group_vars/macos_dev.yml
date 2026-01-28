@@ -18,6 +18,7 @@ brew_packages_extra:
   - automake
   - libtool
   - meson
+  - git-lfs
 
 cargo_crates_macos:
   - { name: cargo-modules,   bin: cargo-modules }
@@ -42,6 +43,14 @@ uv_python_pin_map:
   "3.12": "3.12.4"
 
 houdini_python_patch: "3.11.7"
+
+# Hugging Face CLI (hf) via uv tools
+hf_cli_enabled: true
+hf_cli_package: "hf"
+hf_cli_version: "latest"
+hf_cli_upgrade: true
+
+
 
 # atrium dev packages (if still desired)
 atrium_stow_packages:
