@@ -88,6 +88,10 @@
         when: (uv_enabled | default(false)) | bool,
         tags: ['uv'] }
 
+    - { role: huggingface_cli,
+        when: (hf_cli_enabled | default(false)) | bool,
+        tags: ['hf','huggingface'] }
+
     - { role: cargo_crates,      tags: ['cargo'] }
 
     # NVIM: full on normal boxes, selective on lightweight

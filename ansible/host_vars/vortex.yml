@@ -22,6 +22,9 @@ uv_projects_linux:
   - Ledu
   - hdrUtils
 
+# Add hugging face CLI
+hf_cli_enabled: true
+
 # Turn on pixi
 pixi_enabled: true
 
