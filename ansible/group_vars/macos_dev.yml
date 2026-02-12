@@ -20,6 +20,9 @@ brew_packages_extra:
   - meson
   - git-lfs
 
+npm_global_packages_extra:
+  - "@openai/codex"
+
 cargo_crates_macos:
   - { name: cargo-modules,   bin: cargo-modules }
   - { name: cargo-watch,     bin: cargo-watch }

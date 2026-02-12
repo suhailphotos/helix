@@ -18,3 +18,9 @@
     - { role: home_shims,        tags: ['home','dotfiles'] }
     - { role: tmux_setup,        tags: ['tmux'] }
     - { role: cargo_crates,      when: (cargo_enabled | default(false)) | bool, tags: ['cargo'] }
+
+    # ------------------------
+    # npm packages
+    # ------------------------
+    - { role: npm_global_packages, when: "'macos_dev' in group_names", tags: ['node','npm','codex'] }
+

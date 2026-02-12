@@ -1,0 +1,29 @@
+---
+- name: Ensure npm is available
+  command: npm --version
+  register: npm_version
+  changed_when: false
+  environment:
+    PATH: "{{ helix_task_path }}"
+
+- name: Ensure npm global prefix points to ~/.local (user-owned)
+  command: "npm config set prefix {{ helix_user_home }}/.local"
+  changed_when: false
+  environment:
+    PATH: "{{ helix_task_path }}"
+
+- name: Ensure ~/.local/bin exists
+  file:
+    path: "{{ helix_user_home }}/.local/bin"
+    state: directory
+    mode: "0755"
+
+- name: Install global npm packages
+  loop: "{{ npm_global_packages | default([]) }}"
+  when: (npm_global_packages | default([])) | length > 0
+  community.general.npm:
+    name: "{{ item }}"
+    global: true
+    state: present
+  environment:
+    PATH: "{{ helix_task_path }}"

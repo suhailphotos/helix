@@ -44,6 +44,11 @@
     - { role: fish_shell,             when: (install_fish | default(false)) | bool,       tags: ['fish'] }
     - { role: powershell,             when: (install_powershell | default(false)) | bool, tags: ['pwsh','powershell'] }
 
+    # ------------------------
+    # npm packages
+    # ------------------------
+    - { role: npm_global_packages, when: "'macos_dev' in group_names", tags: ['node','npm','codex'] }
+
     # -------------------------
     # Prompt / terminal / tooling
     # -------------------------
