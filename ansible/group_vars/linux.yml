@@ -59,7 +59,6 @@ apt_packages:
   - xclip
   # Build essentials
   - build-essential
-  - tree-sitter-cli
   - cmake
   - ninja-build
   - python3
@@ -80,6 +79,7 @@ apt_packages:
 yazi_install_scope: system
 
 cargo_crates_linux:
+  - { name: tree-sitter-cli, bin: tree-sitter }
   - { name: cargo-nextest, bin: cargo-nextest }
   - { name: bacon,         bin: bacon }
 
