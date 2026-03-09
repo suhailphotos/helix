@@ -4,7 +4,7 @@ trap 'echo "❌ ERROR at line $LINENO: $BASH_COMMAND" >&2' ERR
 exec </dev/null
 
 SSH_DIR="${SSH_DIR:-$HOME/.ssh}"
-GITHUB_ITEM="${GITHUB_ITEM:-op://security/GitHub/private key}"
+GITHUB_ITEM="${GITHUB_ITEM:-op://SSH/GitHub/private key}"
 
 mkdir -p "$SSH_DIR"
 chmod 700 "$SSH_DIR"

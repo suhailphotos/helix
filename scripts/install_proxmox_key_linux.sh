@@ -10,7 +10,7 @@ SSH_DIR="${SSH_DIR:-$HOME/.ssh}"
 #   Vault:  security
 #   Item:   proxmox-SSH-key
 #   Field:  private key
-PROXMOX_ITEM="${PROXMOX_ITEM:-op://security/proxmox-SSH-key/private key}"
+PROXMOX_ITEM="${PROXMOX_ITEM:-op://SSH/proxmox-SSH-key/private key}"
 
 # Where to write the key on disk
 PROXMOX_KEY_PATH="${PROXMOX_KEY_PATH:-$SSH_DIR/id_proxmox}"

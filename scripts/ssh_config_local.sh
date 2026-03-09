@@ -74,7 +74,7 @@ Flags
   # GitHub / 1Password
   --github-1password            Create ~/.1password/agent.sock symlink (macOS) and write ~/.ssh/config.d/10-github.conf
   --install-1p-agent-config     Copy ~/.config/.../agent.toml to 1Password's sandbox path and chmod 600 (macOS)
-  --github-add-key              Add "op://security/GitHub/public key" to your GitHub account (idempotent)
+  --github-add-key              Add "op://SSH/GitHub/public key" to your GitHub account (idempotent)
   --github-key PATH              Write Host github.com using IdentityFile PATH (e.g. ~/.ssh/id_github)
 
   -h, --help                    Show help
@@ -402,7 +402,7 @@ if [[ $GITHUB_ADD_KEY -eq 1 ]]; then
     if ! gh auth status >/dev/null 2>&1; then
       echo "⚠ Skipping --github-add-key (gh is not authenticated). Run: gh auth login"
     else
-      pub="$(op read 'op://security/GitHub/public key' || true)"
+      pub="$(op read 'op://SSH/GitHub/public key' || true)"
       if [[ -n "${pub:-}" ]]; then
         # Check if key already exists
         if gh api user/keys --jq '.[].key' 2>/dev/null | grep -Fqx "$pub"; then
@@ -416,7 +416,7 @@ if [[ $GITHUB_ADD_KEY -eq 1 ]]; then
           fi
         fi
       else
-        echo "⚠ Could not read 'op://security/GitHub/public key'"
+        echo "⚠ Could not read 'op://SSH/GitHub/public key'"
       fi
     fi
   else
