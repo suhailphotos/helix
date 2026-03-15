@@ -34,9 +34,18 @@ GITHUB_1PASSWORD=0
 INSTALL_1P_AGENT_CONFIG=0
 GITHUB_ADD_KEY=0
 
-# NEW: classic GitHub key (Linux, no 1Password agent)
+# Classic GitHub key (Linux, no 1Password agent)
 GITHUB_KEY=0
 GITHUB_KEY_PATH="${GITHUB_KEY_PATH:-$HOME/.ssh/id_github}"
+
+# Inventory-driven mode for the CURRENT machine
+# Supported:
+#   auto                -> default behavior
+#   local-or-forwarded  -> use forwarded agent in SSH sessions, else local 1Password
+#   1password           -> prefer local 1Password if present, else SSH_AUTH_SOCK
+#   classic-key         -> use dedicated IdentityFile snippet
+GITHUB_AGENT_MODE="${GITHUB_AGENT_MODE:-auto}"
+CURRENT_HOSTNAME_OVERRIDE="${CURRENT_HOSTNAME_OVERRIDE:-}"
 
 
 print_usage() {
@@ -75,7 +84,12 @@ Flags
   --github-1password            Create ~/.1password/agent.sock symlink (macOS) and write ~/.ssh/config.d/10-github.conf
   --install-1p-agent-config     Copy ~/.config/.../agent.toml to 1Password's sandbox path and chmod 600 (macOS)
   --github-add-key              Add "op://SSH/GitHub/public key" to your GitHub account (idempotent)
-  --github-key PATH              Write Host github.com using IdentityFile PATH (e.g. ~/.ssh/id_github)
+  --github-key PATH             Write Host github.com using IdentityFile PATH (e.g. ~/.ssh/id_github)
+
+  # Current machine overrides
+  --current-hostname NAME       Override detected local hostname when matching inventory
+  --github-agent-mode MODE      Override inventory-driven GitHub agent mode
+                                (auto | local-or-forwarded | 1password | classic-key)
 
   -h, --help                    Show help
 EOF
@@ -93,6 +107,7 @@ while [[ $# -gt 0 ]]; do
     --forward-agent) FORWARD_AGENT_ALL=1 ;;
     --refresh) REFRESH=1 ;;
     --only) ONLY_LIST="${2:-}"; shift ;;
+
     --github-1password) GITHUB_1PASSWORD=1 ;;
     --install-1p-agent-config) INSTALL_1P_AGENT_CONFIG=1 ;;
     --github-add-key) GITHUB_ADD_KEY=1 ;;
@@ -101,6 +116,10 @@ while [[ $# -gt 0 ]]; do
       GITHUB_KEY_PATH="${2:-$HOME/.ssh/id_github}"
       shift
       ;;
+
+    --current-hostname) CURRENT_HOSTNAME_OVERRIDE="${2:-}"; shift ;;
+    --github-agent-mode) GITHUB_AGENT_MODE="${2:-auto}"; shift ;;
+
     -h|--help) print_usage; exit 0 ;;
     --) shift; break ;;
     *) echo "Unknown flag: $1" >&2; print_usage; exit 2 ;;
@@ -108,7 +127,66 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
+# -----------------------------
+# Helpers
+# -----------------------------
+lc() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
+
+detect_local_hostname() {
+  if [[ -n "$CURRENT_HOSTNAME_OVERRIDE" ]]; then
+    printf '%s\n' "$CURRENT_HOSTNAME_OVERRIDE"
+    return 0
+  fi
+
+  local h=""
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    h="$(scutil --get LocalHostName 2>/dev/null || true)"
+    [[ -z "$h" ]] && h="$(scutil --get ComputerName 2>/dev/null || true)"
+  fi
+  [[ -z "$h" ]] && h="$(hostname -s 2>/dev/null || hostname 2>/dev/null || true)"
+
+  printf '%s\n' "$h" | tr '[:upper:]' '[:lower:]'
+}
+
+# helper: write file if content changed (backs up existing)
+write_if_changed() {
+  local path="$1"; shift
+  local content="$*"
+
+  if [[ $DRY_RUN -eq 1 ]]; then
+    echo "---- would write $path ----"
+    printf "%s\n" "$content"
+    return 0
+  fi
+
+  if [[ -f "$path" ]]; then
+    if diff -q <(printf "%s\n" "$content") "$path" >/dev/null 2>&1; then
+      return 0
+    fi
+    cp "$path" "$path.bak.$TIMESTAMP" || true
+  fi
+
+  printf "%s\n" "$content" > "$path"
+  chmod 600 "$path"
+}
+
+install_1password_sock_symlink_if_macos() {
+  local short_sock="$HOME/.1password/agent.sock"
+
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    local long_sock_mac="$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+    if [[ $DRY_RUN -eq 1 ]]; then
+      echo "---- would ln -sfn '$long_sock_mac' -> '$short_sock' ----"
+    else
+      mkdir -p "$(dirname "$short_sock")"
+      ln -sfn "$long_sock_mac" "$short_sock"
+    fi
+  fi
+}
+
+# -----------------------------
 # Locate repo & inventory.yml
+# -----------------------------
 SCRIPT_PATH="${BASH_SOURCE[0]:-}"
 if [[ -n "$SCRIPT_PATH" && -f "$SCRIPT_PATH" ]]; then
   SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
@@ -143,33 +221,42 @@ INVENTORY="$REPO_ROOT/ansible/inventory.yml"
 # Need yq
 command -v yq >/dev/null 2>&1 || { echo "This script needs 'yq'. brew install yq" >&2; exit 1; }
 
+# Query inventory for the current machine's GitHub SSH behavior.
+LOCAL_HOSTNAME="$(detect_local_hostname)"
+
+INVENTORY_GITHUB_AGENT_MODE="$(
+  yq -r '
+    .all.children
+    | ..
+    | select(has("hosts"))
+    | .hosts
+    | to_entries[]
+    | [.key, (.value.ssh_github_agent_mode // "")]
+    | @tsv
+  ' "$INVENTORY" \
+  | awk -F'\t' -v host="$LOCAL_HOSTNAME" '$1 == host { print $2; exit }'
+)"
+
+if [[ -z "${GITHUB_AGENT_MODE:-}" || "$GITHUB_AGENT_MODE" == "auto" ]]; then
+  if [[ -n "$INVENTORY_GITHUB_AGENT_MODE" ]]; then
+    GITHUB_AGENT_MODE="$INVENTORY_GITHUB_AGENT_MODE"
+  else
+    GITHUB_AGENT_MODE="auto"
+  fi
+fi
+
+# -----------------------------
 # Prepare ~/.ssh layout
+# -----------------------------
 mkdir -p "$SSH_DIR/config.d" "$CONTROL_DIR"
 chmod 700 "$SSH_DIR" "$SSH_DIR/config.d" "$CONTROL_DIR"
 
 BASE_CFG="$SSH_DIR/config"
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 
-# helper: write file if content changed (backs up existing)
-write_if_changed() {
-  local path="$1"; shift
-  local content="$*"
-  if [[ $DRY_RUN -eq 1 ]]; then
-    echo "---- would write $path ----"
-    printf "%s\n" "$content"
-    return 0
-  fi
-  if [[ -f "$path" ]]; then
-    if diff -q <(printf "%s\n" "$content") "$path" >/dev/null 2>&1; then
-      return 0
-    fi
-    cp "$path" "$path.bak.$TIMESTAMP" || true
-  fi
-  printf "%s\n" "$content" > "$path"
-  chmod 600 "$path"
-}
-
+# -----------------------------
 # Base config
+# -----------------------------
 BASE_STANDARD="$(cat <<STD
 # Managed by helix ssh_config_local.sh
 
@@ -219,12 +306,15 @@ SNIP
   write_if_changed "$SENDENV_SNIPPET" "$SENDENV_CONTENT"
 fi
 
+# -----------------------------
 # 1Password agent config (macOS)
+# -----------------------------
 if [[ $INSTALL_1P_AGENT_CONFIG -eq 1 && "$(uname -s)" == "Darwin" ]]; then
   src_base=""
   for p in "$HOME/.config/1Password/ssh/agent.toml" "$HOME/.config/1password/ssh/agent.toml"; do
     [[ -f "$p" ]] && src_base="$p" && break
   done
+
   if [[ -n "$src_base" ]]; then
     dst="$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t"
     dst_file="$dst/agent.toml"
@@ -233,13 +323,15 @@ if [[ $INSTALL_1P_AGENT_CONFIG -eq 1 && "$(uname -s)" == "Darwin" ]]; then
     else
       mkdir -p "$dst"
       if [[ ! -f "$dst_file" ]]; then
-        cp -f "$src_base" "$dst_file"; chmod 600 "$dst_file"
+        cp -f "$src_base" "$dst_file"
+        chmod 600 "$dst_file"
         echo "==> Installed 1Password agent.toml to $dst"
         echo "    Tip: restart 1Password completely to reload."
       elif cmp -s "$src_base" "$dst_file"; then
         echo "✔ 1Password agent.toml already up to date"
       elif [[ $FORCE_1P_AGENT_CONFIG -eq 1 ]]; then
-        cp -f "$src_base" "$dst_file"; chmod 600 "$dst_file"
+        cp -f "$src_base" "$dst_file"
+        chmod 600 "$dst_file"
         echo "↻ 1Password agent.toml replaced (forced)"
         echo "   Tip: restart 1Password completely to reload."
       else
@@ -252,42 +344,59 @@ if [[ $INSTALL_1P_AGENT_CONFIG -eq 1 && "$(uname -s)" == "Darwin" ]]; then
   fi
 fi
 
-# GitHub via 1Password agent
-if [[ $GITHUB_1PASSWORD -eq 1 ]]; then
-  short_sock="$HOME/.1password/agent.sock"
-  if [[ "$(uname -s)" == "Darwin" ]]; then
-    long_sock_mac="$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
-    if [[ $DRY_RUN -eq 1 ]]; then
-      echo "---- would ln -sfn '$long_sock_mac' -> '$short_sock' ----"
-    else
-      mkdir -p "$(dirname "$short_sock")"
-      ln -sfn "$long_sock_mac" "$short_sock"
-    fi
-  fi
-
+# -----------------------------
+# GitHub SSH snippet for CURRENT machine
+# -----------------------------
+# Cases:
+# - local-or-forwarded: for a desktop/server like quasar
+# - 1password: prefer local 1Password if present
+# - classic-key: dedicated key snippet
+# - auto: old default, only generated if --github-1password or --github-key was explicitly requested
+if [[ "$GITHUB_AGENT_MODE" == "local-or-forwarded" ]]; then
+  install_1password_sock_symlink_if_macos
   GITHUB_SNIP="$SSH_DIR/config.d/10-github.conf"
   GITHUB_CONTENT="$(cat <<'SNIP'
 # Managed by helix ssh_config_local.sh
-# GitHub: prefer a local 1Password agent *if present*; otherwise use SSH_AUTH_SOCK
-# (e.g., agent forwarding from a macOS client).
+# GitHub: when this machine is reached over SSH, use the forwarded agent.
+# Otherwise, when working locally, use the local 1Password agent if present.
 
 Host github.com
   HostName github.com
   User git
 
-# Only set IdentityAgent when the local 1Password socket exists.
-# If absent (e.g., headless server without 1Password), keep it unset so
-# the default SSH_AUTH_SOCK (agent forwarding) is used instead.
-Match host github.com exec "test -S $HOME/.1password/agent.sock"
+# Inside an SSH session, prefer the forwarded agent.
+Match host github.com exec "test -n \"$SSH_CONNECTION\""
+  IdentityAgent SSH_AUTH_SOCK
+
+# When local, prefer the local 1Password agent if present.
+Match host github.com exec "test -z \"$SSH_CONNECTION\" && test -S \"$HOME/.1password/agent.sock\""
   IdentityAgent ~/.1password/agent.sock
+
 Match all
 SNIP
 )"
   write_if_changed "$GITHUB_SNIP" "$GITHUB_CONTENT"
-fi
 
-# Classic GitHub host using a dedicated key (Linux, no 1Password agent)
-if [[ $GITHUB_KEY -eq 1 ]]; then
+elif [[ "$GITHUB_AGENT_MODE" == "1password" ]]; then
+  install_1password_sock_symlink_if_macos
+  GITHUB_SNIP="$SSH_DIR/config.d/10-github.conf"
+  GITHUB_CONTENT="$(cat <<'SNIP'
+# Managed by helix ssh_config_local.sh
+# GitHub: prefer a local 1Password agent if present; otherwise use SSH_AUTH_SOCK.
+
+Host github.com
+  HostName github.com
+  User git
+
+Match host github.com exec "test -S \"$HOME/.1password/agent.sock\""
+  IdentityAgent ~/.1password/agent.sock
+
+Match all
+SNIP
+)"
+  write_if_changed "$GITHUB_SNIP" "$GITHUB_CONTENT"
+
+elif [[ "$GITHUB_AGENT_MODE" == "classic-key" ]]; then
   GITHUB_CLASSIC_SNIP="$SSH_DIR/config.d/10-github-classic.conf"
   GITHUB_CLASSIC_CONTENT="$(cat <<SNIP
 # Managed by helix ssh_config_local.sh
@@ -300,20 +409,57 @@ Host github.com
 SNIP
 )"
   write_if_changed "$GITHUB_CLASSIC_SNIP" "$GITHUB_CLASSIC_CONTENT"
+
+else
+  # Backward-compatible explicit modes
+  if [[ $GITHUB_1PASSWORD -eq 1 ]]; then
+    install_1password_sock_symlink_if_macos
+    GITHUB_SNIP="$SSH_DIR/config.d/10-github.conf"
+    GITHUB_CONTENT="$(cat <<'SNIP'
+# Managed by helix ssh_config_local.sh
+# GitHub: prefer a local 1Password agent if present; otherwise use SSH_AUTH_SOCK
+# (for example, agent forwarding from another machine).
+
+Host github.com
+  HostName github.com
+  User git
+
+Match host github.com exec "test -S \"$HOME/.1password/agent.sock\""
+  IdentityAgent ~/.1password/agent.sock
+
+Match all
+SNIP
+)"
+    write_if_changed "$GITHUB_SNIP" "$GITHUB_CONTENT"
+  fi
+
+  if [[ $GITHUB_KEY -eq 1 ]]; then
+    GITHUB_CLASSIC_SNIP="$SSH_DIR/config.d/10-github-classic.conf"
+    GITHUB_CLASSIC_CONTENT="$(cat <<SNIP
+# Managed by helix ssh_config_local.sh
+# GitHub (classic key)
+Host github.com
+  HostName github.com
+  User git
+  IdentityFile ${GITHUB_KEY_PATH}
+  IdentitiesOnly yes
+SNIP
+)"
+    write_if_changed "$GITHUB_CLASSIC_SNIP" "$GITHUB_CLASSIC_CONTENT"
+  fi
 fi
 
 # -----------------------------
 # Host filters (bash 3.2 friendly)
 # -----------------------------
-lc() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
 ONLY_LIST_NORM=""
 if [[ -n "$ONLY_LIST" ]]; then
-  # normalize to space-separated, lowercase, wrapped with spaces for safe matching
   ONLY_LIST_NORM=" $(printf '%s' "$ONLY_LIST" | tr '[:upper:]' '[:lower:]' | tr ',' ' ' | xargs) "
 fi
 
 # -----------------------------
-# Parse inventory -> rows of: group \t host \t ansible_host \t ansible_user \t identity_file
+# Parse inventory -> rows of:
+# group \t host \t ansible_host \t ansible_user \t identity_file \t ansible_port
 # -----------------------------
 YQ_QUERY='
   .all.children
@@ -347,7 +493,7 @@ while IFS=$'\t' read -r group host ans_host ans_user ans_identity ans_port; do
   # --only filter
   if [[ -n "$ONLY_LIST_NORM" ]]; then
     case "$ONLY_LIST_NORM" in
-      *" $(lc "$host") "*) : ;;   # keep
+      *" $(lc "$host") "*) : ;;
       *) continue ;;
     esac
   fi
@@ -376,11 +522,12 @@ while IFS=$'\t' read -r group host ans_host ans_user ans_identity ans_port; do
   if [[ $USE_1PASSWORD -eq 0 ]]; then
     CONTENT+="  IdentityFile ${ident}\n"
   fi
+
   if [[ $FORWARD_AGENT_ALL -eq 1 ]]; then
     CONTENT+="  ForwardAgent yes\n"
   fi
 
-  # Default: preserve existing per-host snippet
+  # Preserve existing per-host snippet unless --refresh
   if [[ -f "$CONF_PATH" && $REFRESH -eq 0 ]]; then
     [[ $DRY_RUN -eq 1 ]] && echo "---- would SKIP (exists) $CONF_PATH ----"
     continue
@@ -393,10 +540,11 @@ while IFS=$'\t' read -r group host ans_host ans_user ans_identity ans_port; do
     printf "%b" "$CONTENT" > "$CONF_PATH"
     chmod 600 "$CONF_PATH"
   fi
-
 done < <(yq -r "$YQ_QUERY" "$INVENTORY")
 
+# -----------------------------
 # Add 1Password public key to GitHub (idempotent)
+# -----------------------------
 if [[ $GITHUB_ADD_KEY -eq 1 ]]; then
   if command -v gh >/dev/null 2>&1 && command -v op >/dev/null 2>&1; then
     if ! gh auth status >/dev/null 2>&1; then
@@ -404,7 +552,6 @@ if [[ $GITHUB_ADD_KEY -eq 1 ]]; then
     else
       pub="$(op read 'op://SSH/GitHub/public key' || true)"
       if [[ -n "${pub:-}" ]]; then
-        # Check if key already exists
         if gh api user/keys --jq '.[].key' 2>/dev/null | grep -Fqx "$pub"; then
           echo "✔ GitHub already has this 1Password public key"
         else
@@ -431,6 +578,8 @@ else
   echo "SSH config generated:"
   echo "   - Base: $BASE_CFG"
   echo "   - Snippets: $SSH_DIR/config.d/*.conf"
-  [[ $GITHUB_1PASSWORD -eq 1 ]] && echo "   - GitHub via 1Password: $SSH_DIR/config.d/10-github.conf"
-  echo "Tip: test with 'ssh -Tv git@github.com' and/or 'ssh -v nimbus'."
+  echo "   - Local host detected: $LOCAL_HOSTNAME"
+  echo "   - GitHub agent mode: $GITHUB_AGENT_MODE"
+  [[ "$GITHUB_AGENT_MODE" != "auto" || $GITHUB_1PASSWORD -eq 1 || $GITHUB_KEY -eq 1 ]] && echo "   - GitHub SSH snippet configured"
+  echo "Tip: test with 'ssh -Tv git@github.com' and/or 'ssh -v quasar'."
 fi

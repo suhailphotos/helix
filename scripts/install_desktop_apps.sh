@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 trap 'echo "❌ ERROR at line $LINENO while running: $BASH_COMMAND" >&2' ERR
-exec </dev/null
 
 # Defaults
 DEFAULT_HOST="$(scutil --get LocalHostName 2>/dev/null || hostname -s)"
