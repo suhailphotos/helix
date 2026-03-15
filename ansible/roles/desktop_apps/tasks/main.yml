@@ -73,6 +73,14 @@
   loop_control:
     label: "{{ item.item }}"
 
+- name: Assert become password is available for privileged casks
+  assert:
+    that:
+      - (ansible_become_pass | default(ansible_become_password, true) | string | length) > 0
+    fail_msg: "No become password is available for privileged casks."
+  when: (desktop_casks_privileged | length) > 0
+  no_log: true
+
 # Pass 3: privileged casks that need sudo / installer.pkg
 - name: Try install/overwrite privileged casks with --force (with retries)
   community.general.homebrew_cask:
@@ -81,7 +89,7 @@
     path: "{{ brew_bin }}"
     install_options:
       - force
-    sudo_password: "{{ ansible_become_password | default(omit) }}"
+    sudo_password: "{{ ansible_become_pass | default(ansible_become_password, true) }}"
   loop: "{{ desktop_casks_privileged }}"
   loop_control:
     label: "{{ item }}"
@@ -90,6 +98,21 @@
   delay: 20
   until: cask_try_privileged is succeeded
   ignore_errors: true
+  no_log: true
+
+# Pass 4: graceful fallback for failed privileged casks
+- name: Accept external apps for failed privileged items
+  community.general.homebrew_cask:
+    name: "{{ item.item }}"
+    state: present
+    path: "{{ brew_bin }}"
+    accept_external_apps: true
+    sudo_password: "{{ ansible_become_pass | default(ansible_become_password, true) }}"
+  when: item.failed | default(false)
+  loop: "{{ cask_try_privileged.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  no_log: true
 
 # Pass 4: graceful fallback for failed privileged casks
 - name: Accept external apps for failed privileged items
