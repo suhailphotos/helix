@@ -4,9 +4,6 @@ apogee_install_method: cargo
 install_fish: true
 install_powershell: true
 
-desktop_casks_need_sudo:
-  - zoom
-
 # you said you want rustup on dev boxes
 rustup_enabled: true
 cargo_enabled: true
@@ -75,6 +72,5 @@ desktop_casks:
   - blender
   - libreoffice
   - codex-app
-  - zoom
   - notion-mail
   - notion-calendar

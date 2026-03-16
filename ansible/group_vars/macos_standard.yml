@@ -14,12 +14,6 @@
 bindu_mode: selective
 apogee_install_method: brew
 
-# ------------------------------
-# Desktop Casks that need sudo
-# ------------------------------
-desktop_casks_need_sudo:
-  - zoom
-
 # Standard macs still get yazi (easy via brew)
 yazi_enabled: true
 
@@ -120,6 +114,5 @@ desktop_casks:
   - obsidian
   - spotify
   - blender
-  - zoom
   - notion-mail
   - notion-calendar
