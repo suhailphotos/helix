@@ -19,6 +19,7 @@ brew_packages:
   - yq
   - wget
   - curl
+  - exiftool
 
   # Python basics (light)
   - python
