@@ -3,10 +3,18 @@ all:
     macos:
       children:
         macos_standard:
+          children:
+            friend_family:
+              hosts:
+                sparrow:
+                  ansible_connection: local
+                  ansible_python_interpreter: /usr/bin/python3
+
           hosts:
             breeze:
               ansible_connection: local
               ansible_python_interpreter: /usr/bin/python3
+
         macos_dev:
           hosts:
             quasar:
@@ -16,18 +24,23 @@ all:
               ansible_user: suhail
               identity_file: "~/.ssh/id_quasar"
               ssh_github_agent_mode: local-or-forwarded
+
             eclipse:
               ansible_connection: local
               ansible_python_interpreter: /usr/bin/python3
+
             feather:
               ansible_connection: local
               ansible_python_interpreter: /usr/bin/python3
+
     linux:
       hosts:
         flicker:
           ansible_host: flicker.suhail.ink
+
         nimbus:
           ansible_host: nimbus.suhail.ink
+
         vortex:
           ansible_host: "2603:8001:a000:100::d00d"
           ansible_user: suhail
@@ -49,7 +62,6 @@ all:
         nexus:
           ansible_host: nexus.suhail.ink
 
-        # --- Proxmox nodes (shared client key) ---
         zion:
           ansible_host: "2603:8001:a000:100::cafe"
           ansible_user: root
@@ -60,17 +72,15 @@ all:
           ansible_user: root
           identity_file: "~/.ssh/id_proxmox"
 
-        summit:                               # placeholder for third Proxmox node
-          ansible_host: "2603:8001:a000:100::beef"    # or IPv6
+        summit:
+          ansible_host: "2603:8001:a000:100::beef"
           ansible_user: root
           identity_file: "~/.ssh/id_proxmox"
 
-        # --- Raspberry Pi 5 ---
         wisp:
           ansible_host: "2603:8001:a000:100:98ec:d450:be2:8caa"
           ansible_user: suhail
 
-        # --- Unifi Cloud Key ----
         anchor:
           ansible_host: 172.232.107.239
           ansible_user: root

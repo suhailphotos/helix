@@ -6,58 +6,71 @@
   serial: 1
 
   pre_tasks:
+    - name: Build local host candidate names
+      ansible.builtin.set_fact:
+        local_host_candidates:
+          - "{{ ansible_facts['hostname'] | default('') | lower | regex_replace(' ', '') }}"
+          - "{{ ansible_facts['nodename'] | default('') | lower | regex_replace('\\..*$', '') | regex_replace(' ', '') }}"
+          - "{{ lookup('pipe', 'scutil --get ComputerName 2>/dev/null || true') | lower | regex_replace(' ', '') }}"
+          - "{{ lookup('pipe', 'scutil --get LocalHostName 2>/dev/null || true') | lower | regex_replace(' ', '') }}"
+          - "{{ lookup('pipe', 'hostname -s 2>/dev/null || true') | lower | regex_replace(' ', '') }}"
+
     - name: Skip other hosts when running locally
       meta: end_host
       when:
         - ansible_connection == 'local'
-        - (ansible_facts['hostname'] | lower) != (inventory_hostname | lower)
+        - inventory_hostname | lower not in local_host_candidates
+
+    - name: Show local bootstrap summary
+      ansible.builtin.debug:
+        msg:
+          - "inventory_hostname={{ inventory_hostname }}"
+          - "local_host_candidates={{ local_host_candidates }}"
+          - "user={{ ansible_facts['user_id'] }}"
+          - "home={{ helix_user_home }}"
+          - "groups={{ group_names }}"
+          - "bindu_mode={{ bindu_mode | default('unset') }}"
+          - "friend_family_profile={{ friend_family_profile | default(false) }}"
+          - "matrix_enabled={{ matrix_enabled | default(false) }}"
+          - "matrix_root={{ matrix_root | default('unset') }}"
+          - "atrium_enabled={{ atrium_enabled | default(false) }}"
+          - "orbit_enabled={{ orbit_enabled | default(false) }}"
 
   roles:
     - { role: macos_bootstrap,        tags: ['bootstrap'] }
     - { role: zoxide,                 tags: ['zoxide'] }
 
-    # -------------------------
-    # Bindu (mode switch)
-    # -------------------------
+    # Bindu
     - { role: bindu_config_repo,      when: (bindu_mode | default('selective')) == 'full',      tags: ['config','bindu'] }
     - { role: bindu_selective,        when: (bindu_mode | default('selective')) == 'selective', tags: ['config','bindu'] }
 
-    # -------------------------
-    # Orbit
-    # -------------------------
-    - { role: orbit,                  tags: ['orbit'] }
-    - { role: zsh_orbit,              tags: ['zsh','orbit'] }
+    # Orbit is legacy. Apogee replaces it.
+    - { role: orbit,                  when: (orbit_enabled | default(false)) | bool, tags: ['orbit'] }
+    - { role: zsh_orbit,              when: (orbit_enabled | default(false)) | bool, tags: ['zsh','orbit'] }
 
-    # -------------------------
-    # Rust toolchain (dev-only)
-    # -------------------------
+    # Rust toolchain
     - { role: rustup,                 when: (rustup_enabled | default(false)) | bool, tags: ['rust','rustup'] }
 
-    # -------------------------
-    # Apogee install + shell init
-    # -------------------------
+    # Apogee
     - { role: apogee_homebrew,        when: (apogee_install_method | default('brew')) == 'brew',  tags: ['apogee','brew'] }
     - { role: apogee_cargo,           when: (apogee_install_method | default('brew')) == 'cargo', tags: ['apogee','cargo'] }
     - { role: zsh_apogee,             tags: ['zsh','apogee'] }
 
-    # dev-only shells (optional)
+    # Dev-only shells
     - { role: fish_shell,             when: (install_fish | default(false)) | bool,       tags: ['fish'] }
     - { role: powershell,             when: (install_powershell | default(false)) | bool, tags: ['pwsh','powershell'] }
 
-    # ------------------------
     # npm packages
-    # ------------------------
-    - { role: npm_global_packages, when: "'macos_dev' in group_names", tags: ['node','npm','codex'] }
+    - { role: npm_global_packages,    when: "'macos_dev' in group_names", tags: ['node','npm','codex'] }
 
-    # -------------------------
     # Prompt / terminal / tooling
-    # -------------------------
     - { role: starship,               tags: ['starship','prompt'] }
     - { role: ghostty,                tags: ['ghostty'] }
     - { role: iterm,                  tags: ['iterm'] }
 
     - { role: pixi,                   tags: ['pixi'] }
     - { role: python_toolchain,       tags: ['python'] }
+
     - { role: nvim,                   when: (bindu_mode | default('selective')) == 'full',      tags: ['nvim'] }
     - { role: nvim_selective,         when: (bindu_mode | default('selective')) == 'selective', tags: ['nvim'] }
 
@@ -73,5 +86,4 @@
     - { role: cargo_crates,           when: (cargo_enabled | default(false)) | bool, tags: ['cargo'] }
 
     - { role: macos_scratch,          tags: ['scratch','screencapture'] }
-    - { role: atrium_stow,            tags: ['atrium','stow'] }
-
+    - { role: atrium_stow,            when: (atrium_enabled | default(false)) | bool, tags: ['atrium','stow'] }

@@ -99,11 +99,13 @@ helix_main_branch: "main"
 helix_config_branch: "config"
 
 helix_home: "{{ helix_user_home }}/.helix"
-helix_dev_home: "{{ matrix_root }}/helix"
 
-matrix_root: "{{ lookup('env','MATRIX') | default(helix_user_home + '/Library/CloudStorage/Dropbox/matrix', true) }}"
+# Safe baseline for all Macs.
+# Friends/family machines should not depend on Dropbox or Matrix.
+matrix_enabled: false
+matrix_root: "{{ helix_user_home }}/Projects/matrix"
 matrix_packages_dir: "{{ matrix_root }}/packages"
-
+helix_dev_home: "{{ matrix_root }}/helix"
 # -----------------------------
 # Bindu base (no policy here)
 # -----------------------------

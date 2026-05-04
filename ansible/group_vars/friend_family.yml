@@ -1,0 +1,105 @@
+# group_vars/friend_family.yml
+# ------------------------------------------------------------
+# Friends & Family macOS profile
+#
+# Assumptions:
+# - No $MATRIX
+# - No $DROPBOX
+# - No Dropbox/matrix folder
+# - No Orbit
+# - No Atrium
+# - No private repos
+# - No GitHub auth state
+#
+# Allowed:
+# - Public GitHub raw config downloads from Bindu
+# - Homebrew packages/casks
+# - Apogee via public Homebrew tap
+# - zsh Apogee config
+# ------------------------------------------------------------
+
+# -----------------------------
+# Profile identity
+# -----------------------------
+friend_family_profile: true
+
+# -----------------------------
+# Safety switches
+# -----------------------------
+matrix_enabled: false
+atrium_enabled: false
+orbit_enabled: false
+
+cargo_enabled: false
+rustup_enabled: false
+hf_cli_enabled: false
+
+uv_projects_macos: []
+poetry_projects_macos: []
+cargo_crates_macos: []
+
+install_fish: false
+install_powershell: false
+
+# -----------------------------
+# Standard behavior
+# -----------------------------
+bindu_mode: selective
+apogee_install_method: brew
+yazi_enabled: true
+uv_enabled: true
+
+# -----------------------------
+# Safe non-Dropbox paths
+# -----------------------------
+matrix_root: "{{ helix_user_home }}/Projects/matrix"
+matrix_packages_dir: "{{ matrix_root }}/packages"
+helix_dev_home: "{{ matrix_root }}/helix"
+
+# -----------------------------
+# Public Bindu source
+# -----------------------------
+bindu_raw_base: "https://raw.githubusercontent.com/suhailphotos/bindu/refs/heads/main"
+
+# -----------------------------
+# Safe Bindu selective copies
+# -----------------------------
+# Do not copy:
+# - gh/hosts.yml
+# - git/config
+# - anything containing auth/account state
+#
+# These are public config files only.
+bindu_selective_files:
+  - { src: "starship/starship_zsh.toml", dest: "~/.config/starship/starship.toml" }
+
+  # Core CLI config files
+  - { src: "bat/config",     dest: "~/.config/bat/config" }
+  - { src: "eza/theme.yml",  dest: "~/.config/eza/theme.yml" }
+  - { src: "git/ignore",     dest: "~/.config/git/ignore" }
+  - { src: "pip/pip.conf",   dest: "~/.config/pip/pip.conf" }
+  - { src: "htop/htoprc",    dest: "~/.config/htop/htoprc" }
+
+  # Ghostty themes/config
+  - { src: "ghostty/config",                     dest: "~/.config/ghostty/config" }
+  - { src: "ghostty/themes/lilac-mistbloom",     dest: "~/.config/ghostty/themes/lilac-mistbloom" }
+  - { src: "ghostty/themes/lilac-pearlbloom",    dest: "~/.config/ghostty/themes/lilac-pearlbloom" }
+  - { src: "ghostty/themes/lilac-nightbloom",    dest: "~/.config/ghostty/themes/lilac-nightbloom" }
+
+  # GitHub CLI visual/config preference only, not auth.
+  - { src: "gh/config.yml",  dest: "~/.config/gh/config.yml" }
+
+  # tmux
+  - { src: "tmux/tmux.conf", dest: "~/.config/tmux/tmux.conf" }
+
+# -----------------------------
+# Desktop apps for friends/family
+# -----------------------------
+desktop_casks:
+  - discord
+  - jellyfin-media-player
+  - obsidian
+  - spotify
+  - blender
+  - notion-mail
+  - notion-calendar

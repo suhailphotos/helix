@@ -1,3 +1,15 @@
+# Personal/dev machines may use the Dropbox Matrix layout.
+matrix_enabled: true
+atrium_enabled: true
+
+matrix_root: "{{ lookup('env','MATRIX') | default(helix_user_home + '/Library/CloudStorage/Dropbox/matrix', true) }}"
+matrix_packages_dir: "{{ matrix_root }}/packages"
+helix_dev_home: "{{ matrix_root }}/helix"
+
+# Orbit is legacy. Keep disabled by default unless you still want it on dev boxes.
+orbit_enabled: false
+
+
 bindu_mode: full
 apogee_install_method: cargo
 

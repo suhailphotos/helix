@@ -14,6 +14,18 @@
 bindu_mode: selective
 apogee_install_method: brew
 
+# -----------------------------
+# Safe defaults for standard Macs
+# -----------------------------
+matrix_enabled: false
+atrium_enabled: false
+orbit_enabled: false
+hf_cli_enabled: false
+
+uv_projects_macos: []
+poetry_projects_macos: []
+cargo_crates_macos: []
+
 # Standard macs still get yazi (easy via brew)
 yazi_enabled: true
 
