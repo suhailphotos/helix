@@ -33,9 +33,6 @@ yazi_enabled: true
 cargo_enabled: false
 rustup_enabled: false
 
-cargo_crates_macos: []
-uv_projects_macos: []
-
 # Dev-only shells OFF
 install_fish: false
 install_powershell: false
