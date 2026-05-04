@@ -65,7 +65,7 @@ brew_casks:
 
 brew_taps_extra:
   - orbyts/tap
-  - homebrew/cask-fonts
+  # - homebrew/cask-fonts
 
 font_casks_optional:
   - font-eb-garamond
