@@ -54,7 +54,12 @@
     # Apogee
     - { role: apogee_homebrew,        when: (apogee_install_method | default('brew')) == 'brew',  tags: ['apogee','brew'] }
     - { role: apogee_cargo,           when: (apogee_install_method | default('brew')) == 'cargo', tags: ['apogee','cargo'] }
-    - { role: zsh_apogee,             tags: ['zsh','apogee'] }
+
+    # Friends/family/default Apogee config
+    - { role: apogee_defaults,        when: (apogee_defaults_enabled | default(false)) | bool, tags: ['apogee','zsh','starship'] }
+
+    # Legacy/dev Apogee zsh config
+    - { role: zsh_apogee,             when: not (apogee_defaults_enabled | default(false)) | bool, tags: ['zsh','apogee'] }
 
     # Dev-only shells
     - { role: fish_shell,             when: (install_fish | default(false)) | bool,       tags: ['fish'] }

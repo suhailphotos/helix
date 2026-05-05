@@ -23,6 +23,17 @@
 # -----------------------------
 friend_family_profile: true
 
+apogee_defaults_enabled: true
+
+apogee_include_dropbox: false
+apogee_include_matrix_aliases: false
+apogee_include_vfx_apps: false
+apogee_include_dev_project_aliases: false
+
+apogee_default_shell: "zsh"
+apogee_uv_default_py: "3.12"
+apogee_starship_palette: "suhail-macos-ansi"
+
 # -----------------------------
 # Safety switches
 # -----------------------------
@@ -70,15 +81,30 @@ bindu_raw_base: "https://raw.githubusercontent.com/suhailphotos/bindu/refs/heads
 # - anything containing auth/account state
 #
 # These are public config files only.
+# -----------------------------
+# Apogee default config is managed by the apogee_defaults role.
+# These generic function files are pulled from public Bindu.
+# -----------------------------
 bindu_selective_files:
-  - { src: "starship/starship_zsh.toml", dest: "~/.config/starship/starship.toml" }
+  # Apogee function files, bash/sh + zsh only.
+  - { src: "apogee/functions/clipboard.sh",               dest: "~/.config/apogee/functions/clipboard.sh" }
+  - { src: "apogee/functions/clipboard.bash",             dest: "~/.config/apogee/functions/clipboard.bash" }
+  - { src: "apogee/functions/eza.sh",                     dest: "~/.config/apogee/functions/eza.sh" }
+  - { src: "apogee/functions/git.sh",                     dest: "~/.config/apogee/functions/git.sh" }
+  - { src: "apogee/functions/python_env.zsh",             dest: "~/.config/apogee/functions/python_env.zsh" }
+  - { src: "apogee/functions/starship_root_override.zsh", dest: "~/.config/apogee/functions/starship_root_override.zsh" }
+  - { src: "apogee/functions/terminfo.sh",                dest: "~/.config/apogee/functions/terminfo.sh" }
+  - { src: "apogee/functions/tmux_seg.zsh",               dest: "~/.config/apogee/functions/tmux_seg.zsh" }
+  - { src: "apogee/functions/uv.sh",                      dest: "~/.config/apogee/functions/uv.sh" }
+  - { src: "apogee/functions/uv.zsh",                     dest: "~/.config/apogee/functions/uv.zsh" }
+  - { src: "apogee/functions/yazi.zsh",                   dest: "~/.config/apogee/functions/yazi.zsh" }
 
   # Core CLI config files
   - { src: "bat/config",     dest: "~/.config/bat/config" }
   - { src: "eza/theme.yml",  dest: "~/.config/eza/theme.yml" }
-  - { src: "git/ignore",     dest: "~/.config/git/ignore" }
-  - { src: "pip/pip.conf",   dest: "~/.config/pip/pip.conf" }
-  - { src: "htop/htoprc",    dest: "~/.config/htop/htoprc" }
+  - { src: "git/ignore",    dest: "~/.config/git/ignore" }
+  - { src: "pip/pip.conf",  dest: "~/.config/pip/pip.conf" }
+  - { src: "htop/htoprc",   dest: "~/.config/htop/htoprc" }
 
   # Ghostty themes/config
   - { src: "ghostty/config",                     dest: "~/.config/ghostty/config" }
@@ -86,8 +112,8 @@ bindu_selective_files:
   - { src: "ghostty/themes/lilac-pearlbloom",    dest: "~/.config/ghostty/themes/lilac-pearlbloom" }
   - { src: "ghostty/themes/lilac-nightbloom",    dest: "~/.config/ghostty/themes/lilac-nightbloom" }
 
-  # GitHub CLI visual/config preference only, not auth.
-  - { src: "gh/config.yml",  dest: "~/.config/gh/config.yml" }
+  # GitHub CLI config only, not auth.
+  - { src: "gh/config.yml", dest: "~/.config/gh/config.yml" }
 
   # tmux
   - { src: "tmux/tmux.conf", dest: "~/.config/tmux/tmux.conf" }

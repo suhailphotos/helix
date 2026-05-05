@@ -1,0 +1,68 @@
+---
+- name: Apogee defaults disabled - skipping
+  ansible.builtin.debug:
+    msg: "apogee_defaults_enabled is false; skipping Apogee defaults."
+  when: not (apogee_defaults_enabled | default(false)) | bool
+
+- name: Stop Apogee defaults role when disabled
+  ansible.builtin.meta: end_host
+  when: not (apogee_defaults_enabled | default(false)) | bool
+
+- name: Ensure Apogee config directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+  loop:
+    - "{{ apogee_config_dir }}"
+    - "{{ apogee_functions_dir }}"
+    - "{{ apogee_hooks_dir }}"
+    - "{{ apogee_templates_dir }}"
+    - "{{ starship_config_dir }}"
+
+- name: Install Apogee config.toml
+  ansible.builtin.template:
+    src: config.toml.j2
+    dest: "{{ apogee_config_dir }}/config.toml"
+    mode: "0644"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    backup: yes
+
+- name: Install Apogee secrets.env placeholder if missing
+  ansible.builtin.template:
+    src: secrets.env.j2
+    dest: "{{ apogee_config_dir }}/secrets.env"
+    mode: "0600"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    force: false
+
+- name: Install Starship zsh config
+  ansible.builtin.template:
+    src: starship_zsh.toml.j2
+    dest: "{{ starship_config_dir }}/starship_zsh.toml"
+    mode: "0644"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    backup: yes
+
+- name: Install fallback Starship config
+  ansible.builtin.template:
+    src: starship_zsh.toml.j2
+    dest: "{{ starship_config_dir }}/starship.toml"
+    mode: "0644"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    backup: yes
+
+- name: Install zshrc with Apogee defaults
+  ansible.builtin.template:
+    src: zshrc.mac.j2
+    dest: "{{ helix_user_home }}/.zshrc"
+    mode: "0644"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    backup: yes

@@ -1,0 +1,491 @@
+# ===================================================================
+# Apogee config
+# Managed by Helix / Ansible
+#
+# Profile:
+#   friend_family_profile = {{ friend_family_profile | default(false) }}
+#
+# This config is intentionally safe for standard friends/family Macs:
+# - no Dropbox requirement
+# - no MATRIX requirement
+# - no private project aliases
+# - no Orbit
+# - no VFX app assumptions
+# ===================================================================
+
+[apogee]
+schema_version = 2
+
+default_shell = "{{ apogee_default_shell | default('zsh') }}"
+platforms = ["mac", "linux", "windows", "wsl", "other"]
+
+env_file = "{config_dir}/.env"
+secrets_file = "{config_dir}/secrets.env"
+
+[apogee.bootstrap.defaults.env]
+XDG_CONFIG_HOME = "{home}/.config"
+XDG_CACHE_HOME  = "{home}/.cache"
+XDG_DATA_HOME   = "{home}/.local/share"
+XDG_STATE_HOME  = "{home}/.local/state"
+
+[apogee.bootstrap.secrets]
+strategy = "fill_missing"
+
+[modules]
+enable_cloud = {{ apogee_enable_cloud | default(true) | bool | lower }}
+enable_apps = {{ apogee_enable_apps | default(true) | bool | lower }}
+enable_hooks = {{ apogee_enable_hooks | default(false) | bool | lower }}
+enable_templates = {{ apogee_enable_templates | default(false) | bool | lower }}
+
+# ===================================================================
+# GLOBAL
+# ===================================================================
+
+[global]
+
+[global.env]
+XDG_CONFIG_HOME = "{home}/.config"
+
+[global.aliases.platform.mac]
+o = "open ."
+bindu = "cd {xdg_config_home}"
+
+[global.aliases.platform.linux]
+o = "xdg-open ."
+bindu = "cd {xdg_config_home}"
+
+[global.aliases.platform.windows]
+o = "explorer.exe ."
+
+[global.aliases.platform.wsl]
+o = "explorer.exe ."
+
+# ===================================================================
+# CLOUD / LOCAL PATHS
+# ===================================================================
+
+[modules.cloud]
+enabled = true
+
+# Local scratch only.
+[modules.cloud.scratch_paths]
+enabled = true
+kind = "storage"
+platforms = ["mac"]
+
+[modules.cloud.scratch_paths.detect.paths.mac]
+any_of = [
+  "{home}/Documents/Scratch"
+]
+
+[modules.cloud.scratch_paths.emit.env]
+projexp = "{home}/Documents/Scratch/exports"
+scrcap = "{home}/Documents/Scratch/screenshots"
+
+{% if apogee_include_dropbox | default(false) %}
+# Dropbox is disabled for friends/family by default.
+[modules.cloud.dropbox]
+enabled = true
+kind = "storage"
+platforms = ["mac", "linux", "windows", "wsl", "other"]
+
+[modules.cloud.dropbox.detect.paths.mac]
+any_of = [
+  "{home}/Library/CloudStorage/Dropbox",
+  "{home}/Dropbox",
+]
+
+[modules.cloud.dropbox.detect.paths.linux]
+any_of = ["{home}/Dropbox"]
+
+[modules.cloud.dropbox.detect.paths.windows]
+any_of = ["{userprofile}/Dropbox"]
+
+[modules.cloud.dropbox.detect.paths.wsl]
+any_of = [
+  "{userprofile}/Dropbox",
+  "/mnt/c/Users/{username}/Dropbox",
+]
+
+[modules.cloud.dropbox.detect.paths.other]
+any_of = ["{home}/Dropbox"]
+
+[modules.cloud.dropbox.emit.env]
+DROPBOX = "{detect.path}"
+
+[modules.cloud.dropbox.emit.env_derived]
+MATRIX = "$DROPBOX/matrix"
+DOCKER = "$MATRIX/docker"
+BASE_DIR = "$MATRIX/shellscripts"
+PACKAGES = "$MATRIX/packages"
+CRATES = "$MATRIX/crates"
+OBSIDIAN = "$MATRIX/obsidian/jnanaKosha"
+CREDENTIALS_PATH = "$MATRIX/config/credentials"
+
+{% if apogee_include_matrix_aliases | default(false) %}
+[modules.cloud.dropbox.emit.aliases]
+matrix = "cd \"$MATRIX\""
+packages = "cd \"$PACKAGES\""
+helix = "cd \"$DROPBOX/matrix/helix\""
+{% endif %}
+
+[modules.cloud.dropbox.emit.paths]
+prepend_if_exists = ["$DROPBOX/matrix/bin"]
+append_if_exists = []
+{% endif %}
+
+# ===================================================================
+# APPS
+# ===================================================================
+
+[modules.apps]
+enabled = true
+
+# --------------------------------------------------
+# Homebrew
+# --------------------------------------------------
+[modules.apps.core_homebrew]
+enabled = true
+kind = "cli"
+platforms = ["mac"]
+priority = 10
+
+[modules.apps.core_homebrew.detect.paths.mac]
+any_of = [
+  "/opt/homebrew/bin",
+  "/usr/local/bin",
+]
+
+[modules.apps.core_homebrew.emit.paths]
+prepend_if_exists = [
+  "{detect.path}",
+  "/opt/homebrew/sbin",
+  "/usr/local/sbin",
+]
+append_if_exists = []
+
+[[modules.apps.core_homebrew.emit.init]]
+command = "brew"
+args = ["shellenv"]
+pwsh_out_string = true
+
+# --------------------------------------------------
+# User paths
+# --------------------------------------------------
+[modules.apps.core_userpaths]
+enabled = true
+kind = "cli"
+priority = 20
+platforms = ["mac", "linux", "wsl", "other", "windows"]
+
+[modules.apps.core_userpaths.detect.paths.mac]
+any_of = [
+  "{home}/.local/bin",
+  "{home}/.local/share/uv/bin",
+]
+
+[modules.apps.core_userpaths.detect.paths.linux]
+any_of = [
+  "{home}/.local/bin",
+  "{home}/.local/share/uv/bin",
+]
+
+[modules.apps.core_userpaths.detect.paths.wsl]
+any_of = [
+  "{home}/.local/bin",
+  "{home}/.local/share/uv/bin",
+]
+
+[modules.apps.core_userpaths.detect.paths.other]
+any_of = [
+  "{home}/.local/bin",
+  "{home}/.local/share/uv/bin",
+]
+
+[modules.apps.core_userpaths.detect.paths.windows]
+any_of = [
+  "{userprofile}/.local/bin",
+]
+
+[modules.apps.core_userpaths.emit.paths]
+prepend_if_exists = [
+  "{home}/.local/bin",
+  "{home}/.local/share/uv/bin",
+]
+append_if_exists = []
+
+# --------------------------------------------------
+# Editor
+# --------------------------------------------------
+[modules.apps.core_editor]
+enabled = true
+kind = "cli"
+priority = 30
+platforms = []
+
+[modules.apps.core_editor.detect.commands]
+any_of = ["nvim", "vim", "vi"]
+
+[modules.apps.core_editor.emit.env]
+EDITOR = "{detect.command}"
+VISUAL = "{detect.command}"
+GIT_EDITOR = "{detect.command}"
+
+[modules.apps.nvim_aliases]
+enabled = true
+kind = "cli"
+priority = 31
+platforms = ["mac", "linux", "windows", "wsl", "other"]
+
+[modules.apps.nvim_aliases.detect.commands]
+any_of = ["nvim"]
+
+[modules.apps.nvim_aliases.emit.aliases]
+vi = "nvim"
+vim = "nvim"
+
+# --------------------------------------------------
+# Git
+# --------------------------------------------------
+[modules.apps.git]
+enabled = true
+kind = "cli"
+priority = 40
+platforms = []
+
+[modules.apps.git.detect.commands]
+any_of = ["git"]
+
+[modules.apps.git.emit.aliases]
+gs = "git status"
+gcp = "git_commit_push"
+mb = "merge_branch"
+gbp = "git_blob_push"
+
+[modules.apps.git.emit.functions]
+files = [
+  "{config_dir}/functions/git.{shell_family_ext}",
+]
+
+# --------------------------------------------------
+# eza
+# --------------------------------------------------
+[modules.apps.eza]
+enabled = true
+kind = "cli"
+priority = 50
+platforms = ["mac", "linux", "windows", "wsl", "other"]
+
+[modules.apps.eza.detect.commands]
+any_of = ["eza"]
+
+[modules.apps.eza.emit.env]
+USE_EZA = "1"
+EZA_CONFIG_DIR = "{home}/.config/eza"
+APOGEE_LS_ICONS = "0"
+APOGEE_DOTFILES_SGR = "90"
+
+[modules.apps.eza.emit.functions]
+files = [
+  "{config_dir}/functions/eza.{shell_family_ext}",
+]
+
+# --------------------------------------------------
+# Starship
+# --------------------------------------------------
+[modules.apps.starship]
+enabled = true
+kind = "cli"
+priority = 70
+platforms = ["mac", "linux", "windows", "wsl", "other"]
+
+[modules.apps.starship.detect.commands]
+any_of = ["starship"]
+
+[modules.apps.starship.emit.env]
+STARSHIP_CONFIG = "{xdg_config_home}/starship/starship_{shell}.toml"
+
+[modules.apps.starship.emit.source]
+files = [
+  "{config_dir}/functions/starship_root_override.{shell_ext}",
+]
+
+[[modules.apps.starship.emit.init]]
+command = "{detect.command_path}"
+args = ["init", "{shell_init}"]
+pwsh_out_string = false
+
+# --------------------------------------------------
+# zoxide
+# --------------------------------------------------
+[modules.apps.zoxide]
+enabled = true
+kind = "cli"
+priority = 80
+platforms = ["mac", "linux", "windows", "wsl", "other"]
+
+[modules.apps.zoxide.detect.commands]
+any_of = ["zoxide"]
+
+[[modules.apps.zoxide.emit.init]]
+command = "{detect.command_path}"
+args = ["init", "{shell_init}"]
+pwsh_out_string = true
+
+# --------------------------------------------------
+# uv
+# --------------------------------------------------
+[modules.apps.uv]
+enabled = true
+kind = "cli"
+priority = 100
+platforms = ["mac", "linux", "windows", "wsl", "other"]
+
+[modules.apps.uv.detect.commands]
+any_of = ["uv"]
+
+[modules.apps.uv.emit.env]
+APOGEE_UV_VENV_ROOT = "{home}/.venvs"
+APOGEE_UV_DEFAULT_PY = "{{ apogee_uv_default_py | default('3.12') }}"
+APOGEE_UV_QUIET = "0"
+APOGEE_UV_SYNC_ON_ACTIVATE = "0"
+APOGEE_UV_FORCE_SYNC = "0"
+APOGEE_USE_CONDA = "0"
+UV_TOOL_DIR = "{home}/.local/share/uv/tools"
+UV_TOOL_BIN_DIR = "{home}/.local/share/uv/bin"
+
+[modules.apps.uv.emit.paths]
+prepend_if_exists = [
+  "$UV_TOOL_BIN_DIR",
+  "{home}/.local/share/uv/bin",
+]
+append_if_exists = []
+
+[modules.apps.uv.emit.functions]
+files = [
+  "{config_dir}/functions/python_env.{shell_ext}",
+]
+
+# --------------------------------------------------
+# fzf
+# --------------------------------------------------
+[modules.apps.fzf]
+enabled = true
+priority = 120
+kind = "cli"
+
+[modules.apps.fzf.detect.commands]
+any_of = ["fzf"]
+
+[modules.apps.fzf.emit.source]
+files = [
+  "/opt/homebrew/opt/fzf/shell/completion.{shell_ext}",
+  "/opt/homebrew/opt/fzf/shell/key-bindings.{shell_ext}",
+  "/usr/local/opt/fzf/shell/completion.{shell_ext}",
+  "/usr/local/opt/fzf/shell/key-bindings.{shell_ext}",
+  "{home}/.fzf/shell/completion.{shell_ext}",
+  "{home}/.fzf/shell/key-bindings.{shell_ext}",
+]
+
+# --------------------------------------------------
+# ripgrep
+# --------------------------------------------------
+[modules.apps.ripgrep]
+enabled = true
+priority = 130
+kind = "cli"
+
+[modules.apps.ripgrep.detect.commands]
+any_of = ["rg"]
+
+[modules.apps.ripgrep.emit.aliases]
+rgi = "rg --hidden --follow"
+rgv = "rg --hidden --follow --glob '!**/.git/*'"
+
+# --------------------------------------------------
+# fd
+# --------------------------------------------------
+[modules.apps.fd]
+enabled = true
+priority = 135
+kind = "cli"
+
+[modules.apps.fd.detect.commands]
+any_of = ["fd", "fdfind"]
+
+# --------------------------------------------------
+# yazi
+# --------------------------------------------------
+[modules.apps.yazi]
+enabled = true
+kind = "cli"
+priority = 140
+platforms = ["mac", "linux", "wsl", "other"]
+
+[modules.apps.yazi.detect.commands]
+any_of = ["yazi"]
+
+[modules.apps.yazi.emit.functions]
+files = [
+  "{config_dir}/functions/yazi.{shell_ext}",
+]
+
+# --------------------------------------------------
+# bat
+# --------------------------------------------------
+[modules.apps.bat]
+enabled = true
+kind = "cli"
+priority = 145
+platforms = ["mac", "linux", "wsl", "other", "windows"]
+
+[modules.apps.bat.detect.commands]
+any_of = ["bat", "batcat"]
+
+[modules.apps.bat.emit.env]
+MANPAGER = "sh -c 'col -bx | bat -l man -p'"
+
+# --------------------------------------------------
+# clipboard
+# --------------------------------------------------
+[modules.apps.clipboard]
+enabled = true
+kind = "cli"
+priority = 150
+platforms = ["mac", "linux", "windows", "wsl", "other"]
+
+[modules.apps.clipboard.detect.commands]
+any_of = ["pbcopy", "wl-copy", "xclip", "xsel", "clip.exe", "powershell.exe", "pwsh", "powershell"]
+
+[modules.apps.clipboard.emit.functions]
+files = [
+  "{config_dir}/functions/clipboard.{shell_family_ext}",
+]
+
+# --------------------------------------------------
+# tmux segment
+# --------------------------------------------------
+[modules.apps.tmux_seg]
+enabled = true
+kind = "cli"
+priority = 75
+platforms = ["mac", "linux", "windows", "wsl", "other"]
+
+[modules.apps.tmux_seg.detect.commands]
+any_of = ["tmux"]
+
+[modules.apps.tmux_seg.emit.functions]
+files = [
+  "{config_dir}/functions/tmux_seg.{shell_ext}",
+]
+
+{% if apogee_include_vfx_apps | default(false) %}
+# VFX app modules intentionally disabled for friends/family.
+{% endif %}
+
+# ===================================================================
+# Hooks
+# ===================================================================
+
+[modules.hooks]
+enabled = false

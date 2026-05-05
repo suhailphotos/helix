@@ -1,0 +1,25 @@
+---
+apogee_defaults_enabled: false
+
+apogee_config_dir: "{{ helix_user_home }}/.config/apogee"
+apogee_functions_dir: "{{ apogee_config_dir }}/functions"
+apogee_hooks_dir: "{{ apogee_config_dir }}/hooks"
+apogee_templates_dir: "{{ apogee_config_dir }}/templates"
+
+starship_config_dir: "{{ helix_user_home }}/.config/starship"
+
+apogee_default_shell: "zsh"
+
+apogee_enable_cloud: true
+apogee_enable_apps: true
+apogee_enable_hooks: false
+apogee_enable_templates: false
+
+apogee_include_dropbox: false
+apogee_include_matrix_aliases: false
+apogee_include_vfx_apps: false
+apogee_include_dev_project_aliases: false
+
+apogee_uv_default_py: "3.12"
+
+apogee_starship_palette: "suhail-macos-ansi"

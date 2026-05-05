@@ -1,0 +1,58 @@
+# ~/.zshrc
+# Managed by Helix / Ansible
+
+# Load brew environment for interactive non-login shells too.
+# brew shellenv is also managed in ~/.zprofile.
+if [[ -o interactive && ! -o login && -r "$HOME/.zprofile" ]]; then
+  source "$HOME/.zprofile"
+fi
+
+# ----------------------------
+# History
+# ----------------------------
+HISTFILE="${ZDOTDIR:-$HOME}/.zsh_history"
+HISTSIZE=${HISTSIZE:-200000}
+SAVEHIST=${SAVEHIST:-200000}
+
+setopt APPEND_HISTORY
+setopt INC_APPEND_HISTORY
+setopt SHARE_HISTORY
+setopt HIST_IGNORE_DUPS
+setopt HIST_IGNORE_SPACE
+setopt HIST_REDUCE_BLANKS
+setopt EXTENDED_HISTORY
+setopt HIST_VERIFY
+
+# ----------------------------
+# Basic user paths
+# ----------------------------
+if [[ -d "$HOME/.local/bin" ]]; then
+  export PATH="$HOME/.local/bin:$PATH"
+fi
+
+if [[ -d "$HOME/.local/share/uv/bin" ]]; then
+  export PATH="$HOME/.local/share/uv/bin:$PATH"
+fi
+
+if [[ -d "$HOME/.cargo/bin" ]]; then
+  export PATH="$HOME/.cargo/bin:$PATH"
+fi
+
+# ----------------------------
+# Apogee
+# ----------------------------
+if command -v apogee >/dev/null 2>&1; then
+  eval "$(apogee)"
+fi
+
+# ----------------------------
+# Starship fallback
+# ----------------------------
+# Apogee normally initializes Starship. This fallback only runs if
+# STARSHIP_CONFIG was not set by Apogee for some reason.
+if command -v starship >/dev/null 2>&1; then
+  if [[ -z "${STARSHIP_CONFIG:-}" ]]; then
+    export STARSHIP_CONFIG="$HOME/.config/starship/starship_zsh.toml"
+    eval "$(starship init zsh)"
+  fi
+fi
