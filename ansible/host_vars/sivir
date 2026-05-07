@@ -1,0 +1,13 @@
+# host_vars/sparrow.yml
+# Mom's MacBook Air
+
+friendly_owner_name: "jameela"
+
+friend_family_profile: true
+matrix_enabled: false
+atrium_enabled: false
+orbit_enabled: false
+
+# Keep blank unless you later decide to template Git identity.
+git_user_name: ""
+git_user_email: ""
